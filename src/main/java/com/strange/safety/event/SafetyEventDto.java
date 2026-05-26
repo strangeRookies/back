@@ -25,6 +25,9 @@ public record SafetyEventDto(
 
         @NotBlank
         @JsonProperty("message")
-        String message
+        String message,
+
+        @JsonProperty("source")
+        String source
 ) {
 }

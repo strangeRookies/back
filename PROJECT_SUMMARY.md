@@ -6,15 +6,17 @@ Spring Boot backend for the Smart Safety Monitoring System MVP.
 
 ```text
 Python Edge AI Mock Publisher
--> Redis Pub/Sub safety-events
--> Spring Boot Backend
+-> MQTT Broker (Mosquitto) safety/events
+-> Spring Boot MQTT Subscriber
 -> WebSocket STOMP /topic/alerts
 -> React Frontend
 ```
 
-## Redis To WebSocket Alerts
+## MQTT To WebSocket Alerts
 
-The backend subscribes to the Redis Pub/Sub channel `safety-events`, maps each JSON payload to `SafetyEventDto`, and broadcasts it to the STOMP topic `/topic/alerts`.
+The backend subscribes to the MQTT topic `safety/events`, maps each JSON payload to `SafetyEventDto`, and broadcasts it to the STOMP topic `/topic/alerts`.
+
+The previous Redis Pub/Sub subscriber is not used in the current MQTT MVP.
 
 ### Event Shape
 
@@ -24,28 +26,28 @@ The backend subscribes to the Redis Pub/Sub channel `safety-events`, maps each J
   "camera_id": "cam_01",
   "timestamp": "2026-05-26T10:00:00Z",
   "severity": "HIGH",
-  "message": "Fall detected from mock edge AI"
+  "message": "Fall detected from mock edge AI",
+  "source": "edge-ai-mock"
 }
 ```
 
 ### Environment Variables
 
 ```text
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_CHANNEL=safety-events
+MQTT_BROKER_URL=tcp://localhost:1883
+MQTT_CLIENT_ID=safety-backend
+MQTT_TOPIC=safety/events
+MQTT_RECONNECT_DELAY_MS=5000
 SERVER_PORT=8080
 WEBSOCKET_ALLOWED_ORIGIN_PATTERNS=http://localhost:3000,http://localhost:5173
 ```
 
-No Redis password is configured for local development.
-
 ### Run
 
-Start Redis first:
+Start Mosquitto first:
 
 ```bash
-docker compose up -d redis
+docker compose up -d mosquitto
 ```
 
 Run the backend:
@@ -65,18 +67,23 @@ gradle bootRun
 ```text
 STOMP endpoint: /ws
 Subscribe topic: /topic/alerts
-Redis channel: safety-events
+MQTT topic: safety/events
 ```
 
 ### Manual Verification
 
-1. Start Redis.
+1. Start Mosquitto from `strange_infra`.
 2. Start this Spring Boot backend.
 3. Run `strange_ai/mock_edge_ai.py`.
-4. Check backend logs for Redis event receive logs.
+4. Check backend logs for MQTT `safety/events` receive logs.
 5. Connect a STOMP client or the React frontend to `/ws`.
 6. Subscribe to `/topic/alerts`.
 7. Confirm safety event JSON messages arrive in real time.
+
+### Security TODO
+
+- Add MQTT username/password, certificates, or ACLs before production deployment.
+- Do not commit real passwords, API keys, certificates, or private broker credentials.
 
 ### Scope
 
