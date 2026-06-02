@@ -2,6 +2,27 @@ spring:
   application:
     name: strange-back
 
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:safetydb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+
+  h2:
+    console:
+      enabled: ${H2_CONSOLE_ENABLED:true}
+      path: /h2-console
+
 server:
   port: ${SERVER_PORT:8080}
 
@@ -15,6 +36,12 @@ mqtt:
 app:
   websocket:
     allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173}
+  jwt:
+    secret: ${JWT_SECRET:strange-safety-jwt-secret-key-must-be-at-least-256-bits-long!!}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  aes:
+    secret-key: ${AES_SECRET_KEY:StrangeSafetyKey}
+    iv: ${AES_IV:StrangeSafetyIvec}
 
 logging:
   level:
