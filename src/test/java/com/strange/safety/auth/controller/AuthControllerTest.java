@@ -38,7 +38,7 @@ class AuthControllerTest {
         UserResponse response = new UserResponse(1L, "test@example.com", "홍길동", null, false, Role.USER);
         when(authService.signup(any(SignupRequest.class))).thenReturn(response);
 
-        mockMvc.perform(post("/api/v1/auth/signup")
+        mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new SignupRequest("test@example.com", "password123", "홍길동", null))))
@@ -50,7 +50,7 @@ class AuthControllerTest {
 
     @Test
     void signupValidationFailureReturnsCommonErrorResponse() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/signup")
+        mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new SignupRequest("bad-email", "short", "", null))))
