@@ -23,6 +23,7 @@ public enum ErrorCode {
     USER_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_ALREADY_EXISTS", "이미 사용 중인 이메일입니다."),
     USER_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_EMAIL_ALREADY_EXISTS", "이미 가입된 이메일입니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."),
+    USER_INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "USER_INVALID_PASSWORD", "비밀번호가 일치하지 않습니다."),
 
     COMPANY_BUSINESS_NUMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "COMPANY_BUSINESS_NUMBER_ALREADY_EXISTS", "이미 등록된 사업자등록번호입니다."),
 
