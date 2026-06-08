@@ -1,33 +1,25 @@
 package com.strange.safety.event;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
 import java.time.Instant;
 
 public record SafetyEventDto(
-        @NotBlank
-        @JsonProperty("type")
+        @JsonAlias({"type", "event_type"})
         String type,
 
-        @NotBlank
         @JsonProperty("camera_id")
+        @JsonAlias({"camera_id", "cameraId"})
         String cameraId,
 
-        @NotNull
-        @JsonProperty("timestamp")
+        @JsonAlias({"timestamp", "detected_at"})
         Instant timestamp,
 
-        @NotBlank
-        @JsonProperty("severity")
         String severity,
 
-        @NotBlank
-        @JsonProperty("message")
         String message,
 
-        @JsonProperty("source")
         String source
 ) {
 }
+

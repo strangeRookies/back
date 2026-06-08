@@ -9,9 +9,15 @@ import com.strange.safety.alert.entity.AlertSeverity;
 import com.strange.safety.alert.entity.AlertStatus;
 import com.strange.safety.alert.repository.AlertEventRepository;
 import com.strange.safety.alert.repository.SnapshotRepository;
+import com.strange.safety.camera.entity.Camera;
+import com.strange.safety.camera.repository.CameraRepository;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
+import com.strange.safety.event.SafetyEventDto;
 import com.strange.safety.facility.service.FacilityService;
+import com.strange.safety.scenario.entity.Scenario;
+import com.strange.safety.scenario.entity.ScenarioType;
+import com.strange.safety.scenario.repository.ScenarioRepository;
 import com.strange.safety.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,7 +27,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
+
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +41,8 @@ public class AlertEventService {
     private final SnapshotRepository snapshotRepository;
     private final FacilityService facilityService;
     private final UserRepository userRepository;
+    private final CameraRepository cameraRepository;
+    private final ScenarioRepository scenarioRepository;
 
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
@@ -108,5 +118,60 @@ public class AlertEventService {
                     root.join("camera").join("facility").get("id"),
                     facilityId);
         };
+    }
+
+    @Transactional
+    public AlertEventResponse createEvent(SafetyEventDto dto) {
+        String cameraIdVal = dto.cameraId() != null ? dto.cameraId() : "CCTV-01";
+        Camera camera = cameraRepository.findByCameraLoginId(cameraIdVal)
+                .orElseThrow(() -> new CustomException(ErrorCode.CAMERA_NOT_FOUND));
+
+        ScenarioType scenarioType = mapToScenarioType(dto.type());
+
+        Scenario scenario = scenarioRepository.findByScenarioType(scenarioType)
+                .orElseThrow(() -> new CustomException(ErrorCode.SCENARIO_NOT_FOUND));
+
+        AlertSeverity severity = mapToAlertSeverity(dto.severity());
+
+        Instant timestampVal = dto.timestamp() != null ? dto.timestamp() : Instant.now();
+        String messageVal = dto.message() != null ? dto.message() : (dto.type() != null ? dto.type() + " detected" : "AI safety event detected");
+
+        AlertEvent event = AlertEvent.builder()
+                .camera(camera)
+                .scenario(scenario)
+                .confidenceScore(0.85f)
+                .severity(severity)
+                .keypointData(messageVal)
+                .boundingBoxData(null)
+                .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneOffset.UTC))
+                .build();
+
+        AlertEvent saved = alertEventRepository.save(event);
+        return AlertEventResponse.from(saved);
+    }
+
+
+    private ScenarioType mapToScenarioType(String type) {
+        if (type == null) return ScenarioType.SYNCOPE;
+        String upper = type.toUpperCase();
+        if (upper.contains("FALL")) return ScenarioType.FALL_BED;
+        if (upper.contains("COLLAPSE")) return ScenarioType.COLLAPSE;
+        if (upper.contains("FAINT") || upper.contains("SYNCOPE")) return ScenarioType.SYNCOPE;
+        if (upper.contains("EXIT")) return ScenarioType.EXIT;
+        if (upper.contains("ASSAULT") || upper.contains("VIOLENCE") || upper.contains("FIGHT")) return ScenarioType.ASSAULT;
+        
+        try {
+            return ScenarioType.valueOf(upper);
+        } catch (IllegalArgumentException e) {
+            return ScenarioType.SYNCOPE;
+        }
+    }
+
+    private AlertSeverity mapToAlertSeverity(String severity) {
+        if (severity == null) return AlertSeverity.CRITICAL;
+        String upper = severity.toUpperCase();
+        if (upper.contains("CRITICAL") || upper.contains("HIGH")) return AlertSeverity.CRITICAL;
+        if (upper.contains("WARNING") || upper.contains("MEDIUM")) return AlertSeverity.WARNING;
+        return AlertSeverity.WARNING;
     }
 }
