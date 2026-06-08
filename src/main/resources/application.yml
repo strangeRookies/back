@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
@@ -52,9 +53,3 @@ app:
 logging:
   level:
     com.strange.safety: INFO
-
-<<<<<<< HEAD
-
-
-=======
->>>>>>> origin/develop
