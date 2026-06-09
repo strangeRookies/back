@@ -12,6 +12,10 @@ import com.strange.safety.auth.entity.SmsVerification;
 import com.strange.safety.auth.entity.VerificationPurpose;
 import com.strange.safety.auth.repository.SmsVerificationRepository;
 import com.strange.safety.auth.security.RefreshTokenHasher;
+import com.strange.safety.auth.sms.SmsCodeGenerator;
+import com.strange.safety.auth.sms.SmsProperties;
+import com.strange.safety.auth.sms.SmsSendException;
+import com.strange.safety.auth.sms.SmsSender;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import java.time.Instant;
@@ -31,13 +35,18 @@ class SmsVerificationServiceTest {
     private SmsVerificationRepository repository;
     @Mock
     private RefreshTokenHasher tokenHasher;
+    @Mock
+    private SmsSender smsSender;
 
     private SmsVerificationService service;
+    private SmsProperties smsProperties;
 
     @BeforeEach
     void setUp() {
-        service = new SmsVerificationService(repository, new BCryptPasswordEncoder(), tokenHasher);
-        ReflectionTestUtils.setField(service, "localVerificationCode", "123456");
+        smsProperties = new SmsProperties();
+        SmsCodeGenerator codeGenerator = () -> "123456";
+        service = new SmsVerificationService(
+                repository, new BCryptPasswordEncoder(), tokenHasher, smsSender, codeGenerator, smsProperties);
     }
 
     @Test
@@ -63,6 +72,29 @@ class SmsVerificationServiceTest {
         assertThatThrownBy(() -> service.consume(
                 confirmed.verificationToken(), "01012345678", VerificationPurpose.SIGN_UP))
                 .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    void sendFailsWhenRateLimitIsExceeded() {
+        when(repository.existsByPhoneNumberAndCreatedAtAfter(any(String.class), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.send(
+                new SmsVerificationRequest("010-1234-5678", VerificationPurpose.SIGN_UP), "127.0.0.1"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.SMS_RATE_LIMITED);
+    }
+
+    @Test
+    void sendFailsWhenSmsProviderFails() {
+        org.mockito.Mockito.doThrow(new SmsSendException("failed", new RuntimeException()))
+                .when(smsSender).send(any(String.class), any(String.class));
+
+        assertThatThrownBy(() -> service.send(
+                new SmsVerificationRequest("010-1234-5678", VerificationPurpose.SIGN_UP), "127.0.0.1"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.SMS_SEND_FAILED);
     }
 
     @Test

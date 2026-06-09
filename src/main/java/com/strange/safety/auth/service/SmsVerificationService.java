@@ -5,12 +5,16 @@ import com.strange.safety.auth.entity.SmsVerification;
 import com.strange.safety.auth.entity.VerificationPurpose;
 import com.strange.safety.auth.repository.SmsVerificationRepository;
 import com.strange.safety.auth.security.RefreshTokenHasher;
+import com.strange.safety.auth.sms.SmsCodeGenerator;
+import com.strange.safety.auth.sms.SmsProperties;
+import com.strange.safety.auth.sms.SmsSendException;
+import com.strange.safety.auth.sms.SmsSender;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,15 +30,27 @@ public class SmsVerificationService {
     private final SmsVerificationRepository smsVerificationRepository;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenHasher tokenHasher;
-
-    @Value("${sms.local-verification-code:123456}")
-    private String localVerificationCode;
+    private final SmsSender smsSender;
+    private final SmsCodeGenerator smsCodeGenerator;
+    private final SmsProperties smsProperties;
 
     public SmsVerificationResponse send(SmsVerificationRequest request) {
+        return send(request, null);
+    }
+
+    public SmsVerificationResponse send(SmsVerificationRequest request, String requestIp) {
+        String phoneNumber = normalizePhone(request.phone());
+        validateRateLimit(phoneNumber, requestIp);
+
+        String code = smsCodeGenerator.generate();
+        String message = smsProperties.getMessage().getVerificationTemplate().replace("{code}", code);
+        sendMessage(phoneNumber, message);
+
         SmsVerification verification = SmsVerification.issue(
-                normalizePhone(request.phone()), request.purpose(),
-                passwordEncoder.encode(localVerificationCode),
-                Instant.now().plusSeconds(CODE_EXPIRATION_SECONDS)
+                phoneNumber, request.purpose(),
+                passwordEncoder.encode(code),
+                Instant.now().plusSeconds(CODE_EXPIRATION_SECONDS),
+                normalizeIp(requestIp)
         );
         SmsVerification saved = smsVerificationRepository.save(verification);
         return new SmsVerificationResponse(saved.getId(), CODE_EXPIRATION_SECONDS);
@@ -70,5 +86,38 @@ public class SmsVerificationService {
 
     public String normalizePhone(String phone) {
         return phone == null ? null : phone.replaceAll("[^0-9]", "");
+    }
+
+    private void validateRateLimit(String phoneNumber, String requestIp) {
+        SmsProperties.RateLimit rateLimit = smsProperties.getRateLimit();
+        LocalDateTime now = LocalDateTime.now();
+        if (rateLimit.getResendCooldownSeconds() > 0
+                && smsVerificationRepository.existsByPhoneNumberAndCreatedAtAfter(
+                phoneNumber, now.minusSeconds(rateLimit.getResendCooldownSeconds()))) {
+            throw new CustomException(ErrorCode.SMS_RATE_LIMITED);
+        }
+        if (rateLimit.getDailyLimitPerPhone() > 0
+                && smsVerificationRepository.countByPhoneNumberAndCreatedAtAfter(phoneNumber, now.minusDays(1))
+                >= rateLimit.getDailyLimitPerPhone()) {
+            throw new CustomException(ErrorCode.SMS_RATE_LIMITED);
+        }
+        String normalizedIp = normalizeIp(requestIp);
+        if (normalizedIp != null && rateLimit.getDailyLimitPerIp() > 0
+                && smsVerificationRepository.countByRequestIpAndCreatedAtAfter(normalizedIp, now.minusDays(1))
+                >= rateLimit.getDailyLimitPerIp()) {
+            throw new CustomException(ErrorCode.SMS_RATE_LIMITED);
+        }
+    }
+
+    private void sendMessage(String phoneNumber, String message) {
+        try {
+            smsSender.send(phoneNumber, message);
+        } catch (SmsSendException exception) {
+            throw new CustomException(ErrorCode.SMS_SEND_FAILED);
+        }
+    }
+
+    private String normalizeIp(String requestIp) {
+        return requestIp == null || requestIp.isBlank() ? null : requestIp.trim();
     }
 }

@@ -40,7 +40,19 @@ mqtt:
   initial-connect-delay-ms: ${MQTT_INITIAL_CONNECT_DELAY_MS:1000}
 
 sms:
-  local-verification-code: ${SMS_LOCAL_VERIFICATION_CODE:123456}
+  enabled: ${SMS_ENABLED:false}
+  provider: ${SMS_PROVIDER:mock}
+  cool-sms:
+    api-key: ${COOLSMS_API_KEY:}
+    api-secret: ${COOLSMS_API_SECRET:}
+    from-number: ${COOLSMS_FROM_NUMBER:}
+    timeout: ${COOLSMS_TIMEOUT:3s}
+  message:
+    verification-template: ${SMS_VERIFICATION_TEMPLATE:[Strange Safety] 인증번호는 {code}입니다.}
+  rate-limit:
+    resend-cooldown-seconds: ${SMS_RESEND_COOLDOWN_SECONDS:60}
+    daily-limit-per-phone: ${SMS_DAILY_LIMIT_PER_PHONE:5}
+    daily-limit-per-ip: ${SMS_DAILY_LIMIT_PER_IP:20}
 
 app:
   websocket:

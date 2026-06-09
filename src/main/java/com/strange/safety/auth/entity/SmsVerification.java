@@ -48,17 +48,26 @@ public class SmsVerification extends BaseEntity {
     @Column(name = "used_at")
     private Instant usedAt;
 
+    @Column(name = "request_ip", length = 64)
+    private String requestIp;
+
     private SmsVerification(String phoneNumber, VerificationPurpose purpose,
-                            String codeHash, Instant codeExpiresAt) {
+                            String codeHash, Instant codeExpiresAt, String requestIp) {
         this.phoneNumber = phoneNumber;
         this.purpose = purpose;
         this.codeHash = codeHash;
         this.codeExpiresAt = codeExpiresAt;
+        this.requestIp = requestIp;
     }
 
     public static SmsVerification issue(String phoneNumber, VerificationPurpose purpose,
                                         String codeHash, Instant codeExpiresAt) {
-        return new SmsVerification(phoneNumber, purpose, codeHash, codeExpiresAt);
+        return issue(phoneNumber, purpose, codeHash, codeExpiresAt, null);
+    }
+
+    public static SmsVerification issue(String phoneNumber, VerificationPurpose purpose,
+                                        String codeHash, Instant codeExpiresAt, String requestIp) {
+        return new SmsVerification(phoneNumber, purpose, codeHash, codeExpiresAt, requestIp);
     }
 
     public boolean canConfirm(Instant now) {

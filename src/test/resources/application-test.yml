@@ -20,7 +20,12 @@ jwt:
   refresh-token-expiration-ms: 1209600000
 
 sms:
-  local-verification-code: 123456
+  enabled: false
+  provider: mock
+  rate-limit:
+    resend-cooldown-seconds: 60
+    daily-limit-per-phone: 5
+    daily-limit-per-ip: 20
 
 logging:
   level:
