@@ -41,7 +41,7 @@ class EmergencyJurisdictionControllerTest {
                 .andExpect(jsonPath("$.data.district").value("마포구"))
                 .andExpect(jsonPath("$.data.jurisdiction").value("마포소방서"))
                 .andExpect(jsonPath("$.data.stationName").value("마포소방서"))
-                .andExpect(jsonPath("$.data.centerName").value("성산119안전센터"));
+                .andExpect(jsonPath("$.data.centerName").value("공덕119안전센터"));
     }
 
     @Test
@@ -71,7 +71,7 @@ class EmergencyJurisdictionControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.district").value("해운대구"))
-                .andExpect(jsonPath("$.data.jurisdiction").value("해운대소방서"));
+                .andExpect(jsonPath("$.data.jurisdiction").value("기장소방서"));
     }
 
     @Test
@@ -101,7 +101,37 @@ class EmergencyJurisdictionControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.district").value("제주시"))
-                .andExpect(jsonPath("$.data.jurisdiction").value("제주소방서"));
+                .andExpect(jsonPath("$.data.jurisdiction").value("동부소방서"));
+    }
+
+    @Test
+    void resolveSupportsNorthernGyeonggiAsGyeonggiProvince() throws Exception {
+        mockMvc.perform(post("/api/emergency-jurisdictions/resolve")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "postcode": "10500",
+                                  "address": "경기도 고양시 덕양구 토당로 48"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.district").value("고양시"))
+                .andExpect(jsonPath("$.data.jurisdiction").value("고양소방서"));
+    }
+
+    @Test
+    void resolveSupportsSejongSpecialSelfGoverningCity() throws Exception {
+        mockMvc.perform(post("/api/emergency-jurisdictions/resolve")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "postcode": "30151",
+                                  "address": "세종특별자치시 절재로 301"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.district").value("세종시"))
+                .andExpect(jsonPath("$.data.jurisdiction").value("세종남부소방서"));
     }
 
     @Test

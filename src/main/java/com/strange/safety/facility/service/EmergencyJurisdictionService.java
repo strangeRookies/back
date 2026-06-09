@@ -116,7 +116,10 @@ public class EmergencyJurisdictionService {
 
     private record ParsedAddress(String province, String normalizedAddress) {
         boolean containsDistrict(String district) {
-            return normalizedAddress.contains(normalize(district));
+            String normalizedDistrict = normalize(district);
+            return normalizedAddress.contains(normalizedDistrict)
+                    || ("세종시".equals(normalizedDistrict)
+                    && normalizedAddress.contains(normalize("세종특별자치시")));
         }
     }
 
