@@ -1,5 +1,7 @@
 package com.strange.safety.alert.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strange.safety.alert.dto.AlertEventDetailResponse;
 import com.strange.safety.alert.dto.AlertEventResponse;
 import com.strange.safety.alert.dto.AlertStatsResponse;
@@ -9,11 +11,19 @@ import com.strange.safety.alert.entity.AlertSeverity;
 import com.strange.safety.alert.entity.AlertStatus;
 import com.strange.safety.alert.repository.AlertEventRepository;
 import com.strange.safety.alert.repository.SnapshotRepository;
+import com.strange.safety.camera.entity.Camera;
+import com.strange.safety.camera.repository.CameraRepository;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
+import com.strange.safety.event.SafetyEventDto;
 import com.strange.safety.facility.service.FacilityService;
+import com.strange.safety.scenario.entity.Scenario;
+import com.strange.safety.scenario.entity.ScenarioType;
+import com.strange.safety.scenario.repository.ScenarioRepository;
 import com.strange.safety.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -21,7 +31,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
+
 import java.util.stream.Collectors;
 
 @Service
@@ -29,10 +41,15 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AlertEventService {
 
+    private static final Logger log = LoggerFactory.getLogger(AlertEventService.class);
+
     private final AlertEventRepository alertEventRepository;
     private final SnapshotRepository snapshotRepository;
     private final FacilityService facilityService;
     private final UserRepository userRepository;
+    private final CameraRepository cameraRepository;
+    private final ScenarioRepository scenarioRepository;
+    private final ObjectMapper objectMapper;
 
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
@@ -108,5 +125,98 @@ public class AlertEventService {
                     root.join("camera").join("facility").get("id"),
                     facilityId);
         };
+    }
+
+    @Transactional
+    public AlertEventResponse createEvent(SafetyEventDto dto) {
+        String cameraIdVal = dto.cameraId() != null ? dto.cameraId() : "cam_01";
+        
+        // Convert "cam1", "cam2" or "CCTV-01" into DB format "cam_01"
+        if (cameraIdVal.startsWith("cam") && cameraIdVal.length() == 4) {
+            cameraIdVal = "cam_0" + cameraIdVal.charAt(3);
+        } else if (cameraIdVal.startsWith("CCTV-0") && cameraIdVal.length() == 7) {
+            cameraIdVal = "cam_0" + cameraIdVal.charAt(6);
+        }
+
+        String finalCameraIdVal = cameraIdVal;
+        Camera camera = cameraRepository.findByCameraLoginId(finalCameraIdVal)
+                .orElseThrow(() -> {
+                    log.error("Failed to map MQTT safety event camera_id: rawCameraId={}, normalizedCameraLoginId={}",
+                            dto.cameraId(), finalCameraIdVal);
+                    return new CustomException(ErrorCode.CAMERA_NOT_FOUND);
+                });
+
+        ScenarioType scenarioType = mapToScenarioType(dto.type());
+
+        Scenario scenario = scenarioRepository.findByScenarioType(scenarioType)
+                .orElseThrow(() -> {
+                    log.error("Failed to map MQTT safety event type: rawType={}, scenarioType={}",
+                            dto.type(), scenarioType);
+                    return new CustomException(ErrorCode.SCENARIO_NOT_FOUND);
+                });
+
+        AlertSeverity severity = mapToAlertSeverity(dto.severity());
+
+        Instant timestampVal = dto.timestamp() != null ? dto.timestamp() : Instant.now();
+        String messageVal = dto.message() != null ? dto.message() : (dto.type() != null ? dto.type() + " detected" : "AI safety event detected");
+        Float confidenceScore = dto.confidence() != null ? dto.confidence() : 0.85f;
+        String boundingBoxData = serializeBoundingBox(dto);
+
+        AlertEvent event = AlertEvent.builder()
+                .camera(camera)
+                .scenario(scenario)
+                .confidenceScore(confidenceScore)
+                .severity(severity)
+                .keypointData(messageVal)
+                .boundingBoxData(boundingBoxData)
+                .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneOffset.UTC))
+                .build();
+
+        AlertEvent saved = alertEventRepository.save(event);
+        log.info("Saved MQTT safety alert event: alertEventId={}, cameraLoginId={}, scenarioType={}, severity={}, confidence={}, trackId={}",
+                saved.getId(), finalCameraIdVal, scenarioType, severity, confidenceScore, dto.trackId());
+        return AlertEventResponse.from(saved);
+    }
+
+    private String serializeBoundingBox(SafetyEventDto dto) {
+        if (dto.bbox() == null && dto.trackId() == null) {
+            return null;
+        }
+
+        try {
+            return objectMapper.writeValueAsString(new SafetyEventDetectionData(dto.bbox(), dto.trackId()));
+        } catch (JsonProcessingException ex) {
+            log.warn("Failed to serialize MQTT safety event bbox: cameraId={}, type={}, error={}",
+                    dto.cameraId(), dto.type(), ex.getMessage());
+            return null;
+        }
+    }
+
+    private record SafetyEventDetectionData(List<Number> bbox, String trackId) {
+    }
+
+
+    private ScenarioType mapToScenarioType(String type) {
+        if (type == null) return ScenarioType.SYNCOPE;
+        String upper = type.toUpperCase();
+        if (upper.contains("FALL")) return ScenarioType.FALL_BED;
+        if (upper.contains("COLLAPSE")) return ScenarioType.COLLAPSE;
+        if (upper.contains("FAINT") || upper.contains("SYNCOPE")) return ScenarioType.SYNCOPE;
+        if (upper.contains("EXIT")) return ScenarioType.EXIT;
+        if (upper.contains("ASSAULT") || upper.contains("VIOLENCE") || upper.contains("FIGHT")) return ScenarioType.ASSAULT;
+        
+        try {
+            return ScenarioType.valueOf(upper);
+        } catch (IllegalArgumentException e) {
+            return ScenarioType.SYNCOPE;
+        }
+    }
+
+    private AlertSeverity mapToAlertSeverity(String severity) {
+        if (severity == null) return AlertSeverity.CRITICAL;
+        String upper = severity.toUpperCase();
+        if (upper.contains("CRITICAL") || upper.contains("HIGH")) return AlertSeverity.CRITICAL;
+        if (upper.contains("WARNING") || upper.contains("MEDIUM")) return AlertSeverity.WARNING;
+        return AlertSeverity.WARNING;
     }
 }

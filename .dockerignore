@@ -1,0 +1,9 @@
+.git
+build
+.gradle
+out
+logs
+*.log
+.env
+Dockerfile
+docker-compose.yml
