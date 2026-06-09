@@ -23,15 +23,23 @@ public class MqttConfig {
     @Value("${mqtt.client-id}")
     private String clientId;
 
-    // 1. EMQX 브로커 연결 옵션 설정 (대장님이 열어주신 주소로 세팅)
+    @Value("${MQTT_USERNAME:}")
+    private String mqttUsername;
+
+    @Value("${MQTT_PASSWORD:}")
+    private String mqttPassword;
+
     @Bean
     public MqttConnectOptions mqttConnectOptions() {
         MqttConnectOptions options = new MqttConnectOptions();
         options.setServerURIs(new String[] { brokerUrl });
-        // ID/PW 인증이 필요하다면 여기에 추가 (현재는 익명 접속)
-        // options.setUserName("admin");
-        // options.setPassword("password".toCharArray());
-        options.setAutomaticReconnect(true); // 끊기면 자동 재접속
+        if (!mqttUsername.isBlank()) {
+            options.setUserName(mqttUsername);
+        }
+        if (!mqttPassword.isBlank()) {
+            options.setPassword(mqttPassword.toCharArray());
+        }
+        options.setAutomaticReconnect(true);
         return options;
     }
 
@@ -42,21 +50,20 @@ public class MqttConfig {
         return factory;
     }
 
-    // 2. 메시지 수신(구독) 채널 어댑터 설정 -> ★ 이 코드가 실행될 때 대시보드에 Client ID가 뜹니다!
     @Bean
     public MessageProducer inbound() {
-        // AI 파트와 약속한 토픽(채널)을 구독합니다. (예: safety/alert/#)
-        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(clientId,
-                mqttClientFactory(), "safety/alert/#");
+        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
+                clientId + "-integration",
+                mqttClientFactory(),
+                "safety/alert/#");
 
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
-        adapter.setQos(1); // 메시지 전송 보장 수준
+        adapter.setQos(1);
         adapter.setOutputChannel(mqttInputChannel());
         return adapter;
     }
 
-    // 3. 수신된 메시지를 백엔드 로직으로 전달할 파이프라인
     @Bean
     public MessageChannel mqttInputChannel() {
         return new DirectChannel();
