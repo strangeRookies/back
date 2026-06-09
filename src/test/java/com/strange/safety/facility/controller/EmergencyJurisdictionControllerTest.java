@@ -33,7 +33,8 @@ class EmergencyJurisdictionControllerTest {
                                 {
                                   "postcode": "04123",
                                   "address": "서울특별시 마포구 월드컵로 1",
-                                  "addressDetail": "101동 101호"
+                                  "addressDetail": "101동 101호",
+                                  "region3DepthName": "공덕동"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -42,6 +43,40 @@ class EmergencyJurisdictionControllerTest {
                 .andExpect(jsonPath("$.data.jurisdiction").value("마포소방서"))
                 .andExpect(jsonPath("$.data.stationName").value("마포소방서"))
                 .andExpect(jsonPath("$.data.centerName").value("공덕119안전센터"));
+    }
+
+    @Test
+    void resolvePrefersCenterMatchingRegion3DepthName() throws Exception {
+        mockMvc.perform(post("/api/emergency-jurisdictions/resolve")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "postcode": "48073",
+                                  "address": "부산광역시 해운대구 송정중앙로15번길 16",
+                                  "region3DepthName": "송정동"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.district").value("해운대구"))
+                .andExpect(jsonPath("$.data.jurisdiction").value("기장소방서"))
+                .andExpect(jsonPath("$.data.centerName").value("송정119안전센터"));
+    }
+
+    @Test
+    void resolveFallsBackToRepresentativeWhenLocalityDoesNotMatch() throws Exception {
+        mockMvc.perform(post("/api/emergency-jurisdictions/resolve")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "postcode": "48095",
+                                  "address": "부산광역시 해운대구 해운대해변로 100",
+                                  "region3DepthName": "없는동"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.district").value("해운대구"))
+                .andExpect(jsonPath("$.data.jurisdiction").value("해운대소방서"))
+                .andExpect(jsonPath("$.data.centerName").value("반송119안전센터"));
     }
 
     @Test
@@ -91,13 +126,14 @@ class EmergencyJurisdictionControllerTest {
     }
 
     @Test
-    void resolveSupportsProvinceAbbreviation() throws Exception {
+    void resolveSupportsProvinceAbbreviationAndRegion3DepthName() throws Exception {
         mockMvc.perform(post("/api/emergency-jurisdictions/resolve")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "postcode": "63208",
-                                  "address": "제주 제주시 중앙로 1"
+                                  "address": "제주 제주시 중앙로 1",
+                                  "region3DepthName": "노형동"
                                 }
                                 """))
                 .andExpect(status().isOk())

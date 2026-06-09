@@ -23,6 +23,7 @@ public record CorporateSignupRequest(
             @NotBlank String postcode,
             @NotBlank String address,
             String addressDetail,
+            String region3DepthName,
             String district,
             String jurisdiction
     ) {

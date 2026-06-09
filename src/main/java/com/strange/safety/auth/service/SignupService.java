@@ -52,7 +52,8 @@ public class SignupService {
         userAgreementService.saveSignupAgreements(user, request.agreements());
         IndividualSignupRequest.CareTargetRequest targetRequest = request.careTarget();
         EmergencyJurisdictionResponse jurisdiction = resolveJurisdiction(
-                targetRequest.postcode(), targetRequest.address(), targetRequest.addressDetail());
+                targetRequest.postcode(), targetRequest.address(), targetRequest.addressDetail(),
+                targetRequest.region3DepthName());
         Facility facility = facilityRepository.save(Facility.builder()
                 .facilityName(targetRequest.name() + " 보호 시설")
                 .facilityType(FacilityType.HOME)
@@ -97,7 +98,7 @@ public class SignupService {
         CorporateSignupRequest.CompanyRequest company = request.company();
         CorporateSignupRequest.ManagerRequest manager = request.manager();
         EmergencyJurisdictionResponse jurisdiction = resolveJurisdiction(
-                company.postcode(), company.address(), company.addressDetail());
+                company.postcode(), company.address(), company.addressDetail(), company.region3DepthName());
         CompanyProfile profile = companyProfileRepository.save(CompanyProfile.builder()
                 .user(user).companyName(company.name()).businessRegistrationNumber(businessNumber)
                 .industry(company.industry()).companySize(company.size()).postalCode(company.postcode())
@@ -150,9 +151,10 @@ public class SignupService {
         return value.replaceAll("[^0-9]", "");
     }
 
-    private EmergencyJurisdictionResponse resolveJurisdiction(String postcode, String address, String addressDetail) {
+    private EmergencyJurisdictionResponse resolveJurisdiction(
+            String postcode, String address, String addressDetail, String region3DepthName) {
         return emergencyJurisdictionService.resolve(
-                new EmergencyJurisdictionResolveRequest(postcode, address, addressDetail));
+                new EmergencyJurisdictionResolveRequest(postcode, address, addressDetail, region3DepthName));
     }
 
     private AgeGroup toAgeGroup(String value) {
