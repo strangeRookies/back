@@ -4,6 +4,8 @@ import com.strange.safety.user.entity.User;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Builder
 public class UserProfileResponse {
@@ -11,6 +13,7 @@ public class UserProfileResponse {
     private String email;
     private String name;
     private String phoneNumber;
+    private LocalDateTime createdAt;
 
     public static UserProfileResponse from(User user) {
         return UserProfileResponse.builder()
@@ -18,6 +21,7 @@ public class UserProfileResponse {
                 .email(user.getEmail())
                 .name(user.getName())
                 .phoneNumber(user.getPhoneNumber())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 }

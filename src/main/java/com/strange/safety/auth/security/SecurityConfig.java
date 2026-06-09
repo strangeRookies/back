@@ -69,7 +69,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/alert-events/**",
                                 "/api/protected-targets/**",
-                                "/api/emergency-contacts/**"
+                                "/api/emergency-contacts/**",
+                                "/api/mypage/**"
                         ).hasAnyRole("ADMIN", "INDIVIDUAL", "CORPORATE")
 
                         // ADMIN 전용
