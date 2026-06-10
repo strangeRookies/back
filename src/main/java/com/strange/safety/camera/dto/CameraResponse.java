@@ -14,6 +14,8 @@ public class CameraResponse {
     private Long cameraId;
     private Long facilityId;
     private String cameraLoginId;
+    private String cameraName;
+    private String cameraSerialNumber;
     private String rtspUrl;
     private CameraStatus status;
     private String locationDescription;
@@ -25,6 +27,8 @@ public class CameraResponse {
                 .cameraId(camera.getId())
                 .facilityId(camera.getFacility().getId())
                 .cameraLoginId(camera.getCameraLoginId())
+                .cameraName(camera.getCameraName())
+                .cameraSerialNumber(camera.getCameraSerialNumber())
                 .rtspUrl(camera.getRtspUrl())
                 .status(camera.getStatus())
                 .locationDescription(camera.getLocationDescription())

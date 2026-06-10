@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UpdateCameraRequest {
 
+    private String cameraName;
+    private String cameraSerialNumber;
     private String rtspUrl;
     private CameraStatus status;
     private String locationDescription;

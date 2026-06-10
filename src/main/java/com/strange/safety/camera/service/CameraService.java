@@ -38,6 +38,8 @@ public class CameraService {
         Camera camera = Camera.builder()
                 .facility(facility)
                 .cameraLoginId(request.getCameraLoginId())
+                .cameraName(request.getCameraName())
+                .cameraSerialNumber(request.getCameraSerialNumber())
                 .cameraPasswordEncrypted(encryptedPassword)
                 .rtspUrl(request.getRtspUrl())
                 .locationDescription(request.getLocationDescription())
@@ -58,7 +60,7 @@ public class CameraService {
         Camera camera = cameraRepository.findById(cameraId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CAMERA_NOT_FOUND));
         facilityService.getFacilityWithOwnerCheck(userId, camera.getFacility().getId());
-        camera.update(request.getRtspUrl(), request.getStatus(), request.getLocationDescription());
+        camera.update(request.getCameraName(), request.getCameraSerialNumber(), request.getRtspUrl(), request.getStatus(), request.getLocationDescription());
         return CameraResponse.from(camera);
     }
 

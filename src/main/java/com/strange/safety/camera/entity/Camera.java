@@ -26,10 +26,16 @@ public class Camera extends BaseEntity {
     @Column(name = "camera_login_id")
     private String cameraLoginId;
 
+    @Column(name = "camera_name")
+    private String cameraName;
+
+    @Column(name = "camera_sn")
+    private String cameraSerialNumber;
+
     @Column(name = "camera_password_encrypted")
     private String cameraPasswordEncrypted;
 
-    @Column(name = "rtsp_url", nullable = false)
+    @Column(name = "rtsp_url")
     private String rtspUrl;
 
     @Enumerated(EnumType.STRING)
@@ -40,17 +46,21 @@ public class Camera extends BaseEntity {
     private String locationDescription;
 
     @Builder
-    private Camera(Facility facility, String cameraLoginId, String cameraPasswordEncrypted,
-                   String rtspUrl, String locationDescription) {
+    private Camera(Facility facility, String cameraLoginId, String cameraName, String cameraSerialNumber,
+                   String cameraPasswordEncrypted, String rtspUrl, String locationDescription) {
         this.facility = facility;
         this.cameraLoginId = cameraLoginId;
+        this.cameraName = cameraName;
+        this.cameraSerialNumber = cameraSerialNumber;
         this.cameraPasswordEncrypted = cameraPasswordEncrypted;
         this.rtspUrl = rtspUrl;
         this.locationDescription = locationDescription;
         this.status = CameraStatus.ACTIVE;
     }
 
-    public void update(String rtspUrl, CameraStatus status, String locationDescription) {
+    public void update(String cameraName, String cameraSerialNumber, String rtspUrl, CameraStatus status, String locationDescription) {
+        if (cameraName != null) this.cameraName = cameraName;
+        if (cameraSerialNumber != null) this.cameraSerialNumber = cameraSerialNumber;
         if (rtspUrl != null) this.rtspUrl = rtspUrl;
         if (status != null) this.status = status;
         if (locationDescription != null) this.locationDescription = locationDescription;

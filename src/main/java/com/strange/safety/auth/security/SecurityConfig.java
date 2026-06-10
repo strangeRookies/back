@@ -59,25 +59,19 @@ public class SecurityConfig {
                                 "/api/emergency-jurisdictions/resolve"
                         ).permitAll()
 
-                        // USER 접근 가능 — /api/facilities/** ADMIN 규칙보다 반드시 먼저 선언
-                        .requestMatchers(HttpMethod.GET, "/api/facilities")
-                                .hasAnyRole("ADMIN", "INDIVIDUAL", "CORPORATE")
+                        // USER 접근 가능
                         .requestMatchers(
-                                "/api/facilities/*/alert-events/**",
-                                "/api/facilities/*/protected-targets/**"
-                        ).hasAnyRole("ADMIN", "INDIVIDUAL", "CORPORATE")
-                        .requestMatchers(
+                                "/api/facilities/**",
                                 "/api/alert-events/**",
                                 "/api/protected-targets/**",
                                 "/api/emergency-contacts/**",
-                                "/api/mypage/**"
+                                "/api/mypage/**",
+                                "/api/cameras/**",
+                                "/api/roi-configs/**"
                         ).hasAnyRole("ADMIN", "INDIVIDUAL", "CORPORATE")
 
                         // ADMIN 전용
                         .requestMatchers(
-                                "/api/facilities/**",
-                                "/api/cameras/**",
-                                "/api/roi-configs/**",
                                 "/api/scenarios/**"
                         ).hasRole("ADMIN")
 
