@@ -15,4 +15,6 @@ public class CreateCameraRequest {
     private String rtspUrl;
 
     private String locationDescription;
+
+    private com.strange.safety.camera.entity.CameraSourceType sourceType;
 }

@@ -4,9 +4,9 @@ spring:
   application:
     name: strange-back
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:15432/postgres}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/strange_safety}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:Ewp~12345}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
   jpa:
     hibernate:
@@ -33,11 +33,12 @@ jwt:
   refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:1209600000}
 
 mqtt:
-  host: ${MQTT_HOST:54.116.39.252}
+  host: ${MQTT_HOST:localhost}
   port: ${MQTT_PORT:1883}
   broker-url: ${MQTT_BROKER_URL:tcp://${mqtt.host}:${mqtt.port}}
   client-id: spring-backend-${random.uuid}
   topic: ${MQTT_TOPIC:safety/events}
+  camera-status-topic: ${MQTT_CAMERA_STATUS_TOPIC:safety/cameras/status}
   reconnect-delay-ms: ${MQTT_RECONNECT_DELAY_MS:5000}
   initial-connect-delay-ms: ${MQTT_INITIAL_CONNECT_DELAY_MS:1000}
 
@@ -56,11 +57,19 @@ sms:
     daily-limit-per-phone: ${SMS_DAILY_LIMIT_PER_PHONE:5}
 
 app:
+  simulation:
+    video-pool-path: ${VIDEO_POOL_PATH:video_pool}
+    mediamtx-url: ${MEDIAMTX_URL:rtsp://58.127.241.84:8554}
   websocket:
     allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173}
   aes:
     secret-key: ${AES_SECRET_KEY:StrangeSafetyKey}
     iv: ${AES_IV:StrangeSafetyIv!}
+  fcm:
+    # FCM 푸시 알림 활성화 여부 (기본 false: mock 모드)
+    # 활성화하려면 firebase-admin SDK 의존성 추가 및 서비스 계정 키 설정 필요
+    enabled: ${FCM_ENABLED:false}
+    service-account-key: ${FCM_SERVICE_ACCOUNT_KEY_PATH:classpath:firebase-service-account.json}
 
 logging:
   level:

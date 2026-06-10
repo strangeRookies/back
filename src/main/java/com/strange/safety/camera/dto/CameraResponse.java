@@ -21,6 +21,8 @@ public class CameraResponse {
     private String locationDescription;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private com.strange.safety.camera.entity.CameraSourceType sourceType;
+    private String assignedVideoPath;
 
     public static CameraResponse from(Camera camera) {
         return CameraResponse.builder()
@@ -34,6 +36,8 @@ public class CameraResponse {
                 .locationDescription(camera.getLocationDescription())
                 .createdAt(camera.getCreatedAt())
                 .updatedAt(camera.getUpdatedAt())
+                .sourceType(camera.getSourceType())
+                .assignedVideoPath(camera.getAssignedVideoPath())
                 .build();
     }
 }

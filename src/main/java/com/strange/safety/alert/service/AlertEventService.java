@@ -157,7 +157,7 @@ public class AlertEventService {
 
         AlertSeverity severity = mapToAlertSeverity(dto.severity());
 
-        Instant timestampVal = dto.timestamp() != null ? dto.timestamp() : Instant.now();
+        Instant timestampVal = dto.resolvedTimestamp() != null ? dto.resolvedTimestamp() : Instant.now();
         String messageVal = dto.message() != null ? dto.message() : (dto.type() != null ? dto.type() + " detected" : "AI safety event detected");
         Float confidenceScore = dto.confidence() != null ? dto.confidence() : 0.85f;
         String boundingBoxData = serializeBoundingBox(dto);
