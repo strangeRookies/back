@@ -1,7 +1,14 @@
 package com.strange.safety.user.service;
 
+import com.strange.safety.auth.entity.Role;
+import com.strange.safety.camera.repository.CameraRepository;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
+import com.strange.safety.company.entity.CompanyProfile;
+import com.strange.safety.company.repository.CompanyProfileRepository;
+import com.strange.safety.facility.entity.AccessType;
+import com.strange.safety.facility.repository.FacilityRepository;
+import com.strange.safety.user.dto.AdminUserResponse;
 import com.strange.safety.user.dto.UpdatePasswordRequest;
 import com.strange.safety.user.dto.UpdateProfileRequest;
 import com.strange.safety.user.dto.UserProfileResponse;
@@ -9,8 +16,13 @@ import com.strange.safety.user.dto.UserResponse;
 import com.strange.safety.user.entity.User;
 import com.strange.safety.user.entity.UserStatus;
 import com.strange.safety.user.repository.UserRepository;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final CompanyProfileRepository companyProfileRepository;
+    private final FacilityRepository facilityRepository;
+    private final CameraRepository cameraRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserResponse getMe(Long userId) {
@@ -55,6 +70,69 @@ public class UserService {
     @Transactional
     public void deleteAccount(Long userId) {
         findActiveUser(userId).withdraw();
+    }
+
+    public Page<AdminUserResponse> getAllUsers(Pageable pageable) {
+        Page<User> users = userRepository.findByRoleInAndStatusNot(
+                List.of(Role.INDIVIDUAL, Role.CORPORATE), UserStatus.WITHDRAWN, pageable);
+
+        List<Long> allUserIds = users.stream().map(User::getId).toList();
+        List<Long> corporateUserIds = users.stream()
+                .filter(u -> u.getRole() == Role.CORPORATE)
+                .map(User::getId)
+                .toList();
+        List<Long> individualUserIds = users.stream()
+                .filter(u -> u.getRole() == Role.INDIVIDUAL)
+                .map(User::getId)
+                .toList();
+
+        Map<Long, CompanyProfile> profileMap = corporateUserIds.isEmpty()
+                ? Map.of()
+                : companyProfileRepository.findByUserIdIn(corporateUserIds).stream()
+                        .collect(Collectors.toMap(cp -> cp.getUser().getId(), cp -> cp));
+
+        Map<Long, String> individualRegions = individualUserIds.isEmpty()
+                ? Map.of()
+                : facilityRepository.findDistrictsByUserIds(individualUserIds, AccessType.MANAGER)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                row -> ((Number) row[0]).longValue(),
+                                row -> row[1] != null ? (String) row[1] : "",
+                                (first, second) -> first
+                        ));
+
+        Map<Long, Integer> cameraCounts = allUserIds.isEmpty()
+                ? Map.of()
+                : cameraRepository.countCamerasByUserIds(allUserIds, AccessType.MANAGER)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                row -> ((Number) row[0]).longValue(),
+                                row -> ((Number) row[1]).intValue()
+                        ));
+
+        return users.map(user -> {
+            int cameraCount = cameraCounts.getOrDefault(user.getId(), 0);
+            if (user.getRole() == Role.CORPORATE) {
+                CompanyProfile cp = profileMap.get(user.getId());
+                return AdminUserResponse.from(
+                        user,
+                        cp != null ? cp.getCompanyName() : user.getName(),
+                        cp != null ? cp.getManagerName() : null,
+                        cp != null ? cp.getManagerContact() : user.getPhoneNumber(),
+                        cp != null ? cp.getDistrict() : null,
+                        cameraCount
+                );
+            } else {
+                return AdminUserResponse.from(
+                        user,
+                        user.getName(),
+                        null,
+                        user.getPhoneNumber(),
+                        individualRegions.getOrDefault(user.getId(), null),
+                        cameraCount
+                );
+            }
+        });
     }
 
     private User findActiveUser(Long userId) {

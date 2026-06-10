@@ -44,6 +44,8 @@ dependencies {
     implementation 'org.springframework.integration:spring-integration-mqtt'
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
     implementation 'org.springframework.boot:spring-boot-starter-integration'
+    // ALB Health Check용 Actuator
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     
 }
 

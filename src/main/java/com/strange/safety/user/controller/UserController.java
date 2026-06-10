@@ -2,6 +2,7 @@ package com.strange.safety.user.controller;
 
 import com.strange.safety.auth.security.CustomUserDetails;
 import com.strange.safety.common.response.ApiResponse;
+import com.strange.safety.user.dto.AdminUserResponse;
 import com.strange.safety.user.dto.MarketingAgreementUpdateRequest;
 import com.strange.safety.user.dto.UserAgreementResponse;
 import com.strange.safety.user.dto.UserResponse;
@@ -10,6 +11,10 @@ import com.strange.safety.user.service.UserService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -24,6 +29,13 @@ public class UserController {
 
     private final UserService userService;
     private final UserAgreementService userAgreementService;
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Page<AdminUserResponse>> getAllUsers(
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+        return ApiResponse.success(userService.getAllUsers(pageable));
+    }
 
     @GetMapping("/me")
     public ApiResponse<UserResponse> getMe(@AuthenticationPrincipal CustomUserDetails user) {
