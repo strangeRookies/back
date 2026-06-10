@@ -14,7 +14,7 @@ Python Edge AI Mock Publisher
 
 ## MQTT To WebSocket Alerts
 
-The backend subscribes to the MQTT topic `safety/events`, maps each JSON payload to `SafetyEventDto`, and broadcasts it to the STOMP topic `/topic/alerts`.
+The backend subscribes to the MQTT topic `safety/events`, maps each JSON payload to `SafetyEventDto`, persists it through `AlertEventService.createEvent(dto)`, and broadcasts it to the STOMP topic `/topic/alerts`.
 
 The previous Redis Pub/Sub subscriber is not used in the current MQTT MVP.
 
@@ -26,6 +26,9 @@ The previous Redis Pub/Sub subscriber is not used in the current MQTT MVP.
   "camera_id": "cam_01",
   "timestamp": "2026-05-26T10:00:00Z",
   "severity": "HIGH",
+  "confidence": 0.83,
+  "bbox": [100, 120, 220, 360],
+  "track_id": 1,
   "message": "Fall detected from mock edge AI",
   "source": "edge-ai-mock"
 }
@@ -35,6 +38,8 @@ The previous Redis Pub/Sub subscriber is not used in the current MQTT MVP.
 
 ```text
 MQTT_BROKER_URL=tcp://localhost:1883
+MQTT_HOST=localhost
+MQTT_PORT=1883
 MQTT_CLIENT_ID=safety-backend
 MQTT_TOPIC=safety/events
 MQTT_RECONNECT_DELAY_MS=5000
@@ -108,11 +113,15 @@ The backend persists an acknowledgment/recording request with `recordingStatus=R
 
 1. Start Mosquitto from `strange_infra`.
 2. Start this Spring Boot backend.
-3. Run `strange_ai/mock_edge_ai.py`.
+3. Publish a test event with `scripts/publish_test_safety_event.sh`.
 4. Check backend logs for MQTT `safety/events` receive logs.
-5. Connect a STOMP client or the React frontend to `/ws`.
-6. Subscribe to `/topic/alerts`.
-7. Confirm safety event JSON messages arrive in real time.
+5. Check backend logs for `Saved MQTT safety alert event`.
+6. Query PostgreSQL `alert_events` joined with `cameras` and `scenarios`.
+7. Connect a STOMP client or the React frontend to `/ws`.
+8. Subscribe to `/topic/alerts`.
+9. Confirm safety event JSON messages arrive in real time.
+
+Full commands are documented in `docs/MQTT_SAFETY_EVENTS_E2E.md`.
 
 ### Security TODO
 
@@ -123,5 +132,6 @@ The backend persists an acknowledgment/recording request with `recordingStatus=R
 ### Scope
 
 - This stage does not implement React UI changes.
-- This stage does not implement DB persistence, JWT, RBAC, FCM, or external notifications.
+- This stage stores MQTT safety events in PostgreSQL through the existing `alert_events` table.
+- This stage does not implement JWT, RBAC, FCM, or external notifications.
 - Secrets, passwords, API keys, personal videos, and private test media are not stored in this repository.

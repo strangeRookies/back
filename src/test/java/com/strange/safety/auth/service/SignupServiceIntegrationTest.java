@@ -83,6 +83,46 @@ class SignupServiceIntegrationTest {
         assertThat(protectedTargetRepository.count()).isEqualTo(1);
         assertThat(emergencyContactRepository.count()).isEqualTo(1);
         assertThat(userAgreementRepository.count()).isEqualTo(3);
+
+        var facility = facilityRepository.findAll().get(0);
+        assertThat(facility.getDistrict()).isEqualTo("마포구");
+        assertThat(facility.getEmergency119Jurisdiction()).isEqualTo("마포소방서");
+    }
+
+    @Test
+    void individualSignupUsesRegion3DepthNameForJurisdictionResolution() {
+        String token = verifiedToken("01022223333");
+
+        signupService.signupIndividual(new IndividualSignupRequest(
+                "region3@example.com", "Password123!", "individual user", "01022223333", token,
+                new IndividualSignupRequest.CareTargetRequest(
+                        "care target", "parent", "70s", "48073",
+                        "부산광역시 해운대구 송정중앙로15번길 16", null, "송정동", "해운대구", "해운대소방서"),
+                List.of(),
+                requiredAgreements(true)
+        ));
+
+        var facility = facilityRepository.findAll().get(0);
+        assertThat(facility.getDistrict()).isEqualTo("해운대구");
+        assertThat(facility.getEmergency119Jurisdiction()).isEqualTo("기장소방서");
+    }
+
+    @Test
+    void individualSignupFallsBackToRepresentativeWithoutRegion3DepthName() {
+        String token = verifiedToken("01022224444");
+
+        signupService.signupIndividual(new IndividualSignupRequest(
+                "fallback-region3@example.com", "Password123!", "individual user", "01022224444", token,
+                new IndividualSignupRequest.CareTargetRequest(
+                        "care target", "parent", "70s", "48095",
+                        "부산광역시 해운대구 해운대해변로 100", null, null, "강남구", "강남소방서"),
+                List.of(),
+                requiredAgreements(true)
+        ));
+
+        var facility = facilityRepository.findAll().get(0);
+        assertThat(facility.getDistrict()).isEqualTo("해운대구");
+        assertThat(facility.getEmergency119Jurisdiction()).isEqualTo("해운대소방서");
     }
 
     @Test
@@ -115,6 +155,10 @@ class SignupServiceIntegrationTest {
         assertThat(companyProfileRepository.count()).isEqualTo(1);
         assertThat(installationRequestRepository.count()).isZero();
         assertThat(userAgreementRepository.count()).isEqualTo(3);
+
+        var profile = companyProfileRepository.findAll().get(0);
+        assertThat(profile.getDistrict()).isEqualTo("강남구");
+        assertThat(profile.getEmergency119Jurisdiction()).isEqualTo("강남소방서");
     }
 
     @Test
@@ -242,7 +286,7 @@ class SignupServiceIntegrationTest {
                 email, "Password123!", "individual user", phone, token,
                 new IndividualSignupRequest.CareTargetRequest(
                         "care target", "parent", ageGroup, "04123",
-                        "Seoul Mapo-gu Worldcup-ro 1", "101", "Mapo-gu", "Mapo Fire Station"),
+                        "서울특별시 마포구 월드컵로 1", "101", "공덕동", "강남구", "강남소방서"),
                 List.of(new IndividualSignupRequest.EmergencyContactRequest(
                         "emergency contact", "child", "01033334444")),
                 agreements
@@ -264,7 +308,7 @@ class SignupServiceIntegrationTest {
                 email, "Password123!", phone, token,
                 new CorporateSignupRequest.CompanyRequest(
                         "Smart Safety Hospital", businessNumber, "medical", "50-200",
-                        "06123", "Seoul Gangnam-gu Teheran-ro 1", "Safety Office", "Gangnam-gu", "Gangnam Fire Station"),
+                        "06123", "서울특별시 강남구 테헤란로 1", "Safety Office", "역삼동", "마포구", "마포소방서"),
                 new CorporateSignupRequest.ManagerRequest(
                         "company manager", "safety team", "manager", "manager@example.com", phone),
                 installation,

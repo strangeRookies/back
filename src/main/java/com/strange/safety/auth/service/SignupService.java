@@ -10,8 +10,11 @@ import com.strange.safety.company.repository.CompanyProfileRepository;
 import com.strange.safety.company.repository.InstallationRequestRepository;
 import com.strange.safety.emergency.entity.EmergencyContact;
 import com.strange.safety.emergency.repository.EmergencyContactRepository;
+import com.strange.safety.facility.dto.EmergencyJurisdictionResolveRequest;
+import com.strange.safety.facility.dto.EmergencyJurisdictionResponse;
 import com.strange.safety.facility.entity.*;
 import com.strange.safety.facility.repository.*;
+import com.strange.safety.facility.service.EmergencyJurisdictionService;
 import com.strange.safety.user.entity.User;
 import com.strange.safety.user.repository.UserRepository;
 import com.strange.safety.user.service.UserAgreementService;
@@ -37,6 +40,7 @@ public class SignupService {
     private final PasswordEncoder passwordEncoder;
     private final SmsVerificationService smsVerificationService;
     private final UserAgreementService userAgreementService;
+    private final EmergencyJurisdictionService emergencyJurisdictionService;
 
     public SignupResponse signupIndividual(IndividualSignupRequest request) {
         String email = normalizeEmail(request.email());
@@ -47,14 +51,17 @@ public class SignupService {
         User user = saveUser(email, request.password(), request.name(), request.phone(), Role.INDIVIDUAL);
         userAgreementService.saveSignupAgreements(user, request.agreements());
         IndividualSignupRequest.CareTargetRequest targetRequest = request.careTarget();
+        EmergencyJurisdictionResponse jurisdiction = resolveJurisdiction(
+                targetRequest.postcode(), targetRequest.address(), targetRequest.addressDetail(),
+                targetRequest.region3DepthName());
         Facility facility = facilityRepository.save(Facility.builder()
                 .facilityName(targetRequest.name() + " 보호 시설")
                 .facilityType(FacilityType.HOME)
                 .postalCode(targetRequest.postcode())
                 .address(targetRequest.address())
                 .addressDetail(targetRequest.addressDetail())
-                .district(targetRequest.district())
-                .emergency119Jurisdiction(targetRequest.jurisdiction())
+                .district(jurisdiction.district())
+                .emergency119Jurisdiction(jurisdiction.jurisdiction())
                 .build());
         userFacilityRepository.save(UserFacility.builder()
                 .user(user).facility(facility).accessType(AccessType.MANAGER).build());
@@ -90,11 +97,13 @@ public class SignupService {
         userAgreementService.saveSignupAgreements(user, request.agreements());
         CorporateSignupRequest.CompanyRequest company = request.company();
         CorporateSignupRequest.ManagerRequest manager = request.manager();
+        EmergencyJurisdictionResponse jurisdiction = resolveJurisdiction(
+                company.postcode(), company.address(), company.addressDetail(), company.region3DepthName());
         CompanyProfile profile = companyProfileRepository.save(CompanyProfile.builder()
                 .user(user).companyName(company.name()).businessRegistrationNumber(businessNumber)
                 .industry(company.industry()).companySize(company.size()).postalCode(company.postcode())
-                .address(company.address()).addressDetail(company.addressDetail()).district(company.district())
-                .emergency119Jurisdiction(company.jurisdiction()).managerName(manager.name())
+                .address(company.address()).addressDetail(company.addressDetail()).district(jurisdiction.district())
+                .emergency119Jurisdiction(jurisdiction.jurisdiction()).managerName(manager.name())
                 .managerDepartment(manager.department()).managerRank(manager.rank())
                 .managerEmail(normalizeEmail(manager.email()))
                 .managerContact(smsVerificationService.normalizePhone(manager.contact()))
@@ -140,6 +149,12 @@ public class SignupService {
 
     private String normalizeNumber(String value) {
         return value.replaceAll("[^0-9]", "");
+    }
+
+    private EmergencyJurisdictionResponse resolveJurisdiction(
+            String postcode, String address, String addressDetail, String region3DepthName) {
+        return emergencyJurisdictionService.resolve(
+                new EmergencyJurisdictionResolveRequest(postcode, address, addressDetail, region3DepthName));
     }
 
     private AgeGroup toAgeGroup(String value) {

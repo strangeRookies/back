@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Instant;
-import java.util.Map;
 /**
  * <h1>스마트 안전 관제 시스템 예외 처리 및 다차원 로깅 유틸리티</h1>
  * <p>

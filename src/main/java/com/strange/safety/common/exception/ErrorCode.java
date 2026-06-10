@@ -19,6 +19,9 @@ public enum ErrorCode {
     AUTH_INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_CREDENTIALS", "로그인 정보가 올바르지 않습니다."),
     AUTH_INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_PASSWORD", "이메일 또는 비밀번호가 올바르지 않습니다."),
     AUTH_INVALID_VERIFICATION(HttpStatus.BAD_REQUEST, "AUTH_INVALID_VERIFICATION", "유효하지 않은 휴대폰 인증입니다."),
+    SMS_SEND_FAILED(HttpStatus.BAD_GATEWAY, "SMS_SEND_FAILED", "인증번호 발송에 실패했습니다."),
+    SMS_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "SMS_RATE_LIMITED", "인증번호 발송 요청이 너무 많습니다."),
+    SMS_PROVIDER_CONFIG_INVALID(HttpStatus.INTERNAL_SERVER_ERROR, "SMS_PROVIDER_CONFIG_INVALID", "SMS 발송 설정이 올바르지 않습니다."),
 
     USER_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_ALREADY_EXISTS", "이미 사용 중인 이메일입니다."),
     USER_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_EMAIL_ALREADY_EXISTS", "이미 가입된 이메일입니다."),

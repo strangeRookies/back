@@ -4,9 +4,9 @@ spring:
   application:
     name: strange-back
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/strange_safety}
+    url: ${DB_URL:jdbc:postgresql://localhost:15432/postgres}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD:Ewp~12345}
     driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
   jpa:
     hibernate:
@@ -33,14 +33,27 @@ jwt:
   refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:1209600000}
 
 mqtt:
-  broker-url: tcp://3.34.103.24:1883
+  host: ${MQTT_HOST:54.116.39.252}
+  port: ${MQTT_PORT:1883}
+  broker-url: ${MQTT_BROKER_URL:tcp://${mqtt.host}:${mqtt.port}}
   client-id: spring-backend-${random.uuid}
   topic: ${MQTT_TOPIC:safety/events}
   reconnect-delay-ms: ${MQTT_RECONNECT_DELAY_MS:5000}
   initial-connect-delay-ms: ${MQTT_INITIAL_CONNECT_DELAY_MS:1000}
 
 sms:
-  local-verification-code: ${SMS_LOCAL_VERIFICATION_CODE:123456}
+  enabled: ${SMS_ENABLED:false}
+  provider: ${SMS_PROVIDER:mock}
+  cool-sms:
+    api-key: ${COOLSMS_API_KEY:}
+    api-secret: ${COOLSMS_API_SECRET:}
+    from-number: ${COOLSMS_FROM_NUMBER:}
+    timeout: ${COOLSMS_TIMEOUT:3s}
+  message:
+    verification-template: ${SMS_VERIFICATION_TEMPLATE:[Strange Safety] 인증번호는 {code}입니다.}
+  rate-limit:
+    resend-cooldown-seconds: ${SMS_RESEND_COOLDOWN_SECONDS:60}
+    daily-limit-per-phone: ${SMS_DAILY_LIMIT_PER_PHONE:5}
 
 app:
   websocket:

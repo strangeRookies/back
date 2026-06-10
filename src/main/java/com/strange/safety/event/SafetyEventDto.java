@@ -3,6 +3,7 @@ package com.strange.safety.event;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
+import java.util.List;
 
 public record SafetyEventDto(
         @JsonAlias({"type", "event_type"})
@@ -19,7 +20,15 @@ public record SafetyEventDto(
 
         String message,
 
-        String source
+        String source,
+
+        Float confidence,
+
+        List<Number> bbox,
+
+        @JsonProperty("track_id")
+        @JsonAlias({"track_id", "trackId"})
+        String trackId
 ) {
 }
 
