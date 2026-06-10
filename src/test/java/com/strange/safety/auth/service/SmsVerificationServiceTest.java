@@ -3,6 +3,9 @@ package com.strange.safety.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.strange.safety.auth.dto.SmsVerificationConfirmRequest;
@@ -19,6 +22,7 @@ import com.strange.safety.auth.sms.SmsSender;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,12 +70,39 @@ class SmsVerificationServiceTest {
         when(repository.findByVerificationTokenHash("token-hash")).thenReturn(Optional.of(verification));
 
         var confirmed = service.confirm(new SmsVerificationConfirmRequest(issued.verificationId(), "123456"));
-        service.consume(confirmed.verificationToken(), "01012345678", VerificationPurpose.SIGN_UP);
+        service.consume(confirmed.verificationToken(), "010-1234-5678", VerificationPurpose.SIGN_UP);
 
         assertThat(confirmed.verified()).isTrue();
         assertThatThrownBy(() -> service.consume(
                 confirmed.verificationToken(), "01012345678", VerificationPurpose.SIGN_UP))
                 .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    void sendNormalizesMobilePhoneBeforeSavingAndSending() {
+        when(repository.save(any(SmsVerification.class))).thenAnswer(invocation -> {
+            SmsVerification verification = invocation.getArgument(0);
+            ReflectionTestUtils.setField(verification, "id", 1L);
+            return verification;
+        });
+
+        SmsVerificationResponse response = service.send(
+                new SmsVerificationRequest("010 1234 5678", VerificationPurpose.SIGN_UP));
+
+        assertThat(response.verificationId()).isEqualTo(1L);
+        verify(smsSender).send(eq("01012345678"), any(String.class));
+    }
+
+    @Test
+    void sendRejectsInvalidMobilePhoneBeforeSending() {
+        for (String phone : List.of("abc", "011-1234-5678", "02-123-4567", "010-123-4567")) {
+            assertThatThrownBy(() -> service.send(new SmsVerificationRequest(phone, VerificationPurpose.SIGN_UP)))
+                    .isInstanceOf(CustomException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.COMMON_INVALID_INPUT);
+        }
+
+        verifyNoInteractions(smsSender);
     }
 
     @Test
@@ -144,5 +175,13 @@ class SmsVerificationServiceTest {
         assertThatThrownBy(() -> service.consume(
                 "verified-token", "01012345678", VerificationPurpose.RESET_PASSWORD))
                 .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    void consumeRejectsInvalidMobilePhone() {
+        assertThatThrownBy(() -> service.consume("verified-token", "abc", VerificationPurpose.SIGN_UP))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.COMMON_INVALID_INPUT);
     }
 }

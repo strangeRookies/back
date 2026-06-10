@@ -26,6 +26,7 @@ public class SmsVerificationService {
 
     private static final long CODE_EXPIRATION_SECONDS = 300;
     private static final long TOKEN_EXPIRATION_SECONDS = 900;
+    private static final String MOBILE_PHONE_PATTERN = "^010\\d{8}$";
 
     private final SmsVerificationRepository smsVerificationRepository;
     private final PasswordEncoder passwordEncoder;
@@ -69,18 +70,23 @@ public class SmsVerificationService {
     }
 
     public void consume(String token, String phone, VerificationPurpose purpose) {
+        String phoneNumber = normalizePhone(phone);
         SmsVerification verification = smsVerificationRepository
                 .findByVerificationTokenHash(tokenHasher.hash(token))
                 .orElseThrow(() -> new CustomException(ErrorCode.AUTH_INVALID_VERIFICATION));
         Instant now = Instant.now();
-        if (!verification.canUse(normalizePhone(phone), purpose, now)) {
+        if (!verification.canUse(phoneNumber, purpose, now)) {
             throw new CustomException(ErrorCode.AUTH_INVALID_VERIFICATION);
         }
         verification.use(now);
     }
 
     public String normalizePhone(String phone) {
-        return phone == null ? null : phone.replaceAll("[^0-9]", "");
+        String normalized = phone == null ? "" : phone.replaceAll("[^0-9]", "");
+        if (!normalized.matches(MOBILE_PHONE_PATTERN)) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+        return normalized;
     }
 
     private void validateRateLimit(String phoneNumber) {

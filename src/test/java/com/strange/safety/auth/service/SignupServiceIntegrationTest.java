@@ -74,7 +74,7 @@ class SignupServiceIntegrationTest {
         String token = verifiedToken("01011112222");
 
         var response = signupService.signupIndividual(individualRequest(
-                "individual@example.com", "01011112222", token, "70s"));
+                "individual@example.com", "010-1111-2222", token, "70s"));
 
         assertThat(response.role()).isEqualTo(Role.INDIVIDUAL);
         assertThat(userRepository.count()).isEqualTo(1);
@@ -83,6 +83,7 @@ class SignupServiceIntegrationTest {
         assertThat(protectedTargetRepository.count()).isEqualTo(1);
         assertThat(emergencyContactRepository.count()).isEqualTo(1);
         assertThat(userAgreementRepository.count()).isEqualTo(3);
+        assertThat(userRepository.findAll().get(0).getPhoneNumber()).isEqualTo("01011112222");
 
         var facility = facilityRepository.findAll().get(0);
         assertThat(facility.getDistrict()).isEqualTo("마포구");
@@ -141,6 +142,20 @@ class SignupServiceIntegrationTest {
         assertThat(userFacilityRepository.count()).isZero();
         assertThat(protectedTargetRepository.count()).isZero();
         assertThat(emergencyContactRepository.count()).isZero();
+    }
+
+    @Test
+    void individualSignupRejectsInvalidMobilePhone() {
+        String token = verifiedToken("01011112222");
+
+        assertThatThrownBy(() -> signupService.signupIndividual(individualRequest(
+                "invalid-phone@example.com", "011-1111-2222", token, "70s")))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.COMMON_INVALID_INPUT);
+
+        assertThat(userRepository.count()).isZero();
+        assertThat(userAgreementRepository.count()).isZero();
     }
 
     @Test
