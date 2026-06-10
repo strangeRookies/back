@@ -39,8 +39,8 @@ public class Inquiry extends BaseEntity {
     @Column(nullable = false, length = 20)
     private InquiryStatus status;
 
-    @Column(name = "replay_content", columnDefinition = "TEXT")
-    private String replayContent;
+    @Column(name = "reply_content", columnDefinition = "TEXT")
+    private String replyContent;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "replied_by")
@@ -58,8 +58,8 @@ public class Inquiry extends BaseEntity {
         this.status = InquiryStatus.WAITING;
     }
 
-    public void addAnswer(String replayContent, User admin) {
-        this.replayContent = replayContent;
+    public void addAnswer(String replyContent, User admin) {
+        this.replyContent = replyContent;
         this.repliedBy = admin;
         this.repliedAt = LocalDateTime.now();
         this.status = InquiryStatus.COMPLETED;

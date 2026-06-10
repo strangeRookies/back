@@ -14,13 +14,14 @@ public class InquiryResponse {
     private Long id;
     private String userEmail;
     private String userName;
+    private String userRole;
     private InquiryCategory category;
     private String categoryDescription;
     private String title;
     private String content;
     private InquiryStatus status;
     private String statusDescription;
-    private String replayContent;
+    private String replyContent;
     private String repliedByName;
     private LocalDateTime repliedAt;
     private LocalDateTime createdAt;
@@ -30,13 +31,14 @@ public class InquiryResponse {
                 .id(inquiry.getId())
                 .userEmail(inquiry.getUser().getEmail())
                 .userName(inquiry.getUser().getName())
+                .userRole(inquiry.getUser().getRole().name())
                 .category(inquiry.getCategory())
                 .categoryDescription(inquiry.getCategory().getDescription())
                 .title(inquiry.getTitle())
                 .content(inquiry.getContent())
                 .status(inquiry.getStatus())
                 .statusDescription(inquiry.getStatus().getDescription())
-                .replayContent(inquiry.getReplayContent())
+                .replyContent(inquiry.getReplyContent())
                 .repliedByName(inquiry.getRepliedBy() != null ? inquiry.getRepliedBy().getName() : null)
                 .repliedAt(inquiry.getRepliedAt())
                 .createdAt(inquiry.getCreatedAt())
