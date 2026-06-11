@@ -6,7 +6,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:15432/postgres}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:Ewp~12345}
+    password: ${DB_PASSWORD}
     driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
   jpa:
     hibernate:
@@ -28,12 +28,12 @@ server:
   port: ${SERVER_PORT:8080}
 
 jwt:
-  secret: ${JWT_SECRET:local-development-jwt-secret-change-before-shared-use-32bytes}
+  secret: ${JWT_SECRET}
   access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:1800000}
   refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:1209600000}
 
 mqtt:
-  host: ${MQTT_HOST:54.116.39.252}
+  host: ${MQTT_HOST}
   port: ${MQTT_PORT:1883}
   broker-url: ${MQTT_BROKER_URL:tcp://${mqtt.host}:${mqtt.port}}
   client-id: spring-backend-${random.uuid}
@@ -59,8 +59,7 @@ app:
   websocket:
     allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173}
   aes:
-    secret-key: ${AES_SECRET_KEY:StrangeSafetyKey}
-    iv: ${AES_IV:StrangeSafetyIv!}
+    secret-key: ${AES_SECRET_KEY}
 
 logging:
   level:
