@@ -166,6 +166,29 @@ class AuthSecurityIntegrationTest {
     }
 
     @Test
+    void malformedJsonReturnsCommonInvalidInput() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "security@example.com",
+                                  "password": "Password123!",
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON_INVALID_INPUT"));
+    }
+
+    @Test
+    void missingRequestParameterReturnsCommonInvalidInput() throws Exception {
+        mockMvc.perform(get("/api/auth/email-availability"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON_INVALID_INPUT"));
+    }
+
+    @Test
     void refreshRotationAndLogoutPreventTokenReuse() throws Exception {
         JsonNode login = responseBody(mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

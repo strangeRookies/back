@@ -5,11 +5,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -31,6 +34,17 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.COMMON_INVALID_INPUT;
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.validationError(errorCode.getCode(), errorCode.getMessage(), fieldErrors));
+    }
+
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleInvalidRequestException(Exception exception) {
+        ErrorCode errorCode = ErrorCode.COMMON_INVALID_INPUT;
+        return ResponseEntity.status(errorCode.getStatus())
+                .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
