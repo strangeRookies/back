@@ -59,6 +59,6 @@ public class GlobalExceptionHandler {
         log.error("Unhandled server error", exception);
         ErrorCode errorCode = ErrorCode.COMMON_INTERNAL_ERROR;
         return ResponseEntity.status(errorCode.getStatus())
-                .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
+                .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage() + " 세부 원인: " + exception.getMessage()));
     }
 }

@@ -39,6 +39,11 @@ public class CameraController {
                 cameraService.getCameras(userDetails.getUserId(), facilityId)));
     }
 
+    @GetMapping("/api/cameras/active")
+    public ResponseEntity<ApiResponse<List<CameraResponse>>> getActiveAiCameras() {
+        return ResponseEntity.ok(ApiResponse.success(cameraService.getActiveAiCameras()));
+    }
+
     @PutMapping("/api/cameras/{cameraId}")
     public ResponseEntity<ApiResponse<CameraResponse>> updateCamera(
             @AuthenticationPrincipal CustomUserDetails userDetails,

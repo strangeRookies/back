@@ -19,10 +19,13 @@ import org.springframework.stereotype.Component;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+
 @Component
 public class MqttSafetyEventSubscriber implements MqttCallbackExtended {
 
     private static final Logger log = LoggerFactory.getLogger(MqttSafetyEventSubscriber.class);
+
+    private static final String CAMERA_STATUS_TOPIC = "safety/cameras/status";
 
     private final ObjectMapper objectMapper;
     private final AsyncEventProcessorService asyncEventProcessorService;
@@ -93,13 +96,33 @@ public class MqttSafetyEventSubscriber implements MqttCallbackExtended {
     @Override
     public void messageArrived(String topic, MqttMessage message) {
         String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
-        log.info("Received MQTT safety event from topic {}: {}", topic, payload);
+        log.info("Received MQTT message from topic {}: {}", topic, payload);
 
+        if (CAMERA_STATUS_TOPIC.equals(topic)) {
+            handleCameraStatusEvent(payload);
+        } else {
+            handleSafetyEvent(payload);
+        }
+    }
+
+    private void handleCameraStatusEvent(String payload) {
+        try {
+            CameraStatusEventDto event = objectMapper.readValue(payload, CameraStatusEventDto.class);
+            asyncEventProcessorService.processCameraStatusEvent(event);
+
+        } catch (JsonProcessingException ex) {
+            log.error("Failed to parse MQTT camera status event JSON: payload={}", payload, ex);
+        } catch (RuntimeException ex) {
+            log.error("Failed to process MQTT camera status event: payload={}", payload, ex);
+        }
+    }
+
+    private void handleSafetyEvent(String payload) {
         try {
             SafetyEventDto event = objectMapper.readValue(payload, SafetyEventDto.class);
             asyncEventProcessorService.processEvent(event);
-        } catch (JsonProcessingException ex) {
-            log.error("Failed to parse MQTT safety event JSON: payload={}", payload, ex);
+        } catch (Exception e) {
+            log.error("[MQTT Debug] Failed to process MQTT safety event: payload={}, error={}", payload, e.getMessage(), e);
         }
     }
 
@@ -141,6 +164,7 @@ public class MqttSafetyEventSubscriber implements MqttCallbackExtended {
             return;
         }
         client.subscribe(topic, 0);
-        log.info("Subscribed to MQTT topic: {}", topic);
+        client.subscribe(CAMERA_STATUS_TOPIC, 0);
+        log.info("Subscribed to MQTT topics: {}, {}", topic, CAMERA_STATUS_TOPIC);
     }
 }

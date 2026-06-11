@@ -59,7 +59,8 @@ public class SecurityConfig {
                                 "/api/auth/password-reset",
                                 "/api/auth/email-availability",
                                 "/api/companies/business-number-availability",
-                                "/api/emergency-jurisdictions/resolve"
+                                "/api/emergency-jurisdictions/resolve",
+                                "/api/cameras/active"
                         ).permitAll()
 
                         // ADMIN 전용

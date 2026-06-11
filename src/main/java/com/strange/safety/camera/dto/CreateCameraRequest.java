@@ -1,9 +1,13 @@
 package com.strange.safety.camera.dto;
 
+import com.strange.safety.camera.entity.CameraSourceType;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
+@Setter
 @NoArgsConstructor
 public class CreateCameraRequest {
 
@@ -15,4 +19,8 @@ public class CreateCameraRequest {
     private String rtspUrl;
 
     private String locationDescription;
+
+    private Boolean aiEnabled;
+
+    private CameraSourceType sourceType;
 }
