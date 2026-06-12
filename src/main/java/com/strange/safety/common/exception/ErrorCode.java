@@ -28,6 +28,7 @@ public enum ErrorCode {
     USER_INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "USER_INVALID_PASSWORD", "비밀번호가 일치하지 않습니다."),
 
     COMPANY_BUSINESS_NUMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "COMPANY_BUSINESS_NUMBER_ALREADY_EXISTS", "이미 등록된 사업자등록번호입니다."),
+    COMPANY_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "COMPANY_PROFILE_NOT_FOUND", "기업 프로필을 찾을 수 없습니다."),
 
     AGREEMENT_REQUIRED(HttpStatus.BAD_REQUEST, "AGREEMENT_REQUIRED", "필수 약관에 동의해야 합니다."),
     AGREEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "AGREEMENT_NOT_FOUND", "약관 동의 이력을 찾을 수 없습니다."),

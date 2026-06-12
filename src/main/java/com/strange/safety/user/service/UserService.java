@@ -6,6 +6,7 @@ import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.company.entity.CompanyProfile;
 import com.strange.safety.company.repository.CompanyProfileRepository;
+import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
 import com.strange.safety.facility.entity.AccessType;
 import com.strange.safety.facility.repository.FacilityRepository;
 import com.strange.safety.user.dto.AdminUserResponse;
@@ -34,6 +35,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final CompanyProfileRepository companyProfileRepository;
+    private final CorporateCameraRepository corporateCameraRepository;
     private final FacilityRepository facilityRepository;
     private final CameraRepository cameraRepository;
     private final PasswordEncoder passwordEncoder;
@@ -91,6 +93,21 @@ public class UserService {
                 : companyProfileRepository.findByUserIdIn(corporateUserIds).stream()
                         .collect(Collectors.toMap(cp -> cp.getUser().getId(), cp -> cp));
 
+        Map<Long, Integer> corporateCameraCountByProfileId;
+        if (profileMap.isEmpty()) {
+            corporateCameraCountByProfileId = Map.of();
+        } else {
+            List<Long> companyProfileIds = profileMap.values().stream()
+                    .map(CompanyProfile::getId).toList();
+            corporateCameraCountByProfileId = corporateCameraRepository
+                    .countCamerasByCompanyProfileIds(companyProfileIds)
+                    .stream()
+                    .collect(Collectors.toMap(
+                            row -> ((Number) row[0]).longValue(),
+                            row -> ((Number) row[1]).intValue()
+                    ));
+        }
+
         Map<Long, String> individualRegions = individualUserIds.isEmpty()
                 ? Map.of()
                 : facilityRepository.findDistrictsByUserIds(individualUserIds, AccessType.MANAGER)
@@ -101,7 +118,7 @@ public class UserService {
                                 (first, second) -> first
                         ));
 
-        Map<Long, Integer> cameraCounts = allUserIds.isEmpty()
+        Map<Long, Integer> individualCameraCounts = allUserIds.isEmpty()
                 ? Map.of()
                 : cameraRepository.countCamerasByUserIds(allUserIds, AccessType.MANAGER)
                         .stream()
@@ -111,9 +128,11 @@ public class UserService {
                         ));
 
         return users.map(user -> {
-            int cameraCount = cameraCounts.getOrDefault(user.getId(), 0);
             if (user.getRole() == Role.CORPORATE) {
                 CompanyProfile cp = profileMap.get(user.getId());
+                int cameraCount = cp != null
+                        ? corporateCameraCountByProfileId.getOrDefault(cp.getId(), 0)
+                        : 0;
                 return AdminUserResponse.from(
                         user,
                         cp != null ? cp.getCompanyName() : user.getName(),
@@ -129,7 +148,7 @@ public class UserService {
                         null,
                         user.getPhoneNumber(),
                         individualRegions.getOrDefault(user.getId(), null),
-                        cameraCount
+                        individualCameraCounts.getOrDefault(user.getId(), 0)
                 );
             }
         });

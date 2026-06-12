@@ -33,9 +33,9 @@ jwt:
   refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:1209600000}
 
 mqtt:
-  host: ${MQTT_HOST:3.38.142.174}
+  host: ${MQTT_HOST:localhost}
   port: ${MQTT_PORT:1883}
-  broker-url: tcp://${MQTT_HOST:3.38.142.174}:${MQTT_PORT:1883}
+  broker-url: tcp://${MQTT_HOST:localhost}:${MQTT_PORT:1883}
   client-id: spring-backend-${random.uuid}
   topic: ${MQTT_TOPIC:safety/events}
   camera-status-topic: ${MQTT_CAMERA_STATUS_TOPIC:safety/cameras/status}
@@ -60,8 +60,8 @@ app:
   websocket:
     allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173}
   aes:
-    secret-key: ${AES_SECRET_KEY:StrangeSafetyKey}
-    iv: ${AES_IV:StrangeSafetyIv!}
+    secret-key: ${AES_SECRET_KEY}
+    iv: ${AES_IV}
   fcm:
     # FCM 푸시 알림 활성화 여부 (기본 false: mock 모드)
     # 활성화하려면 firebase-admin SDK 의존성 추가 및 서비스 계정 키 설정 필요
