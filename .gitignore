@@ -5,6 +5,7 @@ AGENTS.md
 .gradle/
 build/
 out/
+bin/
 
 *.class
 
