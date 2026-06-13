@@ -139,7 +139,7 @@ public class AlertEventService {
         }
 
         String finalCameraIdVal = cameraIdVal;
-        Camera camera = cameraRepository.findByCameraLoginId(finalCameraIdVal)
+        Camera camera = cameraRepository.findFirstByCameraLoginIdOrderByIdDesc(finalCameraIdVal)
                 .orElseThrow(() -> {
                     log.error("Failed to map MQTT safety event camera: rawCameraLoginId={}, rawCameraId={}, normalizedCameraLoginId={}",
                             dto.cameraLoginId(), dto.cameraId(), finalCameraIdVal);
