@@ -23,6 +23,12 @@ public class MqttConfig {
     @Value("${mqtt.client-id}")
     private String clientId;
 
+    @Value("${mqtt.topic:safety/events}")
+    private String safetyEventsTopic;
+
+    @Value("${mqtt.camera-status-topic:safety/cameras/status}")
+    private String cameraStatusTopic;
+
     @Value("${MQTT_USERNAME:}")
     private String mqttUsername;
 
@@ -55,7 +61,8 @@ public class MqttConfig {
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
                 clientId + "-integration",
                 mqttClientFactory(),
-                "safety/alert/#");
+                safetyEventsTopic,
+                cameraStatusTopic);
 
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
