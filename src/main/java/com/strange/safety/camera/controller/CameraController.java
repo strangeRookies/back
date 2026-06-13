@@ -21,20 +21,20 @@ public class CameraController {
 
     private final CameraService cameraService;
 
-    @PostMapping("/api/facilities/{facilityId}/cameras")
+    @PostMapping({"/api/facilities/{facilityId}/cameras", "/api/cameras"})
     public ResponseEntity<ApiResponse<CameraResponse>> createCamera(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long facilityId,
+            @PathVariable(required = false) Long facilityId,
             @Valid @RequestBody CreateCameraRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(
                         cameraService.createCamera(userDetails.getUserId(), facilityId, request)));
     }
 
-    @GetMapping("/api/facilities/{facilityId}/cameras")
+    @GetMapping({"/api/facilities/{facilityId}/cameras", "/api/cameras"})
     public ResponseEntity<ApiResponse<List<CameraResponse>>> getCameras(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long facilityId) {
+            @PathVariable(required = false) Long facilityId) {
         return ResponseEntity.ok(ApiResponse.success(
                 cameraService.getCameras(userDetails.getUserId(), facilityId)));
     }

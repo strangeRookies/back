@@ -52,7 +52,7 @@ public class CameraStatusService {
             return Optional.empty();
         }
 
-        Optional<Camera> cameraOpt = cameraRepository.findByCameraLoginId(cameraLoginId);
+        Optional<Camera> cameraOpt = cameraRepository.findFirstByCameraLoginIdOrderByIdDesc(cameraLoginId);
         if (cameraOpt.isEmpty()) {
             log.warn("[CameraStatus] camera_login_id={}에 해당하는 Camera를 찾을 수 없습니다. DB에 카메라가 등록되어 있는지 확인하세요.", cameraLoginId);
             return Optional.empty();

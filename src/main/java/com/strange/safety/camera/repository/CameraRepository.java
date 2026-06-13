@@ -1,6 +1,7 @@
 package com.strange.safety.camera.repository;
 
 import com.strange.safety.camera.entity.Camera;
+import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.facility.entity.AccessType;
 import java.util.List;
 import java.util.Optional;
@@ -10,7 +11,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface CameraRepository extends JpaRepository<Camera, Long> {
     List<Camera> findByFacility_Id(Long facilityId);
-    Optional<Camera> findByCameraLoginId(String cameraLoginId);
+    List<Camera> findByFacility_IdAndStatus(Long facilityId, CameraStatus status);
+    List<Camera> findByAiEnabledTrueAndStatus(CameraStatus status);
+    Optional<Camera> findFirstByCameraLoginIdOrderByIdDesc(String cameraLoginId);
 
     @Query("SELECT uf.user.id, COUNT(c) FROM Camera c " +
             "JOIN UserFacility uf ON uf.facility = c.facility " +

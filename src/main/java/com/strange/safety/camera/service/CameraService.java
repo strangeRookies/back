@@ -10,8 +10,15 @@ import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.common.util.AesUtil;
 import com.strange.safety.facility.entity.Facility;
+import com.strange.safety.facility.entity.UserFacility;
+import com.strange.safety.facility.repository.FacilityRepository;
+import com.strange.safety.facility.repository.UserFacilityRepository;
 import com.strange.safety.facility.service.FacilityService;
+import com.strange.safety.user.entity.User;
+import com.strange.safety.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +31,9 @@ import java.util.stream.Collectors;
 public class CameraService {
 
     private final CameraRepository cameraRepository;
+    private final FacilityRepository facilityRepository;
+    private final UserFacilityRepository userFacilityRepository;
+    private final UserRepository userRepository;
     private final FacilityService facilityService;
     private final AesUtil aesUtil;
     private final VirtualCameraPoolService virtualCameraPoolService;
@@ -31,6 +41,38 @@ public class CameraService {
 
     @Transactional
     public CameraResponse createCamera(Long userId, Long facilityId, CreateCameraRequest request) {
+        if (facilityId == null) {
+            Page<Facility> facilityPage = facilityRepository.findActiveFacilitiesByManagerId(
+                    userId,
+                    com.strange.safety.facility.entity.AccessType.MANAGER,
+                    PageRequest.of(0, 1)
+            );
+            if (facilityPage.isEmpty()) {
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                if (user.getRole() == com.strange.safety.auth.entity.Role.INDIVIDUAL) {
+                    Facility newFacility = facilityRepository.save(Facility.builder()
+                            .facilityName(user.getName() + " 보호 시설")
+                            .facilityType(com.strange.safety.facility.entity.FacilityType.HOME)
+                            .postalCode("00000")
+                            .address("주소 미설정")
+                            .addressDetail("")
+                            .district("미지정")
+                            .emergency119Jurisdiction("미지정")
+                            .build());
+                    userFacilityRepository.save(UserFacility.builder()
+                            .user(user)
+                            .facility(newFacility)
+                            .accessType(com.strange.safety.facility.entity.AccessType.MANAGER)
+                            .build());
+                    facilityId = newFacility.getId();
+                } else {
+                    throw new CustomException(ErrorCode.FACILITY_NOT_FOUND);
+                }
+            } else {
+                facilityId = facilityPage.getContent().get(0).getId();
+            }
+        }
         Facility facility = facilityService.getFacilityWithOwnerCheck(userId, facilityId);
 
         String encryptedPassword = null;
@@ -69,8 +111,25 @@ public class CameraService {
     }
 
     public List<CameraResponse> getCameras(Long userId, Long facilityId) {
+        if (facilityId == null) {
+            Page<Facility> facilityPage = facilityRepository.findActiveFacilitiesByManagerId(
+                    userId,
+                    com.strange.safety.facility.entity.AccessType.MANAGER,
+                    PageRequest.of(0, 1)
+            );
+            if (facilityPage.isEmpty()) {
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                if (user.getRole() == com.strange.safety.auth.entity.Role.INDIVIDUAL) {
+                    return java.util.Collections.emptyList();
+                } else {
+                    throw new CustomException(ErrorCode.FACILITY_NOT_FOUND);
+                }
+            }
+            facilityId = facilityPage.getContent().get(0).getId();
+        }
         facilityService.getFacilityWithOwnerCheck(userId, facilityId);
-        return cameraRepository.findByFacility_Id(facilityId).stream()
+        return cameraRepository.findByFacility_IdAndStatus(facilityId, CameraStatus.ACTIVE).stream()
                 .map(CameraResponse::from)
                 .collect(Collectors.toList());
     }
@@ -99,9 +158,7 @@ public class CameraService {
     }
 
     public List<CameraResponse> getActiveAiCameras() {
-        return cameraRepository.findAll().stream()
-                .filter(Camera::isAiEnabled)
-                .filter(c -> c.getStatus() == CameraStatus.ACTIVE)
+        return cameraRepository.findByAiEnabledTrueAndStatus(CameraStatus.ACTIVE).stream()
                 .map(CameraResponse::from)
                 .collect(Collectors.toList());
     }
