@@ -19,7 +19,10 @@ public class SmsConfig {
     @Bean
     public SmsSender smsSender(SmsProperties smsProperties, ObjectProvider<RestClient.Builder> builderProvider,
                                Environment environment) {
-        if (!smsProperties.isEnabled() || "mock".equalsIgnoreCase(smsProperties.getProvider())) {
+        if (!smsProperties.isEnabled()) {
+            return new MockSmsSender();
+        }
+        if ("mock".equalsIgnoreCase(smsProperties.getProvider())) {
             validateMockProfile(environment);
             return new MockSmsSender();
         }
