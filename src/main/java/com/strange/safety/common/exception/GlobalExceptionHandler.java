@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -43,6 +44,13 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiResponse<Void>> handleInvalidRequestException(Exception exception) {
         ErrorCode errorCode = ErrorCode.COMMON_INVALID_INPUT;
+        return ResponseEntity.status(errorCode.getStatus())
+                .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotAllowed(HttpRequestMethodNotSupportedException exception) {
+        ErrorCode errorCode = ErrorCode.COMMON_METHOD_NOT_ALLOWED;
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
     }

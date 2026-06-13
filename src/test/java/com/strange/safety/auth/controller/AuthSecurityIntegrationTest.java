@@ -192,11 +192,61 @@ class AuthSecurityIntegrationTest {
     }
 
     @Test
-    void missingRequestParameterReturnsCommonInvalidInput() throws Exception {
-        mockMvc.perform(get("/api/auth/email-availability"))
+    void emailAvailabilityPostEndpointIsPublic() throws Exception {
+        mockMvc.perform(post("/api/auth/email-availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "new-user@example.com"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(true));
+    }
+
+    @Test
+    void emailAvailabilityValidationFailureReturnsCommonInvalidInput() throws Exception {
+        mockMvc.perform(post("/api/auth/email-availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": ""
+                                }
+                                """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("COMMON_INVALID_INPUT"));
+                .andExpect(jsonPath("$.error.code").value("COMMON_INVALID_INPUT"))
+                .andExpect(jsonPath("$.error.fieldErrors.email").exists());
+    }
+
+    @Test
+    void businessNumberAvailabilityPostEndpointIsPublic() throws Exception {
+        mockMvc.perform(post("/api/companies/business-number-availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "businessNumber": "1234567890"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(true));
+    }
+
+    @Test
+    void businessNumberAvailabilityValidationFailureReturnsCommonInvalidInput() throws Exception {
+        mockMvc.perform(post("/api/companies/business-number-availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "businessNumber": ""
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON_INVALID_INPUT"))
+                .andExpect(jsonPath("$.error.fieldErrors.businessNumber").exists());
     }
 
     @Test

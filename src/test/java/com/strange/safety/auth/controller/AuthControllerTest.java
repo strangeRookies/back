@@ -3,11 +3,13 @@ package com.strange.safety.auth.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.strange.safety.auth.dto.AvailabilityResponse;
 import com.strange.safety.auth.dto.CorporateSignupRequest;
 import com.strange.safety.auth.dto.LoginRequest;
 import com.strange.safety.auth.dto.TokenResponse;
@@ -105,5 +107,44 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         verify(signupService).signupCorporate(any(CorporateSignupRequest.class));
+    }
+
+    @Test
+    void emailAvailabilityAcceptsPostBody() throws Exception {
+        when(signupService.emailAvailability("test@example.com"))
+                .thenReturn(new AvailabilityResponse(true));
+
+        mockMvc.perform(post("/api/auth/email-availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "test@example.com"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(true));
+    }
+
+    @Test
+    void emailAvailabilityValidationFailureReturnsFieldErrors() throws Exception {
+        mockMvc.perform(post("/api/auth/email-availability")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "invalid-email"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON_INVALID_INPUT"))
+                .andExpect(jsonPath("$.error.fieldErrors.email").exists());
+    }
+
+    @Test
+    void emailAvailabilityDoesNotSupportGet() throws Exception {
+        mockMvc.perform(get("/api/auth/email-availability")
+                        .param("email", "test@example.com"))
+                .andExpect(status().isMethodNotAllowed());
     }
 }

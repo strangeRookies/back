@@ -65,9 +65,9 @@ public class AuthController {
         return ApiResponse.success("비밀번호가 재설정되었습니다.", null);
     }
 
-    @GetMapping("/email-availability")
-    public ApiResponse<AvailabilityResponse> emailAvailability(@RequestParam String email) {
-        return ApiResponse.success(signupService.emailAvailability(email));
+    @PostMapping("/email-availability")
+    public ApiResponse<AvailabilityResponse> emailAvailability(@Valid @RequestBody EmailAvailabilityRequest request) {
+        return ApiResponse.success(signupService.emailAvailability(request.email()));
     }
 
     @PostMapping("/login")

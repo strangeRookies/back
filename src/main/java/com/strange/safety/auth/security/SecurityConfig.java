@@ -53,6 +53,11 @@ public class SecurityConfig {
                                 "/swagger-ui.html"
                         ).permitAll()
                         .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/auth/email-availability",
+                                "/api/companies/business-number-availability"
+                        ).permitAll()
+                        .requestMatchers(
                                 "/api/auth/signup/individual",
                                 "/api/auth/signup/corporate",
                                 "/api/auth/login",
@@ -62,8 +67,6 @@ public class SecurityConfig {
                                 "/api/auth/password-reset/verifications/sms",
                                 "/api/auth/password-reset/verifications/sms/confirm",
                                 "/api/auth/password-reset",
-                                "/api/auth/email-availability",
-                                "/api/companies/business-number-availability",
                                 "/api/emergency-jurisdictions/resolve",
                                 "/api/cameras/active"
                         ).permitAll()
