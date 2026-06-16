@@ -1,0 +1,39 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:strange_safety_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        jdbc:
+          time_zone: UTC
+
+jwt:
+  secret: test-jwt-secret-key-that-is-long-enough-for-hs384-signing
+  access-token-expiration-ms: 1800000
+  refresh-token-expiration-ms: 1209600000
+
+mqtt:
+  host: localhost
+
+sms:
+  enabled: false
+  provider: mock
+  rate-limit:
+    resend-cooldown-seconds: 60
+    daily-limit-per-phone: 5
+
+app:
+  aes:
+    secret-key: test-aes-secret-key
+
+logging:
+  level:
+    com.strange.safety: WARN
+    org.hibernate.SQL: WARN
