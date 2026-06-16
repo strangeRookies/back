@@ -46,7 +46,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/ws", "/ws/**").permitAll()
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",

@@ -25,8 +25,8 @@
  ➡ YOLO26n-pose (Bounding Box 검출 및 17개 관절 키포인트 추출)
  ➡ ByteTrack / SimpleTrackAssigner (동일 인물 track_id 할당)
  ➡ 관절좌표 정규화 및 피처 가공 (Normalized X, Y, Confidence)
- ➡ Per-Track Sequence Buffer 생성 (30프레임 슬라이딩 윈도우)
- ➡ LSTM 입력 데이터 텐서 구성 (Batch, 30, 51)
+ ➡ Per-Track Sequence Buffer 생성 (16프레임 오버랩 시퀀스)
+ ➡ LSTM 입력 데이터 텐서 구성 (Batch, 16, 51)
  ➡ 이진 분류기 학습 (Faint / Normal)
  ➡ Validation & Test 세트 성능 평가
  ➡ Threshold Sweep (임계값 Sweep 분석)
@@ -47,12 +47,14 @@
 2. **전처리 단계에서 추출하는 FPS:**
    * **[확인 필요]** 실제 학습에 사용된 FPS는 원본 FPS와 다를 수 있으므로, 전처리 코드에서 frame skipping 또는 sampling이 적용되었는지 별도로 확인해야 합니다.
 3. **Sequence 하나를 구성하는 Frame 수 (Sequence Length):**
-   * 코드 설정 기본값은 **30 프레임 (Sequence Length = 30)** 입니다.
-4. **Sequence 하나가 실제 시간으로 의미하는 길이 (Duration):**
-   * 원본 영상 그대로 30fps를 적용해 샘플링 없이 30프레임을 채운다면, 1개의 Sequence는 **정확히 1.0초**의 실제 동작 시간을 내포합니다.
-   * 만약 15fps로 다운샘플링하여 30프레임을 구성한다면, 1개의 Sequence는 **2.0초**의 동작 속도를 대변합니다.
+   * 코드 설정 기본값은 **16 프레임 (Sequence Length = 16)** 입니다.
+4. **Sequence 하나가 실제 시간으로 의미하는 길이 (Duration) 및 생성 간격:**
+   * 원본 영상의 약 **29.97 FPS** 기준으로 계산 시:
+     - Sequence 하나의 시간 길이: `16 / 29.97 ≈ 0.53초`
+     - 다음 Sequence 생성 간격 (Stride): `8 / 29.97 ≈ 0.27초`
+   * 따라서 현재 기본 설정은 약 0.53초 길이의 행동 구간을 들여다보고, 약 0.27초 간격으로 겹치는(Overlap) sequence를 생성하는 구조입니다.
 5. **학습 시 사용한 FPS와 실시간 추론 시 사용하는 FPS 일치 여부:**
-   * **[확인 필요]** 모델 학습 시 사용한 30프레임 데이터의 간격(Time-Interval)과 실시간 RTSP 추론 엔진(`run_rtsp_inference.py`)의 패킷 프레임 수신 속도가 일치해야 합니다. 실시간 엔진이 GPU 성능 문제로 인해 15 FPS로 프레임을 떨어뜨려 분석한다면, 학습 데이터도 15 FPS로 샘플링하여 모델을 다시 훈련해야 합니다.
+   * **[확인 필요]** 모델 학습 시 사용한 16프레임 데이터의 간격(Time-Interval)과 실시간 RTSP 추론 엔진(`run_rtsp_inference.py`)의 패킷 프레임 수신 속도가 일치해야 합니다. 실시간 엔진이 GPU 성능 문제로 인해 15 FPS로 프레임을 떨어뜨려 분석한다면, 학습 데이터도 15 FPS로 샘플링하여 모델을 다시 훈련해야 합니다.
 6. **Frame Skipping 및 Sampling 적용 전략:**
    * 현재 실시간 RTSP 파이프라인은 CPU/GPU 로드 과부하 시 쌓여있는 큐(Queue)를 버리고 최신 프레임을 가져오는 **패킷 드롭 전략**을 기본으로 채택하고 있습니다.
 7. **30fps 전체 처리 시 성능 과부하 여부:**
@@ -105,8 +107,8 @@ features.extend([
 
 ## 🔄 6. Sequence 구성 및 가공 기준
 
-* **Sequence Length:** 30 프레임 (30 FPS 기준 1.0초 동작)
-* **Sequence Stride:** 1 프레임 단위 슬라이딩 윈도우. (매 프레임 분석 결과를 즉시 계산하여 반응성 극대화)
+* **Sequence Length:** 16 프레임 (29.97 FPS 기준 약 0.53초 동작)
+* **Sequence Stride (Interval):** 8 프레임 (29.97 FPS 기준 약 0.27초 간격으로 overlap 시퀀스 생성)
 * **이벤트 라벨 부여 정책 (Labeling):**
   * 사람이 바닥에 누워 정지해 있는 "완성된 쓰러짐(Lying)" 구간뿐만 아니라, **서 있는 상태에서 바닥으로 가속하며 고꾸라지는 "과도기적인 쓰러짐 과정"** 프레임 범위에도 Faint(1) 라벨을 주어 신속 감지가 터지도록 설계합니다.
 * **클래스 불균형 완화 (Class Balancing):**
