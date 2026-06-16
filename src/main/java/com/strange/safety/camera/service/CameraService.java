@@ -5,7 +5,10 @@ import com.strange.safety.camera.dto.CreateCameraRequest;
 import com.strange.safety.camera.dto.UpdateCameraRequest;
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.entity.CameraStatus;
+import com.strange.safety.camera.entity.CameraConnectionStatus;
+import com.strange.safety.camera.entity.CameraStatusLog;
 import com.strange.safety.camera.repository.CameraRepository;
+import com.strange.safety.camera.repository.CameraStatusLogRepository;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.common.util.AesUtil;
@@ -22,6 +25,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +35,7 @@ import java.util.stream.Collectors;
 public class CameraService {
 
     private final CameraRepository cameraRepository;
+    private final CameraStatusLogRepository cameraStatusLogRepository;
     private final FacilityRepository facilityRepository;
     private final UserFacilityRepository userFacilityRepository;
     private final UserRepository userRepository;
@@ -103,6 +108,15 @@ public class CameraService {
 
         camera = cameraRepository.save(camera);
 
+        // 최초 등록 상태 로그 저장
+        cameraStatusLogRepository.save(CameraStatusLog.builder()
+                .camera(camera)
+                .previousStatus(null)
+                .currentStatus(CameraConnectionStatus.UNKNOWN)
+                .reason("카메라 최초 등록")
+                .detectedAt(Instant.now())
+                .build());
+
         if (camera.getSourceType() == com.strange.safety.camera.entity.CameraSourceType.SIMULATED_RTSP) {
             rtspSimulationService.startSimulation(camera.getCameraLoginId(), camera.getAssignedVideoPath(), camera.getRtspUrl());
         }
@@ -154,7 +168,7 @@ public class CameraService {
             rtspSimulationService.stopSimulation(camera.getCameraLoginId());
         }
         
-        camera.deactivate();
+        cameraRepository.delete(camera);
     }
 
     public List<CameraResponse> getActiveAiCameras() {

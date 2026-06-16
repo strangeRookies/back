@@ -9,6 +9,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.strange.safety.alert.entity.AlertEvent;
 
 @Entity
 @Table(name = "cameras")
@@ -24,6 +28,15 @@ public class Camera extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "facility_id", nullable = false)
     private Facility facility;
+
+    @OneToMany(mappedBy = "camera", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AlertEvent> alertEvents = new ArrayList<>();
+
+    @OneToMany(mappedBy = "camera", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RoiConfig> roiConfigs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "camera", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CameraStatusLog> statusLogs = new ArrayList<>();
 
     @Column(name = "camera_login_id")
     private String cameraLoginId;
