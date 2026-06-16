@@ -174,6 +174,30 @@ class SignupServiceIntegrationTest {
     }
 
     @Test
+    void corporateSignupAllowsMissingBusinessNumberAndPublicFacilityIndustry() {
+        String token = verifiedToken("01055556666");
+
+        var response = signupService.signupCorporate(corporateRequest(
+                "public@example.com", "01055556666", token, null, "공공시설"));
+
+        assertThat(response.role()).isEqualTo(Role.CORPORATE);
+        var profile = companyProfileRepository.findAll().get(0);
+        assertThat(profile.getBusinessRegistrationNumber()).isNull();
+        assertThat(profile.getIndustry()).isEqualTo("공공시설");
+    }
+
+    @Test
+    void corporateSignupTreatsBlankBusinessNumberAsMissing() {
+        String token = verifiedToken("01055556666");
+
+        signupService.signupCorporate(corporateRequest(
+                "blank-business@example.com", "01055556666", token, "   ", "medical"));
+
+        var profile = companyProfileRepository.findAll().get(0);
+        assertThat(profile.getBusinessRegistrationNumber()).isNull();
+    }
+
+    @Test
     void corporateSignupFailureRollsBackUserAndProfile() {
         String token = verifiedToken("01055556666");
         var invalid = new CorporateSignupRequest(
@@ -295,10 +319,20 @@ class SignupServiceIntegrationTest {
     }
 
     private CorporateSignupRequest corporateRequest(String email, String phone, String token, String businessNumber) {
+        return corporateRequest(email, phone, token, businessNumber, "medical");
+    }
+
+    private CorporateSignupRequest corporateRequest(
+            String email,
+            String phone,
+            String token,
+            String businessNumber,
+            String industry
+    ) {
         return new CorporateSignupRequest(
                 email, "Password123!", phone, token,
                 new CorporateSignupRequest.CompanyRequest(
-                        "Smart Safety Hospital", businessNumber, "medical", "50-200",
+                        "Smart Safety Hospital", businessNumber, industry, "50-200",
                         "06123", "서울특별시 강남구 테헤란로 1", "Safety Office", "역삼동", "마포구", "마포소방서"),
                 new CorporateSignupRequest.ManagerRequest(
                         "company manager", "safety team", "manager@example.com", "02-555-1234"),

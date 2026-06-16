@@ -90,8 +90,7 @@ class AuthControllerTest {
                                   "verificationToken": "verified-token",
                                   "company": {
                                     "name": "Smart Safety Hospital",
-                                    "businessNumber": "123-45-67890",
-                                    "industry": "medical",
+                                    "industry": "공공시설",
                                     "size": "50-200",
                                     "postcode": "06123",
                                     "address": "Seoul Gangnam",

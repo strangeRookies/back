@@ -15,7 +15,7 @@ public record CorporateSignupRequest(
 ) {
     public record CompanyRequest(
             @NotBlank String name,
-            @NotBlank String businessNumber,
+            String businessNumber,
             @NotBlank String industry,
             @NotBlank String size,
             @NotBlank String postcode,

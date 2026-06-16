@@ -83,9 +83,9 @@ public class SignupService {
 
     public SignupResponse signupCorporate(CorporateSignupRequest request) {
         String email = normalizeEmail(request.email());
-        String businessNumber = normalizeNumber(request.company().businessNumber());
+        String businessNumber = normalizeOptionalNumber(request.company().businessNumber());
         validateEmailAvailable(email);
-        if (companyProfileRepository.existsByBusinessRegistrationNumber(businessNumber)) {
+        if (businessNumber != null && companyProfileRepository.existsByBusinessRegistrationNumber(businessNumber)) {
             throw new CustomException(ErrorCode.COMPANY_BUSINESS_NUMBER_ALREADY_EXISTS);
         }
         userAgreementService.validateRequiredAgreements(request.agreements());
@@ -140,6 +140,14 @@ public class SignupService {
 
     private String normalizeNumber(String value) {
         return value.replaceAll("[^0-9]", "");
+    }
+
+    private String normalizeOptionalNumber(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = normalizeNumber(value);
+        return normalized.isBlank() ? null : normalized;
     }
 
     private String normalizeContactNumber(String value) {

@@ -28,7 +28,7 @@ public class CompanyProfile extends BaseEntity {
     @Column(name = "company_name", nullable = false)
     private String companyName;
 
-    @Column(name = "business_registration_number", nullable = false, length = 20)
+    @Column(name = "business_registration_number", length = 20)
     private String businessRegistrationNumber;
 
     private String industry;
