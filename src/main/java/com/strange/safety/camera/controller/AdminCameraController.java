@@ -43,11 +43,6 @@ public class AdminCameraController {
                 .body(ApiResponse.success(result));
     }
 
-    @GetMapping("/facilities")
-    public ResponseEntity<ApiResponse<List<AdminFacilityResponse>>> getAllFacilities() {
-        return ResponseEntity.ok(ApiResponse.success(facilityService.getAllFacilitiesForAdmin()));
-    }
-
     @GetMapping("/individual-facilities")
     public ResponseEntity<ApiResponse<List<AdminFacilityResponse>>> getAllIndividualFacilities() {
         return ResponseEntity.ok(ApiResponse.success(facilityService.getAllIndividualFacilitiesForAdmin()));
