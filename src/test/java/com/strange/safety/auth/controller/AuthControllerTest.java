@@ -12,8 +12,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strange.safety.auth.dto.AvailabilityResponse;
 import com.strange.safety.auth.dto.CorporateSignupRequest;
 import com.strange.safety.auth.dto.LoginRequest;
+import com.strange.safety.auth.dto.TokenIssueResult;
 import com.strange.safety.auth.dto.TokenResponse;
 import com.strange.safety.auth.entity.Role;
+import com.strange.safety.auth.security.RefreshTokenCookieManager;
 import com.strange.safety.auth.service.AuthService;
 import com.strange.safety.auth.service.PasswordResetService;
 import com.strange.safety.auth.service.SignupService;
@@ -30,6 +32,7 @@ class AuthControllerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private AuthService authService;
     private SignupService signupService;
+    private RefreshTokenCookieManager refreshTokenCookieManager;
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -38,9 +41,11 @@ class AuthControllerTest {
         signupService = org.mockito.Mockito.mock(SignupService.class);
         SmsVerificationService smsVerificationService = org.mockito.Mockito.mock(SmsVerificationService.class);
         PasswordResetService passwordResetService = org.mockito.Mockito.mock(PasswordResetService.class);
+        refreshTokenCookieManager = org.mockito.Mockito.mock(RefreshTokenCookieManager.class);
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new AuthController(
-                        authService, signupService, smsVerificationService, passwordResetService))
+                        authService, signupService, smsVerificationService, passwordResetService,
+                        refreshTokenCookieManager))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -48,7 +53,7 @@ class AuthControllerTest {
     @Test
     void loginReturnsCommonSuccessResponse() throws Exception {
         when(authService.login(any(LoginRequest.class)))
-                .thenReturn(new TokenResponse("Bearer", "access", "refresh", 1800, null));
+                .thenReturn(new TokenIssueResult(new TokenResponse("Bearer", "access", 1800, null), "refresh"));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -57,7 +62,10 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access"))
+                .andExpect(jsonPath("$.data.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.data.expiresIn").value(1800));
+
+        verify(refreshTokenCookieManager).add(any(), org.mockito.ArgumentMatchers.eq("refresh"));
     }
 
     @Test

@@ -42,6 +42,13 @@ jwt:
   access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:1800000}
   refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:1209600000}
 
+auth:
+  refresh-token-cookie:
+    name: ${REFRESH_TOKEN_COOKIE_NAME:REFRESH_TOKEN}
+    secure: ${REFRESH_TOKEN_COOKIE_SECURE:false}
+    same-site: ${REFRESH_TOKEN_COOKIE_SAME_SITE:Lax}
+    path: ${REFRESH_TOKEN_COOKIE_PATH:/api/auth}
+
 mqtt:
   host: ${MQTT_HOST:localhost}
   port: ${MQTT_PORT:1883}

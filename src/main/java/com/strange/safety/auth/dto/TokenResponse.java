@@ -6,17 +6,14 @@ import com.strange.safety.user.entity.User;
 public record TokenResponse(
         String tokenType,
         String accessToken,
-        String refreshToken,
         long expiresIn,
         LoginUserResponse user
 ) {
 
-    public static TokenResponse bearer(String accessToken, String refreshToken,
-                                       long accessTokenExpiresInMs, User user) {
+    public static TokenResponse bearer(String accessToken, long accessTokenExpiresInMs, User user) {
         return new TokenResponse(
                 "Bearer",
                 accessToken,
-                refreshToken,
                 accessTokenExpiresInMs / 1000,
                 LoginUserResponse.from(user)
         );

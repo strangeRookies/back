@@ -1,5 +1,6 @@
 package com.strange.safety.auth.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,6 +22,7 @@ import com.strange.safety.user.entity.AgreementType;
 import com.strange.safety.user.entity.UserAgreement;
 import com.strange.safety.user.repository.UserAgreementRepository;
 import com.strange.safety.user.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -251,41 +253,45 @@ class AuthSecurityIntegrationTest {
 
     @Test
     void refreshRotationAndLogoutPreventTokenReuse() throws Exception {
-        JsonNode login = responseBody(mockMvc.perform(post("/api/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginRequest()))
                 .andExpect(status().isOk())
-                .andReturn());
-        String firstRefreshToken = login.path("data").path("refreshToken").asText();
+                .andExpect(jsonPath("$.data.refreshToken").doesNotExist())
+                .andReturn();
+        Cookie firstRefreshCookie = loginResult.getResponse().getCookie("REFRESH_TOKEN");
 
-        JsonNode reissue = responseBody(mockMvc.perform(post("/api/auth/reissue")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                java.util.Map.of("refreshToken", firstRefreshToken))))
+        MvcResult reissueResult = mockMvc.perform(post("/api/auth/reissue")
+                        .cookie(firstRefreshCookie))
                 .andExpect(status().isOk())
-                .andReturn());
+                .andExpect(jsonPath("$.data.refreshToken").doesNotExist())
+                .andReturn();
+        JsonNode reissue = responseBody(reissueResult);
         String accessToken = reissue.path("data").path("accessToken").asText();
-        String secondRefreshToken = reissue.path("data").path("refreshToken").asText();
+        Cookie secondRefreshCookie = reissueResult.getResponse().getCookie("REFRESH_TOKEN");
 
         mockMvc.perform(post("/api/auth/reissue")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                java.util.Map.of("refreshToken", firstRefreshToken))))
+                        .cookie(firstRefreshCookie))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_TOKEN"));
 
-        mockMvc.perform(post("/api/auth/logout")
+        MvcResult logoutResult = mockMvc.perform(post("/api/auth/logout")
                         .header("Authorization", "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                java.util.Map.of("refreshToken", secondRefreshToken))))
+                        .cookie(secondRefreshCookie))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+        assertThat(logoutResult.getResponse().getHeader("Set-Cookie")).contains("Max-Age=0");
 
         mockMvc.perform(post("/api/auth/reissue")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                java.util.Map.of("refreshToken", secondRefreshToken))))
+                        .cookie(secondRefreshCookie))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_TOKEN"));
+    }
+
+    @Test
+    void reissueWithoutRefreshCookieReturnsInvalidToken() throws Exception {
+        mockMvc.perform(post("/api/auth/reissue"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_TOKEN"));
     }
@@ -370,12 +376,12 @@ class AuthSecurityIntegrationTest {
 
     @Test
     void passwordResetChangesPasswordAndRevokesRefreshTokens() throws Exception {
-        JsonNode login = responseBody(mockMvc.perform(post("/api/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginRequest()))
                 .andExpect(status().isOk())
-                .andReturn());
-        String previousRefreshToken = login.path("data").path("refreshToken").asText();
+                .andReturn();
+        Cookie previousRefreshCookie = loginResult.getResponse().getCookie("REFRESH_TOKEN");
         String verificationToken = verifiedToken("01012345678", VerificationPurpose.RESET_PASSWORD);
 
         mockMvc.perform(post("/api/auth/password-reset")
@@ -407,9 +413,7 @@ class AuthSecurityIntegrationTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/auth/reissue")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
-                                java.util.Map.of("refreshToken", previousRefreshToken))))
+                        .cookie(previousRefreshCookie))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_TOKEN"));
     }

@@ -1,11 +1,14 @@
 package com.strange.safety.auth.controller;
 
 import com.strange.safety.auth.dto.*;
+import com.strange.safety.auth.security.RefreshTokenCookieManager;
 import com.strange.safety.auth.service.AuthService;
 import com.strange.safety.auth.service.PasswordResetService;
 import com.strange.safety.auth.service.SignupService;
 import com.strange.safety.auth.service.SmsVerificationService;
 import com.strange.safety.common.response.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +23,7 @@ public class AuthController {
     private final SignupService signupService;
     private final SmsVerificationService smsVerificationService;
     private final PasswordResetService passwordResetService;
+    private final RefreshTokenCookieManager refreshTokenCookieManager;
 
     @PostMapping("/signup/individual")
     @ResponseStatus(HttpStatus.CREATED)
@@ -71,18 +75,26 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResponse.success("로그인에 성공했습니다.", authService.login(request));
+    public ApiResponse<TokenResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse response
+    ) {
+        TokenIssueResult tokens = authService.login(request);
+        refreshTokenCookieManager.add(response, tokens.refreshToken());
+        return ApiResponse.success("로그인에 성공했습니다.", tokens.response());
     }
 
     @PostMapping("/reissue")
-    public ApiResponse<TokenResponse> reissue(@Valid @RequestBody TokenReissueRequest request) {
-        return ApiResponse.success("토큰이 재발급되었습니다.", authService.reissue(request));
+    public ApiResponse<TokenResponse> reissue(HttpServletRequest request, HttpServletResponse response) {
+        TokenIssueResult tokens = authService.reissue(refreshTokenCookieManager.extract(request));
+        refreshTokenCookieManager.add(response, tokens.refreshToken());
+        return ApiResponse.success("토큰이 재발급되었습니다.", tokens.response());
     }
 
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(@Valid @RequestBody LogoutRequest request) {
-        authService.logout(request);
+    public ApiResponse<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+        authService.logout(refreshTokenCookieManager.extract(request));
+        refreshTokenCookieManager.expire(response);
         return ApiResponse.success("로그아웃되었습니다.", null);
     }
 }

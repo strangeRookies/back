@@ -24,7 +24,6 @@ import com.strange.safety.facility.repository.UserFacilityRepository;
 import com.strange.safety.facility.service.FacilityService;
 import com.strange.safety.user.entity.User;
 import com.strange.safety.user.repository.UserRepository;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;

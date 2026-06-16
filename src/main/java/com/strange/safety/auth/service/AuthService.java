@@ -1,8 +1,7 @@
 package com.strange.safety.auth.service;
 
 import com.strange.safety.auth.dto.LoginRequest;
-import com.strange.safety.auth.dto.LogoutRequest;
-import com.strange.safety.auth.dto.TokenReissueRequest;
+import com.strange.safety.auth.dto.TokenIssueResult;
 import com.strange.safety.auth.dto.TokenResponse;
 import com.strange.safety.auth.entity.RefreshToken;
 import com.strange.safety.auth.repository.RefreshTokenRepository;
@@ -31,7 +30,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenHasher refreshTokenHasher;
 
-    public TokenResponse login(LoginRequest request) {
+    public TokenIssueResult login(LoginRequest request) {
         User user = userRepository.findByEmailAndStatus(normalizeEmail(request.email()), UserStatus.ACTIVE)
                 .orElseThrow(() -> new CustomException(ErrorCode.AUTH_INVALID_CREDENTIALS));
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())
@@ -42,8 +41,8 @@ public class AuthService {
         return issueTokens(user);
     }
 
-    public TokenResponse reissue(TokenReissueRequest request) {
-        RefreshToken refreshToken = findRefreshToken(request.refreshToken());
+    public TokenIssueResult reissue(String token) {
+        RefreshToken refreshToken = findRefreshToken(token);
         Instant now = Instant.now();
         if (refreshToken.isRevoked() || refreshToken.isExpired(now)) {
             refreshToken.revoke();
@@ -58,12 +57,12 @@ public class AuthService {
         return issueTokens(refreshToken.getUser());
     }
 
-    public void logout(LogoutRequest request) {
-        RefreshToken refreshToken = findRefreshToken(request.refreshToken());
+    public void logout(String token) {
+        RefreshToken refreshToken = findRefreshToken(token);
         refreshToken.revoke();
     }
 
-    private TokenResponse issueTokens(User user) {
+    private TokenIssueResult issueTokens(User user) {
         String accessToken = jwtTokenProvider.createAccessToken(user);
         String refreshToken = jwtTokenProvider.createRefreshToken();
         Instant refreshTokenExpiresAt = Instant.now().plusMillis(jwtTokenProvider.getRefreshTokenExpirationMs());
@@ -73,12 +72,8 @@ public class AuthService {
                 refreshTokenExpiresAt
         ));
 
-        return TokenResponse.bearer(
-                accessToken,
-                refreshToken,
-                jwtTokenProvider.getAccessTokenExpirationMs(),
-                user
-        );
+        TokenResponse response = TokenResponse.bearer(accessToken, jwtTokenProvider.getAccessTokenExpirationMs(), user);
+        return new TokenIssueResult(response, refreshToken);
     }
 
     private RefreshToken findRefreshToken(String token) {

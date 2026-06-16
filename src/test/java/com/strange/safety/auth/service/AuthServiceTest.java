@@ -7,9 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.strange.safety.auth.dto.LoginRequest;
-import com.strange.safety.auth.dto.LogoutRequest;
-import com.strange.safety.auth.dto.TokenReissueRequest;
-import com.strange.safety.auth.dto.TokenResponse;
+import com.strange.safety.auth.dto.TokenIssueResult;
 import com.strange.safety.auth.entity.RefreshToken;
 import com.strange.safety.auth.entity.Role;
 import com.strange.safety.auth.repository.RefreshTokenRepository;
@@ -75,10 +73,10 @@ class AuthServiceTest {
         when(jwtTokenProvider.getRefreshTokenExpirationMs()).thenReturn(1209600000L);
         when(refreshTokenHasher.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
 
-        TokenResponse response = authService.login(new LoginRequest("test@example.com", RAW_PASSWORD, Role.INDIVIDUAL));
+        TokenIssueResult result = authService.login(new LoginRequest("test@example.com", RAW_PASSWORD, Role.INDIVIDUAL));
 
-        assertThat(response.accessToken()).isEqualTo("access-token");
-        assertThat(response.refreshToken()).isEqualTo(REFRESH_TOKEN);
+        assertThat(result.response().accessToken()).isEqualTo("access-token");
+        assertThat(result.refreshToken()).isEqualTo(REFRESH_TOKEN);
         verify(refreshTokenRepository).save(any(RefreshToken.class));
     }
 
@@ -129,11 +127,11 @@ class AuthServiceTest {
         when(jwtTokenProvider.getRefreshTokenExpirationMs()).thenReturn(1209600000L);
         when(refreshTokenHasher.hash("new-refresh-token")).thenReturn("new-refresh-token-hash");
 
-        TokenResponse response = authService.reissue(new TokenReissueRequest(REFRESH_TOKEN));
+        TokenIssueResult result = authService.reissue(REFRESH_TOKEN);
 
         assertThat(savedRefreshToken.isRevoked()).isTrue();
-        assertThat(response.accessToken()).isEqualTo("new-access-token");
-        assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
+        assertThat(result.response().accessToken()).isEqualTo("new-access-token");
+        assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
     }
 
     @Test
@@ -144,7 +142,7 @@ class AuthServiceTest {
         when(refreshTokenHasher.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
         when(refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.of(savedRefreshToken));
 
-        assertThatThrownBy(() -> authService.reissue(new TokenReissueRequest(REFRESH_TOKEN)))
+        assertThatThrownBy(() -> authService.reissue(REFRESH_TOKEN))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTH_ACCESS_DENIED);
@@ -158,10 +156,10 @@ class AuthServiceTest {
         when(refreshTokenHasher.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
         when(refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.of(savedRefreshToken));
 
-        authService.logout(new LogoutRequest(REFRESH_TOKEN));
+        authService.logout(REFRESH_TOKEN);
 
         assertThat(savedRefreshToken.isRevoked()).isTrue();
-        assertThatThrownBy(() -> authService.reissue(new TokenReissueRequest(REFRESH_TOKEN)))
+        assertThatThrownBy(() -> authService.reissue(REFRESH_TOKEN))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTH_INVALID_TOKEN);
