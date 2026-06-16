@@ -23,11 +23,17 @@ public class AsyncEventProcessorService {
     public void processEvent(SafetyEventDto event) {
         try {
             log.info("[MQTT Async] Parsed event. type={}, cameraId={}", event.type(), event.cameraId());
-            alertEventService.createEvent(event);
             alertBroadcastService.broadcast(event);
             fcmService.sendAlertNotification(event);
         } catch (RuntimeException ex) {
-            log.error("Failed to process safety event asynchronously: cameraId={}, type={}, error={}",
+            log.error("Failed to broadcast safety event asynchronously: cameraId={}, type={}, error={}",
+                    event.cameraId(), event.type(), ex.getMessage(), ex);
+        }
+
+        try {
+            alertEventService.createEvent(event);
+        } catch (RuntimeException ex) {
+            log.error("Failed to persist safety event asynchronously: cameraId={}, type={}, error={}",
                     event.cameraId(), event.type(), ex.getMessage(), ex);
         }
     }
