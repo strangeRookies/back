@@ -105,4 +105,10 @@ public class FacilityService {
                 .map(AdminFacilityResponse::from)
                 .collect(Collectors.toList());
     }
+
+    public List<AdminFacilityResponse> getAllIndividualFacilitiesForAdmin() {
+        return facilityRepository.findAllActiveIndividualFacilities().stream()
+                .map(AdminFacilityResponse::from)
+                .collect(Collectors.toList());
+    }
 }

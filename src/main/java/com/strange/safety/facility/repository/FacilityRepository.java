@@ -14,6 +14,9 @@ public interface FacilityRepository extends JpaRepository<Facility, Long> {
     @Query("SELECT f FROM Facility f JOIN FETCH f.companyProfile WHERE f.isActive = true")
     List<Facility> findAllActiveCorpFacilities();
 
+    @Query("SELECT f FROM Facility f WHERE f.companyProfile IS NULL AND f.isActive = true")
+    List<Facility> findAllActiveIndividualFacilities();
+
     @Query("SELECT f FROM Facility f JOIN UserFacility uf ON uf.facility = f " +
             "WHERE uf.user.id = :userId AND uf.accessType = :accessType AND f.isActive = true")
     Page<Facility> findActiveFacilitiesByManagerId(
