@@ -48,6 +48,26 @@ public record CameraStatusEventDto(
 
         @JsonProperty("detected_at")
         @JsonAlias({"detected_at", "detectedAt", "timestamp"})
-        Instant detectedAt
+        Object rawDetectedAt
 ) {
+    public Instant resolvedDetectedAt() {
+        if (rawDetectedAt == null) return Instant.now();
+
+        if (rawDetectedAt instanceof Number num) {
+            double epochSeconds = num.doubleValue();
+            long seconds = (long) epochSeconds;
+            long nanos = Math.round((epochSeconds - seconds) * 1_000_000_000L);
+            return Instant.ofEpochSecond(seconds, nanos);
+        }
+
+        if (rawDetectedAt instanceof String str) {
+            try {
+                return Instant.parse(str);
+            } catch (Exception e) {
+                return Instant.now();
+            }
+        }
+
+        return Instant.now();
+    }
 }

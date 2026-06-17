@@ -20,6 +20,7 @@ public class AlertEventResponse {
     private AlertSeverity severity;
     private AlertStatus status;
     private LocalDateTime detectedAt;
+    private String clipUrl;
     private LocalDateTime acknowledgedAt;
     private Long acknowledgedBy;
     private LocalDateTime createdAt;
@@ -34,6 +35,7 @@ public class AlertEventResponse {
                 .severity(event.getSeverity())
                 .status(event.getStatus())
                 .detectedAt(event.getDetectedAt())
+                .clipUrl(event.getClipUrl())
                 .acknowledgedAt(event.getAcknowledgedAt())
                 .acknowledgedBy(event.getAcknowledgedBy() != null ? event.getAcknowledgedBy().getId() : null)
                 .createdAt(event.getCreatedAt())

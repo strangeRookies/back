@@ -61,7 +61,7 @@ public class CameraStatusService {
         Camera camera = cameraOpt.get();
         CameraConnectionStatus previousStatus = camera.getConnectionStatus();
         CameraConnectionStatus currentStatus = parseConnectionStatus(dto.status());
-        Instant detectedAt = dto.detectedAt() != null ? dto.detectedAt() : Instant.now();
+        Instant detectedAt = dto.resolvedDetectedAt();
 
         // 2. Camera.connectionStatus 갱신
         camera.updateConnectionStatus(currentStatus, detectedAt);

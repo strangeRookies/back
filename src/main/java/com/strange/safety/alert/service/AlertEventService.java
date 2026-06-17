@@ -173,6 +173,9 @@ public class AlertEventService {
                 .severity(severity)
                 .keypointData(messageVal)
                 .boundingBoxData(boundingBoxData)
+                .clipUrl(dto.clipUrl())
+                .clipPath(dto.clipPath())
+                .faintProb(dto.faintProb())
                 .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneOffset.UTC))
                 .build();
 
