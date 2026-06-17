@@ -53,6 +53,15 @@ public class AlertEvent extends BaseEntity {
     @Column(name = "bounding_box_data", columnDefinition = "text")
     private String boundingBoxData;
 
+    @Column(name = "clip_url", length = 512)
+    private String clipUrl;
+
+    @Column(name = "clip_path", length = 512)
+    private String clipPath;
+
+    @Column(name = "faint_prob")
+    private Double faintProb;
+
     @Column(name = "detected_at", nullable = false)
     private LocalDateTime detectedAt;
 
@@ -69,7 +78,8 @@ public class AlertEvent extends BaseEntity {
     @Builder
     private AlertEvent(Camera camera, Scenario scenario, Float confidenceScore,
                        AlertSeverity severity, String keypointData,
-                       String boundingBoxData, LocalDateTime detectedAt) {
+                       String boundingBoxData, String clipUrl, String clipPath,
+                       Double faintProb, LocalDateTime detectedAt) {
         this.camera = camera;
         this.scenario = scenario;
         this.confidenceScore = confidenceScore;
@@ -77,6 +87,9 @@ public class AlertEvent extends BaseEntity {
         this.status = AlertStatus.PENDING;
         this.keypointData = keypointData;
         this.boundingBoxData = boundingBoxData;
+        this.clipUrl = clipUrl;
+        this.clipPath = clipPath;
+        this.faintProb = faintProb;
         this.detectedAt = detectedAt;
     }
 
