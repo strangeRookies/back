@@ -2,8 +2,6 @@ package com.strange.safety.facility.service;
 
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
-import com.strange.safety.company.entity.CompanyProfile;
-import com.strange.safety.company.repository.CompanyProfileRepository;
 import com.strange.safety.facility.dto.AdminFacilityResponse;
 import com.strange.safety.facility.dto.CreateFacilityRequest;
 import com.strange.safety.facility.dto.FacilityResponse;
@@ -31,18 +29,10 @@ public class FacilityService {
     private final FacilityRepository facilityRepository;
     private final UserFacilityRepository userFacilityRepository;
     private final UserRepository userRepository;
-    private final CompanyProfileRepository companyProfileRepository;
 
     @Transactional
     public FacilityResponse createFacility(Long userId, CreateFacilityRequest request) {
-        CompanyProfile companyProfile = null;
-        if (request.getCompanyProfileId() != null) {
-            companyProfile = companyProfileRepository.findById(request.getCompanyProfileId())
-                    .orElse(null);
-        }
-
         Facility facility = Facility.builder()
-                .companyProfile(companyProfile)
                 .facilityName(request.getFacilityName())
                 .facilityType(request.getFacilityType())
                 .postalCode(request.getPostalCode())
@@ -100,8 +90,8 @@ public class FacilityService {
                 .orElseThrow(() -> new CustomException(ErrorCode.FACILITY_NOT_FOUND));
     }
 
-    public List<AdminFacilityResponse> getAllFacilitiesForAdmin() {
-        return facilityRepository.findAllActiveCorpFacilities().stream()
+    public List<AdminFacilityResponse> getAllIndividualFacilitiesForAdmin() {
+        return facilityRepository.findAllActiveIndividualFacilities().stream()
                 .map(AdminFacilityResponse::from)
                 .collect(Collectors.toList());
     }

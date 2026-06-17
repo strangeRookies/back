@@ -10,16 +10,11 @@ public class AdminFacilityResponse {
 
     private Long facilityId;
     private String facilityName;
-    private String companyName;
 
     public static AdminFacilityResponse from(Facility facility) {
-        String companyName = facility.getCompanyProfile() != null
-                ? facility.getCompanyProfile().getCompanyName()
-                : null;
         return AdminFacilityResponse.builder()
                 .facilityId(facility.getId())
                 .facilityName(facility.getFacilityName())
-                .companyName(companyName)
                 .build();
     }
 }
