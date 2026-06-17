@@ -13,6 +13,7 @@ import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.entity.CameraSourceType;
 import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.camera.repository.CameraRepository;
+import com.strange.safety.camera.repository.CameraStatusLogRepository;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.common.util.AesUtil;
@@ -43,6 +44,9 @@ class CameraServiceTest {
     private CameraRepository cameraRepository;
 
     @Mock
+    private CameraStatusLogRepository cameraStatusLogRepository;
+
+    @Mock
     private FacilityRepository facilityRepository;
 
     @Mock
@@ -69,6 +73,7 @@ class CameraServiceTest {
     void setUp() {
         cameraService = new CameraService(
                 cameraRepository,
+                cameraStatusLogRepository,
                 facilityRepository,
                 userFacilityRepository,
                 userRepository,
