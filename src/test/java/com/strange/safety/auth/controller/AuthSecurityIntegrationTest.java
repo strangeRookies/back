@@ -16,6 +16,7 @@ import com.strange.safety.auth.repository.SmsVerificationRepository;
 import com.strange.safety.auth.security.RefreshTokenHasher;
 import com.strange.safety.auth.security.JwtTokenProvider;
 import com.strange.safety.auth.security.LoginAttemptStore;
+import com.strange.safety.auth.sms.SmsVerificationStore;
 import com.strange.safety.auth.session.RefreshTokenStore;
 import com.strange.safety.event.MqttSafetyEventSubscriber;
 import com.strange.safety.user.entity.User;
@@ -53,6 +54,7 @@ class AuthSecurityIntegrationTest {
     @Autowired JwtTokenProvider jwtTokenProvider;
     @Autowired RefreshTokenHasher tokenHasher;
     @Autowired LoginAttemptStore loginAttemptStore;
+    @Autowired SmsVerificationStore smsVerificationStore;
 
     @MockBean MqttSafetyEventSubscriber mqttSafetyEventSubscriber;
 
@@ -71,6 +73,7 @@ class AuthSecurityIntegrationTest {
                 Role.INDIVIDUAL
         ));
         loginAttemptStore.clear("security@example.com");
+        smsVerificationStore.clear("01012345678");
         refreshTokenStore.revokeAllByUserId(activeUser.getId());
         userAgreementRepository.save(UserAgreement.create(
                 activeUser, AgreementType.TERMS, true, true, LocalDateTime.now()));
@@ -520,8 +523,10 @@ class AuthSecurityIntegrationTest {
         String token = "verified-" + purpose + "-" + System.nanoTime();
         SmsVerification verification = SmsVerification.issue(
                 phone, purpose, passwordEncoder.encode("123456"), Instant.now().plusSeconds(300));
-        verification.verify(tokenHasher.hash(token), Instant.now().plusSeconds(900), Instant.now());
+        verification.markVerified(Instant.now());
         smsVerificationRepository.save(verification);
+        smsVerificationStore.saveVerifiedToken(
+                tokenHasher.hash(token), phone, purpose, java.time.Duration.ofSeconds(900));
         return token;
     }
 }

@@ -155,6 +155,8 @@
 - Refresh Token은 응답 JSON에 포함하지 않고 `REFRESH_TOKEN` HttpOnly 쿠키로 전달한다.
 - 현재 유효한 Refresh Token은 Redis에 해시 값으로 저장하며 `jwt.refresh-token-expiration-ms` 기준 TTL로 자동 만료한다.
 - 로그인 실패 횟수는 Redis `auth:login-fail:{email}` 카운터로 관리하며 5회 실패 시 5분 동안 `AUTH_LOGIN_LOCKED`로 제한한다.
+- SMS 인증 완료 토큰은 Redis `auth:sms:verified:{tokenHash}`에 저장하며 15분 TTL과 1회성 소비를 적용한다.
+- SMS 재전송 쿨다운과 일일 발송 제한은 Redis `auth:sms:cooldown:{phone}`, `auth:sms:daily:{phone}:{yyyyMMdd}` 카운터로 관리한다.
 - Redis only 로그인 방식에서는 로그인 이력, 로그아웃 이력, 토큰 발급 기록, 관리자 감사 로그를 PostgreSQL에 저장하지 않는다.
 
 ---

@@ -19,9 +19,11 @@ import com.strange.safety.auth.sms.SmsCodeGenerator;
 import com.strange.safety.auth.sms.SmsProperties;
 import com.strange.safety.auth.sms.SmsSendException;
 import com.strange.safety.auth.sms.SmsSender;
+import com.strange.safety.auth.sms.SmsVerificationStore;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +43,8 @@ class SmsVerificationServiceTest {
     private RefreshTokenHasher tokenHasher;
     @Mock
     private SmsSender smsSender;
+    @Mock
+    private SmsVerificationStore smsVerificationStore;
 
     private SmsVerificationService service;
     private SmsProperties smsProperties;
@@ -50,7 +54,8 @@ class SmsVerificationServiceTest {
         smsProperties = new SmsProperties();
         SmsCodeGenerator codeGenerator = () -> "123456";
         service = new SmsVerificationService(
-                repository, new BCryptPasswordEncoder(), tokenHasher, smsSender, codeGenerator, smsProperties);
+                repository, new BCryptPasswordEncoder(), tokenHasher, smsSender, codeGenerator, smsProperties,
+                smsVerificationStore);
     }
 
     @Test
@@ -67,7 +72,9 @@ class SmsVerificationServiceTest {
                 new BCryptPasswordEncoder().encode("123456"), java.time.Instant.now().plusSeconds(300)));
         when(repository.findById(issued.verificationId())).thenReturn(Optional.of(verification));
         when(tokenHasher.hash(any(String.class))).thenReturn("token-hash");
-        when(repository.findByVerificationTokenHash("token-hash")).thenReturn(Optional.of(verification));
+        when(smsVerificationStore.consumeVerifiedToken(
+                "token-hash", "01012345678", VerificationPurpose.SIGN_UP))
+                .thenReturn(true, false);
 
         var confirmed = service.confirm(new SmsVerificationConfirmRequest(issued.verificationId(), "123456"));
         service.consume(confirmed.verificationToken(), "010-1234-5678", VerificationPurpose.SIGN_UP);
@@ -107,7 +114,7 @@ class SmsVerificationServiceTest {
 
     @Test
     void sendFailsWhenRateLimitIsExceeded() {
-        when(repository.existsByPhoneNumberAndCreatedAtAfter(any(String.class), any())).thenReturn(true);
+        when(smsVerificationStore.isCooldownActive("01012345678")).thenReturn(true);
 
         assertThatThrownBy(() -> service.send(
                 new SmsVerificationRequest("010-1234-5678", VerificationPurpose.SIGN_UP)))
@@ -146,7 +153,7 @@ class SmsVerificationServiceTest {
         SmsVerification verification = SmsVerification.issue(
                 "01012345678", VerificationPurpose.RESET_PASSWORD,
                 new BCryptPasswordEncoder().encode("123456"), Instant.now().plusSeconds(300));
-        when(repository.findTopByPhoneNumberAndPurposeAndVerifiedAtIsNullAndUsedAtIsNullOrderByIdDesc(
+        when(repository.findTopByPhoneNumberAndPurposeAndVerifiedAtIsNullOrderByIdDesc(
                 "01012345678", VerificationPurpose.RESET_PASSWORD)).thenReturn(Optional.of(verification));
         when(tokenHasher.hash(any(String.class))).thenReturn("token-hash");
 
@@ -154,7 +161,9 @@ class SmsVerificationServiceTest {
 
         assertThat(confirmed.verified()).isTrue();
         assertThat(confirmed.verificationToken()).isNotBlank();
-        assertThat(verification.getVerificationTokenHash()).isEqualTo("token-hash");
+        assertThat(verification.getVerifiedAt()).isNotNull();
+        verify(smsVerificationStore).saveVerifiedToken(
+                eq("token-hash"), eq("01012345678"), eq(VerificationPurpose.RESET_PASSWORD), any());
     }
 
     @Test
@@ -178,12 +187,9 @@ class SmsVerificationServiceTest {
 
     @Test
     void consumeFailsWhenPhoneOrPurposeDoesNotMatch() {
-        SmsVerification verification = SmsVerification.issue(
-                "01012345678", VerificationPurpose.SIGN_UP,
-                new BCryptPasswordEncoder().encode("123456"), Instant.now().plusSeconds(300));
-        verification.verify("token-hash", Instant.now().plusSeconds(900), Instant.now());
         when(tokenHasher.hash("verified-token")).thenReturn("token-hash");
-        when(repository.findByVerificationTokenHash("token-hash")).thenReturn(Optional.of(verification));
+        when(smsVerificationStore.consumeVerifiedToken(
+                eq("token-hash"), any(String.class), any(VerificationPurpose.class))).thenReturn(false);
 
         assertThatThrownBy(() -> service.consume(
                 "verified-token", "01099998888", VerificationPurpose.SIGN_UP))
@@ -191,6 +197,18 @@ class SmsVerificationServiceTest {
         assertThatThrownBy(() -> service.consume(
                 "verified-token", "01012345678", VerificationPurpose.RESET_PASSWORD))
                 .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    void sendFailsWhenDailyLimitIsExceeded() {
+        smsProperties.getRateLimit().setResendCooldownSeconds(0);
+        when(smsVerificationStore.dailySentCount("01012345678", LocalDate.now())).thenReturn(5L);
+
+        assertThatThrownBy(() -> service.send(
+                new SmsVerificationRequest("010-1234-5678", VerificationPurpose.SIGN_UP)))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.SMS_RATE_LIMITED);
     }
 
     @Test

@@ -9,9 +9,12 @@ import com.strange.safety.auth.sms.SmsCodeGenerator;
 import com.strange.safety.auth.sms.SmsProperties;
 import com.strange.safety.auth.sms.SmsSendException;
 import com.strange.safety.auth.sms.SmsSender;
+import com.strange.safety.auth.sms.SmsVerificationStore;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +37,7 @@ public class SmsVerificationService {
     private final SmsSender smsSender;
     private final SmsCodeGenerator smsCodeGenerator;
     private final SmsProperties smsProperties;
+    private final SmsVerificationStore smsVerificationStore;
 
     public SmsVerificationResponse send(SmsVerificationRequest request) {
         String phoneNumber = normalizePhone(request.phone());
@@ -49,6 +53,7 @@ public class SmsVerificationService {
                 Instant.now().plusSeconds(CODE_EXPIRATION_SECONDS)
         );
         SmsVerification saved = smsVerificationRepository.save(verification);
+        recordSent(phoneNumber);
         return new SmsVerificationResponse(saved.getId(), CODE_EXPIRATION_SECONDS);
     }
 
@@ -63,7 +68,7 @@ public class SmsVerificationService {
     public SmsVerificationConfirmResponse confirmLatest(String phone, VerificationPurpose purpose, String code) {
         String phoneNumber = normalizePhone(phone);
         SmsVerification verification = smsVerificationRepository
-                .findTopByPhoneNumberAndPurposeAndVerifiedAtIsNullAndUsedAtIsNullOrderByIdDesc(phoneNumber, purpose)
+                .findTopByPhoneNumberAndPurposeAndVerifiedAtIsNullOrderByIdDesc(phoneNumber, purpose)
                 .orElseThrow(() -> new CustomException(ErrorCode.AUTH_INVALID_VERIFICATION));
         return confirmVerification(verification, code);
     }
@@ -78,20 +83,18 @@ public class SmsVerificationService {
             throw new CustomException(ErrorCode.AUTH_INVALID_VERIFICATION);
         }
         String token = UUID.randomUUID().toString();
-        verification.verify(tokenHasher.hash(token), now.plusSeconds(TOKEN_EXPIRATION_SECONDS), now);
+        smsVerificationStore.saveVerifiedToken(
+                tokenHasher.hash(token), verification.getPhoneNumber(), verification.getPurpose(),
+                Duration.ofSeconds(TOKEN_EXPIRATION_SECONDS));
+        verification.markVerified(now);
         return new SmsVerificationConfirmResponse(true, token);
     }
 
     public void consume(String token, String phone, VerificationPurpose purpose) {
         String phoneNumber = normalizePhone(phone);
-        SmsVerification verification = smsVerificationRepository
-                .findByVerificationTokenHash(tokenHasher.hash(token))
-                .orElseThrow(() -> new CustomException(ErrorCode.AUTH_INVALID_VERIFICATION));
-        Instant now = Instant.now();
-        if (!verification.canUse(phoneNumber, purpose, now)) {
+        if (!smsVerificationStore.consumeVerifiedToken(tokenHasher.hash(token), phoneNumber, purpose)) {
             throw new CustomException(ErrorCode.AUTH_INVALID_VERIFICATION);
         }
-        verification.use(now);
     }
 
     public String normalizePhone(String phone) {
@@ -104,17 +107,22 @@ public class SmsVerificationService {
 
     private void validateRateLimit(String phoneNumber) {
         SmsProperties.RateLimit rateLimit = smsProperties.getRateLimit();
-        LocalDateTime now = LocalDateTime.now();
-        if (rateLimit.getResendCooldownSeconds() > 0
-                && smsVerificationRepository.existsByPhoneNumberAndCreatedAtAfter(
-                phoneNumber, now.minusSeconds(rateLimit.getResendCooldownSeconds()))) {
+        if (rateLimit.getResendCooldownSeconds() > 0 && smsVerificationStore.isCooldownActive(phoneNumber)) {
             throw new CustomException(ErrorCode.SMS_RATE_LIMITED);
         }
         if (rateLimit.getDailyLimitPerPhone() > 0
-                && smsVerificationRepository.countByPhoneNumberAndCreatedAtAfter(phoneNumber, now.minusDays(1))
+                && smsVerificationStore.dailySentCount(phoneNumber, LocalDate.now())
                 >= rateLimit.getDailyLimitPerPhone()) {
             throw new CustomException(ErrorCode.SMS_RATE_LIMITED);
         }
+    }
+
+    private void recordSent(String phoneNumber) {
+        SmsProperties.RateLimit rateLimit = smsProperties.getRateLimit();
+        Duration cooldownTtl = Duration.ofSeconds(Math.max(rateLimit.getResendCooldownSeconds(), 0L));
+        LocalDateTime now = LocalDateTime.now();
+        Duration dailyTtl = Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay());
+        smsVerificationStore.recordSent(phoneNumber, cooldownTtl, now.toLocalDate(), dailyTtl);
     }
 
     private void sendMessage(String phoneNumber, String message) {
