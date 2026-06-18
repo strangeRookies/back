@@ -24,6 +24,8 @@ public class CorporateCameraService {
     private final CorporateCameraRepository corporateCameraRepository;
     private final CompanyProfileRepository companyProfileRepository;
     private final AesUtil aesUtil;
+    private final com.strange.safety.camera.service.RtspSimulationService rtspSimulationService;
+    private final com.strange.safety.camera.service.VirtualCameraPoolService virtualCameraPoolService;
 
     @Transactional
     public CorporateCameraResponse register(Long companyProfileId, CorporateCameraRequest request) {
@@ -33,19 +35,27 @@ public class CorporateCameraService {
         String encryptedPassword = (request.getPassword() != null && !request.getPassword().isBlank())
                 ? aesUtil.encrypt(request.getPassword()) : null;
 
+        // Force simulation logic for corporate cameras
+        String assignedVideoPath = virtualCameraPoolService.assignVideo();
+        String finalRtspUrl = rtspSimulationService.generateRtspUrl(request.getCameraLoginId());
+
         CorporateCamera camera = CorporateCamera.builder()
                 .companyProfile(companyProfile)
                 .cameraName(request.getCameraName())
                 .cameraSerialNumber(request.getCameraSerialNumber())
                 .cameraLoginId(request.getCameraLoginId())
                 .cameraPasswordEncrypted(encryptedPassword)
-                .rtspUrl(request.getRtspUrl())
+                .rtspUrl(finalRtspUrl)
                 .locationDescription(request.getLocationDescription())
-                .sourceType(request.getSourceType())
-                .assignedVideoPath(request.getAssignedVideoPath())
+                .assignedVideoPath(assignedVideoPath)
                 .build();
 
-        return CorporateCameraResponse.from(corporateCameraRepository.save(camera));
+        camera = corporateCameraRepository.save(camera);
+        
+        // Start simulation immediately
+        rtspSimulationService.startSimulation(camera.getCameraLoginId(), camera.getAssignedVideoPath(), camera.getRtspUrl());
+
+        return CorporateCameraResponse.from(camera);
     }
 
     public List<CorporateCameraResponse> getCamerasByCompany(Long companyProfileId) {
