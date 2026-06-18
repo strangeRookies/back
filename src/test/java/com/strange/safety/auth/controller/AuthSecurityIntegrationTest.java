@@ -12,10 +12,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strange.safety.auth.entity.Role;
 import com.strange.safety.auth.entity.SmsVerification;
 import com.strange.safety.auth.entity.VerificationPurpose;
-import com.strange.safety.auth.repository.RefreshTokenRepository;
 import com.strange.safety.auth.repository.SmsVerificationRepository;
 import com.strange.safety.auth.security.RefreshTokenHasher;
 import com.strange.safety.auth.security.JwtTokenProvider;
+import com.strange.safety.auth.security.LoginAttemptStore;
+import com.strange.safety.auth.session.RefreshTokenStore;
 import com.strange.safety.event.MqttSafetyEventSubscriber;
 import com.strange.safety.user.entity.User;
 import com.strange.safety.user.entity.AgreementType;
@@ -46,11 +47,12 @@ class AuthSecurityIntegrationTest {
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
     @Autowired UserAgreementRepository userAgreementRepository;
-    @Autowired RefreshTokenRepository refreshTokenRepository;
+    @Autowired RefreshTokenStore refreshTokenStore;
     @Autowired SmsVerificationRepository smsVerificationRepository;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JwtTokenProvider jwtTokenProvider;
     @Autowired RefreshTokenHasher tokenHasher;
+    @Autowired LoginAttemptStore loginAttemptStore;
 
     @MockBean MqttSafetyEventSubscriber mqttSafetyEventSubscriber;
 
@@ -58,7 +60,6 @@ class AuthSecurityIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        refreshTokenRepository.deleteAll();
         smsVerificationRepository.deleteAll();
         userAgreementRepository.deleteAll();
         userRepository.deleteAll();
@@ -69,6 +70,8 @@ class AuthSecurityIntegrationTest {
                 "01012345678",
                 Role.INDIVIDUAL
         ));
+        loginAttemptStore.clear("security@example.com");
+        refreshTokenStore.revokeAllByUserId(activeUser.getId());
         userAgreementRepository.save(UserAgreement.create(
                 activeUser, AgreementType.TERMS, true, true, LocalDateTime.now()));
         userAgreementRepository.save(UserAgreement.create(
@@ -159,6 +162,35 @@ class AuthSecurityIntegrationTest {
                                 """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_CREDENTIALS"));
+    }
+
+    @Test
+    void loginLocksAfterFiveFailures() throws Exception {
+        for (int i = 0; i < 4; i++) {
+            mockMvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "email": "security@example.com",
+                                      "password": "WrongPassword123!",
+                                      "accountType": "INDIVIDUAL"
+                                    }
+                                    """))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.error.code").value("AUTH_INVALID_CREDENTIALS"));
+        }
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "security@example.com",
+                                  "password": "WrongPassword123!",
+                                  "accountType": "INDIVIDUAL"
+                                }
+                                """))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.error.code").value("AUTH_LOGIN_LOCKED"));
     }
 
     @Test

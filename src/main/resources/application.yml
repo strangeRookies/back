@@ -23,6 +23,12 @@ spring:
     console:
       enabled: ${H2_CONSOLE_ENABLED:false}
       path: /h2-console
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:3s}
 
 server:
   port: ${SERVER_PORT:8080}

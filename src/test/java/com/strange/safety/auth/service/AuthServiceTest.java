@@ -3,22 +3,24 @@ package com.strange.safety.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.strange.safety.auth.dto.LoginRequest;
 import com.strange.safety.auth.dto.TokenIssueResult;
-import com.strange.safety.auth.entity.RefreshToken;
 import com.strange.safety.auth.entity.Role;
-import com.strange.safety.auth.repository.RefreshTokenRepository;
 import com.strange.safety.auth.security.JwtTokenProvider;
+import com.strange.safety.auth.security.LoginAttemptStore;
 import com.strange.safety.auth.security.RefreshTokenHasher;
+import com.strange.safety.auth.session.RefreshTokenSession;
+import com.strange.safety.auth.session.RefreshTokenStore;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.user.entity.User;
 import com.strange.safety.user.entity.UserStatus;
 import com.strange.safety.user.repository.UserRepository;
-import java.time.Instant;
+import java.time.Duration;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,13 +42,16 @@ class AuthServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private RefreshTokenRepository refreshTokenRepository;
+    private RefreshTokenStore refreshTokenStore;
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
     @Mock
     private RefreshTokenHasher refreshTokenHasher;
+
+    @Mock
+    private LoginAttemptStore loginAttemptStore;
 
     private PasswordEncoder passwordEncoder;
     private AuthService authService;
@@ -56,10 +61,11 @@ class AuthServiceTest {
         passwordEncoder = new BCryptPasswordEncoder();
         authService = new AuthService(
                 userRepository,
-                refreshTokenRepository,
+                refreshTokenStore,
                 passwordEncoder,
                 jwtTokenProvider,
-                refreshTokenHasher
+                refreshTokenHasher,
+                loginAttemptStore
         );
     }
 
@@ -73,11 +79,13 @@ class AuthServiceTest {
         when(jwtTokenProvider.getRefreshTokenExpirationMs()).thenReturn(1209600000L);
         when(refreshTokenHasher.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
 
-        TokenIssueResult result = authService.login(new LoginRequest("test@example.com", RAW_PASSWORD, Role.INDIVIDUAL));
+        TokenIssueResult result = authService.login(
+                new LoginRequest("test@example.com", RAW_PASSWORD, Role.INDIVIDUAL));
 
         assertThat(result.response().accessToken()).isEqualTo("access-token");
         assertThat(result.refreshToken()).isEqualTo(REFRESH_TOKEN);
-        verify(refreshTokenRepository).save(any(RefreshToken.class));
+        verify(refreshTokenStore).save(any(Long.class), any(String.class), any(Duration.class));
+        verify(loginAttemptStore).clear("test@example.com");
     }
 
     @Test
@@ -85,10 +93,12 @@ class AuthServiceTest {
         User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
         when(userRepository.findByEmailAndStatus("test@example.com", UserStatus.ACTIVE)).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> authService.login(new LoginRequest("test@example.com", "wrong-password", Role.INDIVIDUAL)))
+        assertThatThrownBy(() -> authService.login(
+                new LoginRequest("test@example.com", "wrong-password", Role.INDIVIDUAL)))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTH_INVALID_CREDENTIALS);
+        verify(loginAttemptStore).recordFailure(any(String.class), any(Duration.class));
     }
 
     @Test
@@ -101,6 +111,7 @@ class AuthServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTH_INVALID_CREDENTIALS);
+        verify(loginAttemptStore).recordFailure(any(String.class), any(Duration.class));
     }
 
     @Test
@@ -113,14 +124,41 @@ class AuthServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTH_INVALID_CREDENTIALS);
+        verify(loginAttemptStore).recordFailure(any(String.class), any(Duration.class));
+    }
+
+    @Test
+    void loginFailsWhenEmailIsLocked() {
+        when(loginAttemptStore.isLocked("test@example.com", 5)).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.login(
+                new LoginRequest("test@example.com", RAW_PASSWORD, Role.INDIVIDUAL)))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.AUTH_LOGIN_LOCKED);
+        verify(userRepository, never()).findByEmailAndStatus(any(String.class), any(UserStatus.class));
+    }
+
+    @Test
+    void loginLocksEmailOnFifthFailure() {
+        User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
+        when(userRepository.findByEmailAndStatus("test@example.com", UserStatus.ACTIVE)).thenReturn(Optional.of(user));
+        when(loginAttemptStore.recordFailure(any(String.class), any(Duration.class))).thenReturn(5L);
+
+        assertThatThrownBy(() -> authService.login(
+                new LoginRequest("test@example.com", "wrong-password", Role.INDIVIDUAL)))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.AUTH_LOGIN_LOCKED);
     }
 
     @Test
     void reissueRotatesRefreshToken() {
         User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
-        RefreshToken savedRefreshToken = RefreshToken.issue(user, REFRESH_TOKEN_HASH, Instant.now().plusSeconds(60));
         when(refreshTokenHasher.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
-        when(refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.of(savedRefreshToken));
+        when(refreshTokenStore.findByTokenHash(REFRESH_TOKEN_HASH))
+                .thenReturn(Optional.of(new RefreshTokenSession(1L, REFRESH_TOKEN_HASH)));
+        when(userRepository.findByIdAndStatus(1L, UserStatus.ACTIVE)).thenReturn(Optional.of(user));
         when(jwtTokenProvider.createAccessToken(user)).thenReturn("new-access-token");
         when(jwtTokenProvider.createRefreshToken()).thenReturn("new-refresh-token");
         when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(1800000L);
@@ -129,7 +167,7 @@ class AuthServiceTest {
 
         TokenIssueResult result = authService.reissue(REFRESH_TOKEN);
 
-        assertThat(savedRefreshToken.isRevoked()).isTrue();
+        verify(refreshTokenStore).revoke(REFRESH_TOKEN_HASH);
         assertThat(result.response().accessToken()).isEqualTo("new-access-token");
         assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
     }
@@ -138,27 +176,28 @@ class AuthServiceTest {
     void reissueFailsWhenUserIsNotActive() {
         User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
         ReflectionTestUtils.setField(user, "status", UserStatus.SUSPENDED);
-        RefreshToken savedRefreshToken = RefreshToken.issue(user, REFRESH_TOKEN_HASH, Instant.now().plusSeconds(60));
         when(refreshTokenHasher.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
-        when(refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.of(savedRefreshToken));
+        when(refreshTokenStore.findByTokenHash(REFRESH_TOKEN_HASH))
+                .thenReturn(Optional.of(new RefreshTokenSession(1L, REFRESH_TOKEN_HASH)));
+        when(userRepository.findByIdAndStatus(1L, UserStatus.ACTIVE)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.reissue(REFRESH_TOKEN))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTH_ACCESS_DENIED);
-        assertThat(savedRefreshToken.isRevoked()).isTrue();
+        verify(refreshTokenStore).revoke(REFRESH_TOKEN_HASH);
     }
 
     @Test
     void logoutRevokesRefreshTokenAndPreventsReuse() {
-        User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
-        RefreshToken savedRefreshToken = RefreshToken.issue(user, REFRESH_TOKEN_HASH, Instant.now().plusSeconds(60));
         when(refreshTokenHasher.hash(REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN_HASH);
-        when(refreshTokenRepository.findByTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.of(savedRefreshToken));
+        when(refreshTokenStore.findByTokenHash(REFRESH_TOKEN_HASH))
+                .thenReturn(Optional.of(new RefreshTokenSession(1L, REFRESH_TOKEN_HASH)));
 
         authService.logout(REFRESH_TOKEN);
 
-        assertThat(savedRefreshToken.isRevoked()).isTrue();
+        verify(refreshTokenStore).revoke(REFRESH_TOKEN_HASH);
+        when(refreshTokenStore.findByTokenHash(REFRESH_TOKEN_HASH)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> authService.reissue(REFRESH_TOKEN))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")

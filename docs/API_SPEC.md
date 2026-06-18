@@ -149,6 +149,14 @@
 | **POST** | `/api/auth/verifications/sms/confirm` | 인증코드 일치 확인 | SmsVerificationConfirmRequest | SmsVerificationConfirmResponse |
 | **GET** | `/api/auth/email-availability` | 이메일 중복 확인 검사 | Query `email` | AvailabilityResponse |
 
+### 인증 저장소 정책
+
+- Access Token은 기존처럼 JWT Bearer 토큰으로 응답한다.
+- Refresh Token은 응답 JSON에 포함하지 않고 `REFRESH_TOKEN` HttpOnly 쿠키로 전달한다.
+- 현재 유효한 Refresh Token은 Redis에 해시 값으로 저장하며 `jwt.refresh-token-expiration-ms` 기준 TTL로 자동 만료한다.
+- 로그인 실패 횟수는 Redis `auth:login-fail:{email}` 카운터로 관리하며 5회 실패 시 5분 동안 `AUTH_LOGIN_LOCKED`로 제한한다.
+- Redis only 로그인 방식에서는 로그인 이력, 로그아웃 이력, 토큰 발급 기록, 관리자 감사 로그를 PostgreSQL에 저장하지 않는다.
+
 ---
 
 ## 💬 5. [확인 필요] 알림 관련 API (Notification - FCM)
