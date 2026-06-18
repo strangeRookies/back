@@ -13,6 +13,7 @@ import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.entity.CameraSourceType;
 import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.camera.repository.CameraRepository;
+import com.strange.safety.camera.repository.CameraStatusLogRepository;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.common.util.AesUtil;
@@ -43,6 +44,9 @@ class CameraServiceTest {
     private CameraRepository cameraRepository;
 
     @Mock
+    private CameraStatusLogRepository cameraStatusLogRepository;
+
+    @Mock
     private FacilityRepository facilityRepository;
 
     @Mock
@@ -69,6 +73,7 @@ class CameraServiceTest {
     void setUp() {
         cameraService = new CameraService(
                 cameraRepository,
+                cameraStatusLogRepository,
                 facilityRepository,
                 userFacilityRepository,
                 userRepository,
@@ -304,5 +309,40 @@ class CameraServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.FACILITY_NOT_FOUND);
+    }
+
+    @Test
+    void updateCameraDeactivationUpdatesStatusAndLogs() {
+        Long userId = 1L;
+        Long cameraId = 100L;
+        Facility facility = Facility.builder().facilityName("Test Facility").build();
+        ReflectionTestUtils.setField(facility, "id", 200L);
+
+        Camera camera = Camera.builder()
+                .facility(facility)
+                .cameraName("Test Camera")
+                .sourceType(com.strange.safety.camera.entity.CameraSourceType.SIMULATED_RTSP)
+                .build();
+        ReflectionTestUtils.setField(camera, "id", cameraId);
+        ReflectionTestUtils.setField(camera, "status", CameraStatus.ACTIVE);
+        ReflectionTestUtils.setField(camera, "aiEnabled", true);
+
+        when(cameraRepository.findById(cameraId)).thenReturn(Optional.of(camera));
+        when(facilityService.getFacilityWithOwnerCheck(userId, 200L)).thenReturn(facility);
+
+        com.strange.safety.camera.dto.UpdateCameraRequest request = new com.strange.safety.camera.dto.UpdateCameraRequest();
+        request.setCameraName("Updated Camera");
+        request.setStatus(CameraStatus.INACTIVE);
+        request.setAiEnabled(false);
+        request.setSourceType(com.strange.safety.camera.entity.CameraSourceType.SIMULATED_RTSP);
+
+        cameraService.updateCamera(userId, cameraId, request);
+
+        assertThat(camera.getStatus()).isEqualTo(CameraStatus.INACTIVE);
+        assertThat(camera.getConnectionStatus()).isEqualTo(com.strange.safety.camera.entity.CameraConnectionStatus.DISABLED);
+        verify(rtspSimulationService).stopSimulation(any());
+        verify(cameraStatusLogRepository).save(argThat(log -> 
+            log.getCurrentStatus() == com.strange.safety.camera.entity.CameraConnectionStatus.DISABLED
+        ));
     }
 }

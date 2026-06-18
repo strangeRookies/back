@@ -6,7 +6,7 @@ import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
 import org.junit.platform.launcher.listeners.TestExecutionSummary;
-import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
+import static org.junit.platform.engine.discovery.DiscoverySelectors.selectPackage;
 
 import java.io.PrintWriter;
 
@@ -14,7 +14,7 @@ public class TestRunner {
     public static void main(String[] args) {
         System.out.println("=== Starting Programmatic JUnit Test Runner ===");
         LauncherDiscoveryRequest request = LauncherDiscoveryRequestBuilder.request()
-                .selectors(selectClass(CameraServiceTest.class))
+                .selectors(selectPackage("com.strange"))
                 .build();
 
         Launcher launcher = LauncherFactory.create();
