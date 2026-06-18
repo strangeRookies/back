@@ -74,6 +74,8 @@ sms:
     daily-limit-per-phone: ${SMS_DAILY_LIMIT_PER_PHONE:5}
 
 app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   websocket:
     allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173}
   aes:

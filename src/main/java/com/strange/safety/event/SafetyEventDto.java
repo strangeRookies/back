@@ -32,6 +32,10 @@ import java.util.List;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SafetyEventDto(
+        @JsonProperty("message_type")
+        @JsonAlias({"message_type", "messageType"})
+        String messageType,
+
         /**
          * 이상행동 유형. AI 서버는 "event_type" 키로 전송한다.
          * e.g. "Faint", "Fall", "Fight"
@@ -71,11 +75,23 @@ public record SafetyEventDto(
         @JsonAlias({"confidence", "score"})
         Float confidence,
 
+        @JsonProperty("faint_prob")
+        @JsonAlias({"faint_prob", "faintProb"})
+        Double faintProb,
+
         List<Number> bbox,
 
         @JsonProperty("track_id")
         @JsonAlias({"track_id", "trackId"})
-        String trackId
+        String trackId,
+
+        @JsonProperty("clip_path")
+        @JsonAlias({"clip_path", "clipPath"})
+        String clipPath,
+
+        @JsonProperty("clip_url")
+        @JsonAlias({"clip_url", "clipUrl"})
+        String clipUrl
 ) {
     /**
      * rawTimestamp를 {@link Instant}로 변환한다.

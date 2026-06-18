@@ -1,7 +1,6 @@
 package com.strange.safety.facility.entity;
 
 import com.strange.safety.common.entity.BaseEntity;
-import com.strange.safety.company.entity.CompanyProfile;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -18,10 +17,6 @@ public class Facility extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "facility_id")
     private Long id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_profile_id")
-    private CompanyProfile companyProfile;
 
     @Column(name = "facility_name", nullable = false)
     private String facilityName;
@@ -49,10 +44,9 @@ public class Facility extends BaseEntity {
     private boolean isActive = true;
 
     @Builder
-    private Facility(CompanyProfile companyProfile, String facilityName, FacilityType facilityType,
+    private Facility(String facilityName, FacilityType facilityType,
                      String postalCode, String address, String addressDetail, String district,
                      String emergency119Jurisdiction) {
-        this.companyProfile = companyProfile;
         this.facilityName = facilityName;
         this.facilityType = facilityType;
         this.postalCode = postalCode;

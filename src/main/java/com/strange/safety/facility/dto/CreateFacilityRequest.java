@@ -24,5 +24,4 @@ public class CreateFacilityRequest {
     private String addressDetail;
     private String postalCode;
     private String emergency119Jurisdiction;
-    private Long companyProfileId;
 }

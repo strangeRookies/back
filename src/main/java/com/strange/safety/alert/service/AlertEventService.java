@@ -127,6 +127,10 @@ public class AlertEventService {
         };
     }
 
+    public long countAllAlertsToday() {
+        return alertEventRepository.countAllSince(LocalDateTime.now().minusHours(24));
+    }
+
     @Transactional
     public AlertEventResponse createEvent(SafetyEventDto dto) {
         String cameraIdVal = firstNonBlank(dto.cameraLoginId(), dto.cameraId(), "cam_01");
@@ -169,6 +173,9 @@ public class AlertEventService {
                 .severity(severity)
                 .keypointData(messageVal)
                 .boundingBoxData(boundingBoxData)
+                .clipUrl(dto.clipUrl())
+                .clipPath(dto.clipPath())
+                .faintProb(dto.faintProb())
                 .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneOffset.UTC))
                 .build();
 

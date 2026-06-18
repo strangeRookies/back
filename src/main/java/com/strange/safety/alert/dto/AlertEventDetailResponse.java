@@ -22,6 +22,9 @@ public class AlertEventDetailResponse {
     private AlertStatus status;
     private String keypointData;
     private String boundingBoxData;
+    private String clipUrl;
+    private String clipPath;
+    private Double faintProb;
     private LocalDateTime detectedAt;
     private LocalDateTime resolvedAt;
     private LocalDateTime acknowledgedAt;
@@ -41,6 +44,9 @@ public class AlertEventDetailResponse {
                 .status(event.getStatus())
                 .keypointData(event.getKeypointData())
                 .boundingBoxData(event.getBoundingBoxData())
+                .clipUrl(event.getClipUrl())
+                .clipPath(event.getClipPath())
+                .faintProb(event.getFaintProb())
                 .detectedAt(event.getDetectedAt())
                 .resolvedAt(event.getResolvedAt())
                 .acknowledgedAt(event.getAcknowledgedAt())
