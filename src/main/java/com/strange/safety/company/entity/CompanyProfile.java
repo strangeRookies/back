@@ -72,4 +72,11 @@ public class CompanyProfile extends BaseEntity {
         this.managerEmail = managerEmail;
         this.managerContact = managerContact;
     }
+
+    public void update(String companyName, String managerName, String district, String managerContact) {
+        this.companyName = companyName;
+        this.managerName = managerName;
+        this.district = district;
+        this.managerContact = managerContact;
+    }
 }

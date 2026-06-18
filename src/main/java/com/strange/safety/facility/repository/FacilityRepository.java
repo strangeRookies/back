@@ -27,4 +27,10 @@ public interface FacilityRepository extends JpaRepository<Facility, Long> {
     List<Object[]> findDistrictsByUserIds(
             @Param("userIds") List<Long> userIds,
             @Param("accessType") AccessType accessType);
+
+    @Query("SELECT f FROM Facility f JOIN UserFacility uf ON uf.facility = f " +
+            "WHERE uf.user.id = :userId AND uf.accessType = :accessType AND f.isActive = true")
+    List<Facility> findActiveByManagerUserId(
+            @Param("userId") Long userId,
+            @Param("accessType") AccessType accessType);
 }

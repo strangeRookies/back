@@ -8,7 +8,9 @@ import com.strange.safety.company.entity.CompanyProfile;
 import com.strange.safety.company.repository.CompanyProfileRepository;
 import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
 import com.strange.safety.facility.entity.AccessType;
+import com.strange.safety.facility.entity.Facility;
 import com.strange.safety.facility.repository.FacilityRepository;
+import com.strange.safety.user.dto.AdminMemberUpdateRequest;
 import com.strange.safety.user.dto.AdminUserResponse;
 import com.strange.safety.user.dto.UpdatePasswordRequest;
 import com.strange.safety.user.dto.UpdateProfileRequest;
@@ -152,6 +154,38 @@ public class UserService {
                 );
             }
         });
+    }
+
+    @Transactional
+    public void updateAdminMember(Long userId, AdminMemberUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        if (user.getStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        if (user.getRole() == Role.CORPORATE) {
+            CompanyProfile companyProfile = companyProfileRepository.findByUser_Id(userId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+            companyProfile.update(request.name(), request.representative(), request.region(), request.contact());
+        } else {
+            user.updateContactInfo(request.name(), request.contact());
+            List<Facility> facilities = facilityRepository.findActiveByManagerUserId(userId, AccessType.MANAGER);
+            if (!facilities.isEmpty()) {
+                facilities.get(0).updateDistrict(request.region());
+            }
+        }
+
+        UserStatus newStatus;
+        try {
+            newStatus = UserStatus.valueOf(request.status());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+        if (newStatus != UserStatus.ACTIVE && newStatus != UserStatus.SUSPENDED) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+        user.updateStatus(newStatus);
     }
 
     private User findActiveUser(Long userId) {
