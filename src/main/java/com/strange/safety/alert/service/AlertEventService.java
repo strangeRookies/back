@@ -2,6 +2,7 @@ package com.strange.safety.alert.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.strange.safety.alert.cache.RecentAlertCacheStore;
 import com.strange.safety.alert.dto.AlertEventDetailResponse;
 import com.strange.safety.alert.dto.AlertEventResponse;
 import com.strange.safety.alert.dto.AlertStatsResponse;
@@ -50,6 +51,7 @@ public class AlertEventService {
     private final CameraRepository cameraRepository;
     private final ScenarioRepository scenarioRepository;
     private final ObjectMapper objectMapper;
+    private final RecentAlertCacheStore recentAlertCacheStore;
 
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
@@ -109,6 +111,22 @@ public class AlertEventService {
                 .pending(pending).confirmed(confirmed).dismissed(dismissed)
                 .byScenario(byScenario)
                 .build();
+    }
+
+    public List<AlertEventResponse> getRecent(Long userId, Long facilityId) {
+        facilityService.getFacilityWithOwnerCheck(userId, facilityId);
+
+        List<AlertEventResponse> cachedAlerts = recentAlertCacheStore.findRecent(facilityId);
+        if (!cachedAlerts.isEmpty()) {
+            return cachedAlerts;
+        }
+
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
+        return alertEventRepository
+                .findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff)
+                .stream()
+                .map(AlertEventResponse::from)
+                .collect(Collectors.toList());
     }
 
     private AlertEvent getEventWithOwnerCheck(Long userId, Long alertEventId) {
@@ -180,9 +198,16 @@ public class AlertEventService {
                 .build();
 
         AlertEvent saved = alertEventRepository.save(event);
+        AlertEventResponse response = AlertEventResponse.from(saved);
+        try {
+            recentAlertCacheStore.add(camera.getFacility().getId(), response);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to cache recent alert event: alertEventId={}, facilityId={}, error={}",
+                    saved.getId(), camera.getFacility().getId(), ex.getMessage());
+        }
         log.info("Saved MQTT safety alert event: alertEventId={}, cameraLoginId={}, scenarioType={}, severity={}, confidence={}, trackId={}",
                 saved.getId(), finalCameraIdVal, scenarioType, severity, confidenceScore, dto.trackId());
-        return AlertEventResponse.from(saved);
+        return response;
     }
 
     private String firstNonBlank(String... values) {

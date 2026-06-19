@@ -5,11 +5,13 @@ import com.strange.safety.alert.entity.AlertSeverity;
 import com.strange.safety.alert.entity.AlertStatus;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.extern.jackson.Jacksonized;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Builder
+@Jacksonized
 public class AlertEventResponse {
 
     private Long alertEventId;

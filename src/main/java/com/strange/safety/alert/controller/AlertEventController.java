@@ -17,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -44,6 +45,14 @@ public class AlertEventController {
             @PathVariable Long alertEventId) {
         return ResponseEntity.ok(ApiResponse.success(
                 alertEventService.getDetail(userDetails.getUserId(), alertEventId)));
+    }
+
+    @GetMapping("/api/facilities/{facilityId}/alert-events/recent")
+    public ResponseEntity<ApiResponse<List<AlertEventResponse>>> getRecent(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long facilityId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                alertEventService.getRecent(userDetails.getUserId(), facilityId)));
     }
 
     @PatchMapping("/api/alert-events/{alertEventId}/acknowledge")

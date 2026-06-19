@@ -48,4 +48,10 @@ public interface AlertEventRepository extends JpaRepository<AlertEvent, Long>,
     List<Object[]> countGroupByScenario(@Param("facilityId") Long facilityId,
                                         @Param("dateFrom") LocalDateTime dateFrom,
                                         @Param("dateTo") LocalDateTime dateTo);
+
+    List<AlertEvent> findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(
+            Long facilityId,
+            LocalDateTime detectedAt);
+
+    long deleteByDetectedAtBefore(LocalDateTime detectedAt);
 }
