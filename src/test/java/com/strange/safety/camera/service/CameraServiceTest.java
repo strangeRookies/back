@@ -10,7 +10,6 @@ import com.strange.safety.auth.entity.Role;
 import com.strange.safety.camera.dto.CameraResponse;
 import com.strange.safety.camera.dto.CreateCameraRequest;
 import com.strange.safety.camera.entity.Camera;
-import com.strange.safety.camera.entity.CameraSourceType;
 import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.camera.repository.CameraRepository;
 import com.strange.safety.camera.repository.CameraStatusLogRepository;
@@ -93,7 +92,6 @@ class CameraServiceTest {
         request.setRtspUrl("rtsp://example.com/stream");
         request.setLocationDescription("Main Room");
         request.setAiEnabled(true);
-        request.setSourceType(CameraSourceType.REAL_RTSP);
         return request;
     }
 

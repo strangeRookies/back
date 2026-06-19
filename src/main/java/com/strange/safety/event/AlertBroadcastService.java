@@ -9,7 +9,8 @@ import org.springframework.stereotype.Service;
 public class AlertBroadcastService {
 
     private static final Logger log = LoggerFactory.getLogger(AlertBroadcastService.class);
-    private static final String ALERT_TOPIC = "/topic/alerts";
+    private static final String ALERT_TOPIC_PREFIX = "/topic/facility/";
+    private static final String ALERT_TOPIC_SUFFIX = "/alerts";
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -17,9 +18,14 @@ public class AlertBroadcastService {
         this.messagingTemplate = messagingTemplate;
     }
 
-    public void broadcast(SafetyEventDto event) {
+    public void broadcast(Long facilityId, SafetyEventDto event) {
+        if (facilityId == null) {
+            log.warn("FacilityId is null. Skipping broadcast for camera: {}", event.cameraId());
+            return;
+        }
+        String topic = ALERT_TOPIC_PREFIX + facilityId + ALERT_TOPIC_SUFFIX;
         log.info("Broadcasting safety event to {}: type={}, cameraId={}, severity={}",
-                ALERT_TOPIC, event.type(), event.cameraId(), event.severity());
-        messagingTemplate.convertAndSend(ALERT_TOPIC, event);
+                topic, event.type(), event.cameraId(), event.severity());
+        messagingTemplate.convertAndSend(topic, event);
     }
 }

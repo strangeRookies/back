@@ -18,12 +18,20 @@ public class AsyncEventProcessorService {
     private final FcmService fcmService;
     private final com.strange.safety.camera.service.CameraStatusService cameraStatusService;
     private final CameraStatusBroadcastService cameraStatusBroadcastService;
+    private final com.strange.safety.camera.repository.CameraRepository cameraRepository;
 
     @Async("eventProcessingExecutor")
     public void processEvent(SafetyEventDto event) {
+        Long facilityId = null;
         try {
-            log.info("[MQTT Async] Parsed event. type={}, cameraId={}", event.type(), event.cameraId());
-            alertBroadcastService.broadcast(event);
+            String cameraLoginId = event.cameraLoginId() != null ? event.cameraLoginId() : event.cameraId();
+            facilityId = cameraRepository.findFirstByCameraLoginIdOrderByIdDesc(cameraLoginId)
+                    .map(camera -> camera.getFacility().getId())
+                    .orElse(null);
+
+            log.info("[MQTT Async] Parsed event. type={}, cameraId={}, facilityId={}", 
+                    event.type(), event.cameraId(), facilityId);
+            alertBroadcastService.broadcast(facilityId, event);
             fcmService.sendAlertNotification(event);
         } catch (RuntimeException ex) {
             log.error("Failed to broadcast safety event asynchronously: cameraId={}, type={}, error={}",
@@ -44,7 +52,12 @@ public class AsyncEventProcessorService {
             log.info("[MQTT Async] Camera status event received: cameraLoginId={}, status={}, reason={}",
                     event.cameraLoginId(), event.status(), event.reason());
             cameraStatusService.applyStatusEvent(event);
-            cameraStatusBroadcastService.broadcast(event);
+
+            Long facilityId = cameraRepository.findFirstByCameraLoginIdOrderByIdDesc(event.cameraLoginId())
+                    .map(camera -> camera.getFacility().getId())
+                    .orElse(null);
+            
+            cameraStatusBroadcastService.broadcast(facilityId, event);
         } catch (RuntimeException ex) {
             log.error("Failed to process camera status event asynchronously: cameraLoginId={}, status={}, error={}",
                     event.cameraLoginId(), event.status(), ex.getMessage(), ex);

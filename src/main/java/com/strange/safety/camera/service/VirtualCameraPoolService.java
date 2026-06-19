@@ -1,7 +1,6 @@
 package com.strange.safety.camera.service;
 
 import com.strange.safety.camera.entity.Camera;
-import com.strange.safety.camera.entity.CameraSourceType;
 import com.strange.safety.camera.repository.CameraRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,16 +38,14 @@ public class VirtualCameraPoolService {
                 .map(File::getAbsolutePath)
                 .collect(Collectors.toList());
 
-        List<Camera> simulatedCameras = cameraRepository.findAll().stream()
-                .filter(c -> c.getSourceType() == CameraSourceType.SIMULATED_RTSP)
-                .collect(Collectors.toList());
+        List<Camera> allCameras = cameraRepository.findAll();
 
         Map<String, Long> usageCount = new HashMap<>();
         for (String v : availableVideos) {
             usageCount.put(v, 0L);
         }
 
-        for (Camera c : simulatedCameras) {
+        for (Camera c : allCameras) {
             String path = c.getAssignedVideoPath();
             if (path != null && usageCount.containsKey(path)) {
                 usageCount.put(path, usageCount.get(path) + 1);

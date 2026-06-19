@@ -1,6 +1,5 @@
 package com.strange.safety.corporatecamera.service;
 
-import com.strange.safety.camera.entity.CameraSourceType;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.common.util.AesUtil;
@@ -114,7 +113,6 @@ public class CorporateCameraExcelService {
                 .locationDescription(locationDescription)
                 .cameraLoginId(loginId)
                 .cameraPasswordEncrypted(encryptedPassword)
-                .sourceType(CameraSourceType.REAL_RTSP)
                 .build();
     }
 

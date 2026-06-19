@@ -1,7 +1,6 @@
 package com.strange.safety.corporatecamera.dto;
 
 import com.strange.safety.camera.entity.CameraConnectionStatus;
-import com.strange.safety.camera.entity.CameraSourceType;
 import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import lombok.Builder;
@@ -25,7 +24,6 @@ public class CorporateCameraResponse {
     private CameraStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private CameraSourceType sourceType;
     private String assignedVideoPath;
     private CameraConnectionStatus connectionStatus;
     private Instant lastConnectionReportAt;
@@ -43,7 +41,6 @@ public class CorporateCameraResponse {
                 .status(camera.getStatus())
                 .createdAt(camera.getCreatedAt())
                 .updatedAt(camera.getUpdatedAt())
-                .sourceType(camera.getSourceType())
                 .assignedVideoPath(camera.getAssignedVideoPath())
                 .connectionStatus(camera.getConnectionStatus())
                 .lastConnectionReportAt(camera.getLastConnectionReportAt())
