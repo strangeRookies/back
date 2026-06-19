@@ -81,24 +81,46 @@
 
 ---
 
-## 카메라 등록은 됐는데 화면이 안 뜨는 경우
+## 카메라 등록은 됐는데 화면이 안 뜨는 경우 (WebRTC/WHEP 404 & HLS Fallback 실패)
 
 ### 증상
-- 백엔드 데이터베이스 상에 카메라는 정상 등록되어 대시보드 목록에는 나타나지만, 실시간 영상 그리드 칸이 검은색 화면 혹은 '연결 안 됨' 상태로 렌더링됩니다.
+- 백엔드에 카메라는 4대 정상 등록되어 있으나, 메인 대시보드 그리드 칸이 완전히 검은색 화면이며 **"연결 없음 (카메라 연결 상태를 확인해 주세요)"** 오버레이가 씌워집니다.
+- 브라우저 개발자 도구 F12 콘솔 창에 `SDP / WHEP negotiation failed: WHEP POST request failed (HTTP 404)` 에러가 다량 발생하고, HLS 폴백 링크마저도 `404 Not Found`가 발생합니다.
 
 ### 원인 후보
-1. 카메라 정보 등록 시 `cameraLoginId` 입력을 누락하였거나 중복되었을 경우.
-2. 백엔드 상의 `aiEnabled` 옵션이 `false`로 설정되어 분석 및 송출 연동이 차단된 경우.
-3. HLS 세그먼트 파일이 생성되기까지 약 5~10초의 초기 지연이 소요되는 중인 경우.
+1. **송출기(RTSP Publisher) 프로세스 중단 (가장 유력):**
+   * 미디어 서버(MediaMTX) 포트 `8889`가 살아 있어 프론트엔드가 접속을 시도했으나, 해당 스트림 경로(`cam_01` 등)로 원본 영상을 발행해 주는 파이썬 송출기(`start_simulated_rtsp_from_folder.py`) 프로세스가 중단되었거나, 인코더 에러(NVENC 세션 한계 등)로 즉사한 경우입니다. 스트림이 공급되지 않으면 MediaMTX WHEP 경로는 404 에러를 뱉습니다.
+2. **역방향 포트 포워딩(`-R 8080`) 차단 및 로컬 백엔드 미동작:**
+   * GPU PC에서 기동된 송출기가 로컬 백엔드(`http://localhost:8080`)에 카메라 목록을 조회하려다 접속에 실패하여 에러를 내고 즉시 크래시된 경우입니다.
+3. **정적 대시보드 상태 갱신 누락:**
+   * 백엔드 상에서 카메라 상태가 `CONNECTED`로 복구되었음에도, 프론트 대시보드 오버레이와 하단 뱃지가 정적 상태 캐시(`liveCameras.connectionStatus`)를 사용하여 실시간으로 연동 갱신되지 못하고 여전히 검은 마스크를 유지하는 경우입니다.
+4. **비정규화 `cameraLoginId` 경로 사용:**
+   * `cam1` ~ `cam4` 같은 구버전 명칭을 사용해 경로 매핑이 어긋난 경우입니다.
 
 ### 확인 방법
-1. 백엔드 카메라 조회 API (`GET /api/cameras`)를 날려 `aiEnabled` 필드값과 `cameraLoginId`를 조사합니다.
-2. 브라우저 F12 개발자 도구의 콘솔 창에서 플레이어 에러 로그를 검사합니다.
+1. 로컬 윈도우에서 실제 스트림 경로를 직접 `curl`로 찔러 봅니다:
+   ```bash
+   curl.exe -I http://localhost:8888/cam_01/index.m3u8
+   ```
+   * `404 Not Found`가 반환된다면 미디어 서버 포트는 정상이지만 원격 송출기가 죽어 스트림이 없는 상태입니다.
+2. 브라우저 콘솔에서 `SDP / WHEP negotiation failed` 로그의 상세 Reason 코드를 점검합니다.
 
 ### 해결 방법
-1. 카메라 정보를 수정/삭제 후 재등록하며 명명법 규정(`cam_01`, `cam_02` 등)을 엄수합니다.
-2. 수정 API (`PUT /api/cameras/{cameraId}`)를 호출해 `aiEnabled`를 `true`로 갱신합니다.
-3. 스트림 재연결 후 HLS 청크가 정상 생성될 때까지 약간의 대기시간을 가집니다.
+1. GPU PC에서 찌꺼기 프로세스들을 완전히 정리한 후, **FFmpeg 인코딩 연산 부하가 없는 copy 모드**로 송출기를 재기동합니다:
+   ```bash
+   # GPU PC SSH 터미널에서 실행
+   pkill -f "start_simulated_rtsp_from_folder.py" || true
+   nohup python scripts/start_simulated_rtsp_from_folder.py \
+     --video-dir /home/welabs/yolo_training/ai_fall_experiments/data/raw/indoor_chromakey/videos \
+     --backend-url http://localhost:8080 \
+     --rtsp-host 127.0.0.1 \
+     --rtsp-port 8554 \
+     --poll-interval 30 \
+     --ffmpeg-mode copy > publisher.log 2>&1 &
+   ```
+2. 카메라 정보의 `cameraLoginId`가 2자리 패딩 규칙(`cam_01`, `cam_02` 등)을 철저히 지켜 등록되었는지 확인합니다.
+3. 송출기 기동에 성공했다면, 대시보드 웹 브라우저를 **새로고침(F5)**하여 캐시된 카메라 상태를 최신화시킵니다.
+
 
 ---
 

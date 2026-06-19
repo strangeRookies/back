@@ -130,17 +130,20 @@ python mock_edge_ai.py
 ```
 
 #### B. 로컬 비디오 파일을 활용한 RTSP 시뮬레이션 및 AI 추론 실행
-폴더 내부의 데모 영상들을 활용해 실제 분석 루프를 테스트할 수 있습니다.
+데모 영상 파일 풀을 활용해 MediaMTX에 RTSP 스트림을 스폰하고 AI 추론 분석 루프를 연동하는 시뮬레이션입니다.
 ```bash
 # 1. 로컬 영상 파일을 MediaMTX RTSP 스트림으로 송출 시작
+# GPU 리소스 고갈 및 인코딩 부하 방지를 위해 --ffmpeg-mode copy 모드를 강력히 권장합니다.
 python scripts/start_simulated_rtsp_from_folder.py \
   --video-dir /home/welabs/yolo_training/ai_fall_experiments/data/raw/indoor_chromakey/videos \
   --backend-url http://localhost:8080 \
   --rtsp-host 127.0.0.1 \
   --rtsp-port 8554 \
-  --poll-interval 30
+  --poll-interval 30 \
+  --ffmpeg-mode copy
 
 # 2. 송출된 RTSP 스트림을 대상으로 YOLO + LSTM AI 분석 실행
+# --overlay-base-port 8010을 주면, AI worker가 동작 순서에 맞게 포트를 동적으로 할당(8010, 8011...)합니다.
 python scripts/run_registered_cameras.py \
   --backend-base-url "http://127.0.0.1:8080" \
   --rtsp-base-url "rtsp://127.0.0.1:8554" \
@@ -149,11 +152,14 @@ python scripts/run_registered_cameras.py \
   --detector-mode real \
   --yolo-model yolo26n-pose.pt \
   --publisher mqtt \
-  --mqtt-host "127.0.0.1" \
+  --mqtt-host "15.165.248.37" \
   --mqtt-port 1883 \
   --mqtt-topic "safety/events" \
   --skip-simulated-ffmpeg
 ```
+> [!NOTE]
+> * **로컬 vs 외부 MQTT:** 로컬 Mosquitto 테스트 시에는 `--mqtt-host 127.0.0.1`을 사용하며, 원격/외부 공용 이벤트 검증 시에는 `--mqtt-host 15.165.248.37`을 구분해 지정해야 합니다.
+
 
 #### C. 단일 RTSP 카메라 스트림 분석기 직접 실행
 ```bash
