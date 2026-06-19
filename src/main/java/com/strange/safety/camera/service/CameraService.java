@@ -86,7 +86,6 @@ public class CameraService {
 
         String finalRtspUrl = request.getRtspUrl();
         String assignedVideoPath = null;
-
         if (request.getSourceType() == com.strange.safety.camera.entity.CameraSourceType.SIMULATED_RTSP) {
             assignedVideoPath = virtualCameraPoolService.assignVideo();
             finalRtspUrl = rtspSimulationService.generateRtspUrl(request.getCameraLoginId());
@@ -101,7 +100,6 @@ public class CameraService {
                 .rtspUrl(finalRtspUrl)
                 .locationDescription(request.getLocationDescription())
                 .aiEnabled(request.getAiEnabled())
-                .sourceType(request.getSourceType())
                 .assignedVideoPath(assignedVideoPath)
                 .build();
 
@@ -152,7 +150,6 @@ public class CameraService {
         Camera camera = cameraRepository.findById(cameraId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CAMERA_NOT_FOUND));
         facilityService.getFacilityWithOwnerCheck(userId, camera.getFacility().getId());
-
         // 이전 상태 저장
         CameraStatus oldStatus = camera.getStatus();
         boolean oldAiEnabled = camera.isAiEnabled();
@@ -238,7 +235,6 @@ public class CameraService {
         Camera camera = cameraRepository.findById(cameraId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CAMERA_NOT_FOUND));
         facilityService.getFacilityWithOwnerCheck(userId, camera.getFacility().getId());
-
         if (camera.getSourceType() == com.strange.safety.camera.entity.CameraSourceType.SIMULATED_RTSP) {
             rtspSimulationService.stopSimulation(camera.getCameraLoginId());
         }

@@ -13,17 +13,14 @@ import com.strange.safety.auth.dto.PasswordResetSmsRequest;
 import com.strange.safety.auth.dto.PasswordResetSmsResponse;
 import com.strange.safety.auth.dto.SmsVerificationRequest;
 import com.strange.safety.auth.dto.SmsVerificationConfirmResponse;
-import com.strange.safety.auth.entity.RefreshToken;
 import com.strange.safety.auth.entity.Role;
 import com.strange.safety.auth.entity.VerificationPurpose;
-import com.strange.safety.auth.repository.RefreshTokenRepository;
+import com.strange.safety.auth.session.RefreshTokenStore;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.user.entity.User;
 import com.strange.safety.user.entity.UserStatus;
 import com.strange.safety.user.repository.UserRepository;
-import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +38,7 @@ class PasswordResetServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
-    private RefreshTokenRepository refreshTokenRepository;
+    private RefreshTokenStore refreshTokenStore;
     @Mock
     private SmsVerificationService smsVerificationService;
 
@@ -51,7 +48,7 @@ class PasswordResetServiceTest {
     @BeforeEach
     void setUp() {
         passwordEncoder = new BCryptPasswordEncoder();
-        service = new PasswordResetService(userRepository, refreshTokenRepository, passwordEncoder, smsVerificationService);
+        service = new PasswordResetService(userRepository, refreshTokenStore, passwordEncoder, smsVerificationService);
     }
 
     @Test
@@ -119,12 +116,9 @@ class PasswordResetServiceTest {
     @Test
     void resetPasswordChangesPasswordAndRevokesRefreshTokens() {
         User user = user("user@example.com", "01012345678", passwordEncoder.encode("OldPassword123!"));
-        RefreshToken firstRefreshToken = RefreshToken.issue(user, "hash-1", Instant.now().plusSeconds(3600));
-        RefreshToken secondRefreshToken = RefreshToken.issue(user, "hash-2", Instant.now().plusSeconds(3600));
         when(smsVerificationService.normalizePhone("01012345678")).thenReturn("01012345678");
         when(userRepository.findByEmailAndPhoneNumberAndStatus(
                 "user@example.com", "01012345678", UserStatus.ACTIVE)).thenReturn(Optional.of(user));
-        when(refreshTokenRepository.findAllByUserId(1L)).thenReturn(List.of(firstRefreshToken, secondRefreshToken));
 
         service.resetPassword(new PasswordResetRequest(
                 "user@example.com", "01012345678", "verified-token", "NewPassword123!"));
@@ -133,8 +127,7 @@ class PasswordResetServiceTest {
                 "verified-token", "01012345678", VerificationPurpose.RESET_PASSWORD);
         assertThat(passwordEncoder.matches("NewPassword123!", user.getPasswordHash())).isTrue();
         assertThat(passwordEncoder.matches("OldPassword123!", user.getPasswordHash())).isFalse();
-        assertThat(firstRefreshToken.isRevoked()).isTrue();
-        assertThat(secondRefreshToken.isRevoked()).isTrue();
+        verify(refreshTokenStore).revokeAllByUserId(1L);
     }
 
     private User user(String email, String phone, String passwordHash) {

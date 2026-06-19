@@ -10,6 +10,7 @@ import com.strange.safety.auth.entity.SmsVerification;
 import com.strange.safety.auth.entity.VerificationPurpose;
 import com.strange.safety.auth.repository.SmsVerificationRepository;
 import com.strange.safety.auth.security.RefreshTokenHasher;
+import com.strange.safety.auth.sms.SmsVerificationStore;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.company.repository.CompanyProfileRepository;
@@ -48,6 +49,7 @@ class SignupServiceIntegrationTest {
     @Autowired UserAgreementRepository userAgreementRepository;
     @Autowired SmsVerificationRepository smsVerificationRepository;
     @Autowired RefreshTokenHasher tokenHasher;
+    @Autowired SmsVerificationStore smsVerificationStore;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired PlatformTransactionManager transactionManager;
 
@@ -62,6 +64,11 @@ class SignupServiceIntegrationTest {
         facilityRepository.deleteAll();
         companyProfileRepository.deleteAll();
         smsVerificationRepository.deleteAll();
+        smsVerificationStore.clear("01011112222");
+        smsVerificationStore.clear("01022223333");
+        smsVerificationStore.clear("01022224444");
+        smsVerificationStore.clear("01055556666");
+        smsVerificationStore.clear("01077778888");
         userRepository.deleteAll();
     }
 
@@ -252,8 +259,6 @@ class SignupServiceIntegrationTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AGREEMENT_REQUIRED);
 
-        SmsVerification verification = smsVerificationRepository.findAll().get(0);
-        assertThat(verification.getUsedAt()).isNull();
         assertThat(userRepository.count()).isZero();
         assertThat(userAgreementRepository.count()).isZero();
     }
@@ -296,8 +301,10 @@ class SignupServiceIntegrationTest {
         SmsVerification verification = SmsVerification.issue(
                 phone, VerificationPurpose.SIGN_UP,
                 passwordEncoder.encode("123456"), Instant.now().plusSeconds(300));
-        verification.verify(tokenHasher.hash(token), Instant.now().plusSeconds(900), Instant.now());
+        verification.markVerified(Instant.now());
         smsVerificationRepository.save(verification);
+        smsVerificationStore.saveVerifiedToken(
+                tokenHasher.hash(token), phone, VerificationPurpose.SIGN_UP, java.time.Duration.ofSeconds(900));
         return token;
     }
 

@@ -6,9 +6,8 @@ import com.strange.safety.auth.dto.PasswordResetSmsRequest;
 import com.strange.safety.auth.dto.PasswordResetSmsResponse;
 import com.strange.safety.auth.dto.SmsVerificationRequest;
 import com.strange.safety.auth.dto.SmsVerificationConfirmResponse;
-import com.strange.safety.auth.entity.RefreshToken;
 import com.strange.safety.auth.entity.VerificationPurpose;
-import com.strange.safety.auth.repository.RefreshTokenRepository;
+import com.strange.safety.auth.session.RefreshTokenStore;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.user.entity.User;
@@ -29,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PasswordResetService {
 
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenStore refreshTokenStore;
     private final PasswordEncoder passwordEncoder;
     private final SmsVerificationService smsVerificationService;
 
@@ -55,7 +54,7 @@ public class PasswordResetService {
                 .orElseThrow(() -> new CustomException(ErrorCode.AUTH_INVALID_VERIFICATION));
         smsVerificationService.consume(request.verificationToken(), phone, VerificationPurpose.RESET_PASSWORD);
         user.changePassword(passwordEncoder.encode(request.newPassword()));
-        refreshTokenRepository.findAllByUserId(user.getId()).forEach(RefreshToken::revoke);
+        refreshTokenStore.revokeAllByUserId(user.getId());
     }
 
     private Optional<User> findActiveUser(String email, String phone) {

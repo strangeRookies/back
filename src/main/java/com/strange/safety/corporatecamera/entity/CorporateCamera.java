@@ -1,7 +1,6 @@
 package com.strange.safety.corporatecamera.entity;
 
 import com.strange.safety.camera.entity.CameraConnectionStatus;
-import com.strange.safety.camera.entity.CameraSourceType;
 import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.common.entity.BaseEntity;
 import com.strange.safety.company.entity.CompanyProfile;
@@ -57,17 +56,13 @@ public class CorporateCamera extends BaseEntity {
     @Column(name = "last_connection_report_at")
     private Instant lastConnectionReportAt;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "source_type", nullable = false, length = 20, columnDefinition = "varchar(20) default 'REAL_RTSP'")
-    private CameraSourceType sourceType;
-
     @Column(name = "assigned_video_path")
     private String assignedVideoPath;
 
     @Builder
     private CorporateCamera(CompanyProfile companyProfile, String cameraName, String cameraSerialNumber,
                             String cameraLoginId, String cameraPasswordEncrypted, String rtspUrl,
-                            String locationDescription, CameraSourceType sourceType, String assignedVideoPath) {
+                            String locationDescription, String assignedVideoPath) {
         this.companyProfile = companyProfile;
         this.cameraName = cameraName;
         this.cameraSerialNumber = cameraSerialNumber;
@@ -77,7 +72,6 @@ public class CorporateCamera extends BaseEntity {
         this.locationDescription = locationDescription;
         this.status = CameraStatus.ACTIVE;
         this.connectionStatus = CameraConnectionStatus.UNKNOWN;
-        this.sourceType = sourceType != null ? sourceType : CameraSourceType.REAL_RTSP;
         this.assignedVideoPath = assignedVideoPath;
     }
 }

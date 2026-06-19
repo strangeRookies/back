@@ -1,6 +1,5 @@
 package com.strange.safety.camera.dto;
 
-import com.strange.safety.camera.entity.CameraSourceType;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,6 +20,4 @@ public class CreateCameraRequest {
     private String locationDescription;
 
     private Boolean aiEnabled;
-
-    private CameraSourceType sourceType;
 }

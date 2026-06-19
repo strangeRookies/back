@@ -36,17 +36,8 @@ public class SmsVerification extends BaseEntity {
     @Column(name = "failed_attempts", nullable = false)
     private int failedAttempts;
 
-    @Column(name = "verification_token_hash", unique = true, length = 64)
-    private String verificationTokenHash;
-
-    @Column(name = "token_expires_at")
-    private Instant tokenExpiresAt;
-
     @Column(name = "verified_at")
     private Instant verifiedAt;
-
-    @Column(name = "used_at")
-    private Instant usedAt;
 
     private SmsVerification(String phoneNumber, VerificationPurpose purpose,
                             String codeHash, Instant codeExpiresAt) {
@@ -62,7 +53,7 @@ public class SmsVerification extends BaseEntity {
     }
 
     public boolean canConfirm(Instant now) {
-        return usedAt == null && verifiedAt == null && codeExpiresAt.isAfter(now)
+        return verifiedAt == null && codeExpiresAt.isAfter(now)
                 && failedAttempts < MAX_ATTEMPTS;
     }
 
@@ -70,19 +61,7 @@ public class SmsVerification extends BaseEntity {
         failedAttempts++;
     }
 
-    public void verify(String tokenHash, Instant tokenExpiresAt, Instant now) {
-        this.verificationTokenHash = tokenHash;
-        this.tokenExpiresAt = tokenExpiresAt;
+    public void markVerified(Instant now) {
         this.verifiedAt = now;
-    }
-
-    public boolean canUse(String phoneNumber, VerificationPurpose purpose, Instant now) {
-        return this.phoneNumber.equals(phoneNumber) && this.purpose == purpose
-                && verifiedAt != null && usedAt == null && tokenExpiresAt != null
-                && tokenExpiresAt.isAfter(now);
-    }
-
-    public void use(Instant now) {
-        this.usedAt = now;
     }
 }

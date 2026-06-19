@@ -2,6 +2,7 @@ package com.strange.safety.user.controller;
 
 import com.strange.safety.auth.security.CustomUserDetails;
 import com.strange.safety.common.response.ApiResponse;
+import com.strange.safety.user.dto.AdminMemberUpdateRequest;
 import com.strange.safety.user.dto.AdminUserResponse;
 import com.strange.safety.user.dto.MarketingAgreementUpdateRequest;
 import com.strange.safety.user.dto.UserAgreementResponse;
@@ -18,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +37,15 @@ public class UserController {
     public ApiResponse<Page<AdminUserResponse>> getAllUsers(
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ApiResponse.success(userService.getAllUsers(pageable));
+    }
+
+    @PatchMapping("/admin/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Void> updateAdminMember(
+            @PathVariable Long userId,
+            @RequestBody AdminMemberUpdateRequest request) {
+        userService.updateAdminMember(userId, request);
+        return ApiResponse.success(null);
     }
 
     @GetMapping("/me")

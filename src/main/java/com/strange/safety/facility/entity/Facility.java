@@ -69,4 +69,8 @@ public class Facility extends BaseEntity {
     public void deactivate() {
         this.isActive = false;
     }
+
+    public void updateDistrict(String district) {
+        this.district = district;
+    }
 }

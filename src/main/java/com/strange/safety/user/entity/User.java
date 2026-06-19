@@ -79,4 +79,13 @@ public class User extends BaseEntity {
     public void withdraw() {
         this.status = UserStatus.WITHDRAWN;
     }
+
+    public void updateContactInfo(String name, String phoneNumber) {
+        this.name = name;
+        this.phoneNumber = phoneNumber;
+    }
+
+    public void updateStatus(UserStatus status) {
+        this.status = status;
+    }
 }
