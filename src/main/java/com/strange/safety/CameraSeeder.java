@@ -1,7 +1,6 @@
 package com.strange.safety;
 
 import com.strange.safety.camera.entity.Camera;
-import com.strange.safety.camera.entity.CameraSourceType;
 import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.camera.entity.CameraConnectionStatus;
 import com.strange.safety.camera.repository.CameraRepository;
@@ -46,7 +45,6 @@ public class CameraSeeder implements CommandLineRunner {
                         .rtspUrl("rtsp://localhost:8554/" + camId)
                         .locationDescription("Auto-seeded camera " + camId)
                         .aiEnabled(true)
-                        .sourceType(CameraSourceType.SIMULATED_RTSP)
                         .assignedVideoPath("video_pool/dummy.mp4")
                         .build();
                 camera.updateConnectionStatus(CameraConnectionStatus.CONNECTED, Instant.now());
