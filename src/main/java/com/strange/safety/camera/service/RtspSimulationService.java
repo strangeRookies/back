@@ -66,6 +66,17 @@ public class RtspSimulationService {
     public void startSimulation(String cameraLoginId, String videoPath, String rtspUrl) {
         stopSimulation(cameraLoginId); // Stop existing if any
 
+        if (videoPath == null) {
+            log.warn("Simulation video path is null for camera: {}. Skipping.", cameraLoginId);
+            return;
+        }
+
+        java.io.File videoFile = new java.io.File(videoPath);
+        if (!videoFile.exists()) {
+            log.warn("Simulation video file not found locally: {}. Skipping local simulation start for camera: {}.", videoPath, cameraLoginId);
+            return;
+        }
+
         try {
             log.info("Starting FFmpeg simulation for camera: {}, video: {}, to: {}", cameraLoginId, videoPath, rtspUrl);
             ProcessBuilder pb = new ProcessBuilder(
