@@ -50,8 +50,7 @@ public class CameraService {
             Page<Facility> facilityPage = facilityRepository.findActiveFacilitiesByManagerId(
                     userId,
                     com.strange.safety.facility.entity.AccessType.MANAGER,
-                    PageRequest.of(0, 1)
-            );
+                    PageRequest.of(0, 1));
             if (facilityPage.isEmpty()) {
                 User user = userRepository.findById(userId)
                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -87,8 +86,6 @@ public class CameraService {
 
         String finalRtspUrl = request.getRtspUrl();
         String assignedVideoPath = null;
-        
-        // Always treat as SIMULATED_RTSP regardless of request
         assignedVideoPath = virtualCameraPoolService.assignVideo();
         finalRtspUrl = rtspSimulationService.generateRtspUrl(request.getCameraLoginId());
 
@@ -115,8 +112,8 @@ public class CameraService {
                 .detectedAt(Instant.now())
                 .build());
 
-        // Always start simulation
-        rtspSimulationService.startSimulation(camera.getCameraLoginId(), camera.getAssignedVideoPath(), camera.getRtspUrl());
+        rtspSimulationService.startSimulation(camera.getCameraLoginId(), camera.getAssignedVideoPath(),
+                camera.getRtspUrl());
 
         return CameraResponse.from(camera);
     }
@@ -126,8 +123,7 @@ public class CameraService {
             Page<Facility> facilityPage = facilityRepository.findActiveFacilitiesByManagerId(
                     userId,
                     com.strange.safety.facility.entity.AccessType.MANAGER,
-                    PageRequest.of(0, 1)
-            );
+                    PageRequest.of(0, 1));
             if (facilityPage.isEmpty()) {
                 User user = userRepository.findById(userId)
                         .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -150,7 +146,10 @@ public class CameraService {
         Camera camera = cameraRepository.findById(cameraId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CAMERA_NOT_FOUND));
         facilityService.getFacilityWithOwnerCheck(userId, camera.getFacility().getId());
-        camera.update(request.getCameraName(), request.getCameraSerialNumber(), request.getRtspUrl(), request.getStatus(), request.getLocationDescription(), request.getAiEnabled(), request.getAssignedVideoPath());
+
+        camera.update(request.getCameraName(), request.getCameraSerialNumber(), request.getRtspUrl(),
+                request.getStatus(), request.getLocationDescription(), request.getAiEnabled(),
+                request.getAssignedVideoPath());
 
         return CameraResponse.from(camera);
     }
@@ -160,12 +159,10 @@ public class CameraService {
         Camera camera = cameraRepository.findById(cameraId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CAMERA_NOT_FOUND));
         facilityService.getFacilityWithOwnerCheck(userId, camera.getFacility().getId());
-        
-        // Always stop simulation if video path was assigned
         if (camera.getAssignedVideoPath() != null) {
             rtspSimulationService.stopSimulation(camera.getCameraLoginId());
         }
-        
+
         cameraRepository.delete(camera);
     }
 
