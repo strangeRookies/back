@@ -2,7 +2,6 @@ package com.strange.safety.camera.service;
 
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.entity.CameraConnectionStatus;
-import com.strange.safety.camera.entity.CameraSourceType;
 import com.strange.safety.camera.repository.CameraRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -36,11 +35,11 @@ public class RtspSimulationService {
     private final Map<String, Process> activeProcesses = new ConcurrentHashMap<>();
 
     @PostConstruct
-    public void init() {
-        log.info("Starting RTSP simulations for existing simulated cameras...");
-        List<Camera> cameras = cameraRepository.findAll();
-        for (Camera c : cameras) {
-            if (c.getSourceType() == CameraSourceType.SIMULATED_RTSP && c.getAssignedVideoPath() != null) {
+    public void initSimulations() {
+        log.info("Starting RTSP simulations for all cameras with assigned videos...");
+        List<Camera> allCameras = cameraRepository.findAll();
+        for (Camera c : allCameras) {
+            if (c.getAssignedVideoPath() != null) {
                 startSimulation(c.getCameraLoginId(), c.getAssignedVideoPath(), c.getRtspUrl());
             }
         }
