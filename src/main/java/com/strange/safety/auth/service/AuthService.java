@@ -36,21 +36,15 @@ public class AuthService {
     private final LoginAttemptStore loginAttemptStore;
 
     public TokenIssueResult login(LoginRequest request) {
-        User user = userRepository.findByEmail(normalizeEmail(request.email()))
-                .orElseThrow(() -> new CustomException(ErrorCode.AUTH_INVALID_CREDENTIALS));
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())
-                || user.getRole() != request.accountType()) {
-            throw new CustomException(ErrorCode.AUTH_INVALID_CREDENTIALS);
-        }
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new CustomException(ErrorCode.AUTH_ACCOUNT_SUSPENDED);
-        }
-
-        User user = userRepository.findByEmailAndStatus(email, UserStatus.ACTIVE)
+        String email = normalizeEmail(request.email());
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> invalidCredentials(email));
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())
                 || user.getRole() != request.accountType()) {
             throw invalidCredentials(email);
+        }
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.AUTH_ACCOUNT_SUSPENDED);
         }
 
         loginAttemptStore.clear(email);
