@@ -3,6 +3,7 @@ package com.strange.safety.camera.service;
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.entity.CameraConnectionStatus;
 import com.strange.safety.camera.repository.CameraRepository;
+import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RtspSimulationService {
 
     private final CameraRepository cameraRepository;
+    private final CorporateCameraRepository corporateCameraRepository;
     private final ObjectProvider<MqttClient> mqttClientProvider;
 
     @Value("${simulation.rtsp.base-url:rtsp://localhost:8554}")
@@ -39,6 +41,13 @@ public class RtspSimulationService {
         log.info("Starting RTSP simulations for all cameras with assigned videos...");
         List<Camera> allCameras = cameraRepository.findAll();
         for (Camera c : allCameras) {
+            if (c.getAssignedVideoPath() != null) {
+                startSimulation(c.getCameraLoginId(), c.getAssignedVideoPath(), c.getRtspUrl());
+            }
+        }
+
+        List<com.strange.safety.corporatecamera.entity.CorporateCamera> allCorpCameras = corporateCameraRepository.findAll();
+        for (com.strange.safety.corporatecamera.entity.CorporateCamera c : allCorpCameras) {
             if (c.getAssignedVideoPath() != null) {
                 startSimulation(c.getCameraLoginId(), c.getAssignedVideoPath(), c.getRtspUrl());
             }

@@ -36,7 +36,7 @@ public class AlertEventDetailResponse {
     public static AlertEventDetailResponse from(AlertEvent event, List<SnapshotResponse> snapshots) {
         return AlertEventDetailResponse.builder()
                 .alertEventId(event.getId())
-                .cameraId(event.getCamera().getId())
+                .cameraId(event.getCamera() != null ? event.getCamera().getId() : (event.getCorporateCamera() != null ? event.getCorporateCamera().getId() : null))
                 .scenarioId(event.getScenario().getId())
                 .scenarioType(event.getScenario().getScenarioType().name())
                 .confidenceScore(event.getConfidenceScore())

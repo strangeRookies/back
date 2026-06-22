@@ -66,6 +66,9 @@ class CameraServiceTest {
     @Mock
     private RtspSimulationService rtspSimulationService;
 
+    @Mock
+    private com.strange.safety.corporatecamera.repository.CorporateCameraRepository corporateCameraRepository;
+
     private CameraService cameraService;
 
     @BeforeEach
@@ -79,7 +82,8 @@ class CameraServiceTest {
                 facilityService,
                 aesUtil,
                 virtualCameraPoolService,
-                rtspSimulationService
+                rtspSimulationService,
+                corporateCameraRepository
         );
     }
 

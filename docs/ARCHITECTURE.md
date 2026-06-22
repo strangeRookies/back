@@ -34,7 +34,7 @@ graph TD
     end
 
     subgraph Frontend Dashboard (strange_front)
-        STOMP -->|/topic/alerts| React[React Dashboard]
+        STOMP -->|/topic/facility/{id}/alerts| React[React Dashboard]
         MediaMTX -->|HLS Stream| ReactVideo[React CCTV HLS Player]
     end
 
@@ -64,10 +64,10 @@ graph TD
 * **카메라 구성 관리 (CRUD):** 관제 대상 카메라(CCTV)의 IP, RTSP URL, 이름, 상태 정보 등을 데이터베이스에 등록, 수정, 삭제하고 클라이언트에 제공합니다.
 * **MQTT 메시지 수신 및 파싱:** AI 엔진이 발행한 MQTT 이벤트를 구독(Subscribe)하고 DTO(`SafetyEventDto`)로 역직렬화합니다.
 * **이벤트 영속화:** 감지된 이상 행동 이벤트를 PostgreSQL의 `alert_events` 테이블에 저장합니다.
-* **실시간 경보 방송:** 저장 완료된 경보를 WebSocket STOMP 프로토콜인 `/topic/alerts` 목적지로 일괄 송출합니다.
+* **실시간 경보 방송:** 저장 완료된 경보를 WebSocket STOMP 프로토콜인 `/topic/facility/{facilityId}/alerts` (또는 기업용 `/topic/company/{companyId}/alerts`) 목적지로 일괄 송출합니다.
 
 ### 3. 프론트엔드 대시보드 (strange_front)
-* **실시간 알림 청취:** 가볍고 의존성 충돌이 없는 커스텀 STOMP 웹소켓 클라이언트를 활용해 `/topic/alerts` 메시지를 실시간으로 수신합니다.
+* **실시간 알림 청취:** 가볍고 의존성 충돌이 없는 커스텀 STOMP 웹소켓 클라이언트를 활용해 `/topic/facility/{id}/alerts` 메시지를 실시간으로 수신합니다.
 * **도면 및 알림 맵핑:** 수신된 카메라 ID(`cameraLoginId`)를 기준으로 SVG 평면도 상의 관련 CCTV 카메라 아이콘을 깜빡이게 처리하고 사이렌 소리를 반복 출력합니다.
 * **비디오 렌더링:** 사용자가 카메라를 선택하거나 경보 발생 카드를 클릭할 때, MediaMTX의 HLS 중계 주소(`http://localhost:8888/{cameraLoginId}/index.m3u8`)를 참조하여 `Hls.js` 플레이어에 실시간 스트리밍 영상을 로드합니다.
 
@@ -95,7 +95,7 @@ graph TD
 2. **DB 저장**
    * 이벤트 유효성을 확인한 후, PostgreSQL 데이터베이스에 `alert_events` 엔티티로 저장합니다.
 3. **WebSocket 브로드캐스팅**
-   * 백엔드의 STOMP 메시지 브로커가 `/topic/alerts`를 구독 중인 모든 React 클라이언트에 경보 JSON 객체를 전송합니다.
+   * 백엔드의 STOMP 메시지 브로커가 `/topic/facility/{id}/alerts`를 구독 중인 모든 React 클라이언트에 경보 JSON 객체를 전송합니다.
 
 ### 3. 프론트엔드 실시간 화면 표시 흐름
 1. **WebSocket 수신**

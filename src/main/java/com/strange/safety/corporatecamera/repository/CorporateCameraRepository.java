@@ -11,6 +11,10 @@ import java.util.List;
 
 public interface CorporateCameraRepository extends JpaRepository<CorporateCamera, Long> {
     List<CorporateCamera> findByCompanyProfile_Id(Long companyProfileId);
+    List<CorporateCamera> findByStatus(com.strange.safety.camera.entity.CameraStatus status);
+    java.util.Optional<CorporateCamera> findFirstByCameraLoginIdOrderByIdDesc(String cameraLoginId);
+    java.util.Optional<CorporateCamera> findFirstByCameraLoginIdAndStatusOrderByIdDesc(String cameraLoginId, com.strange.safety.camera.entity.CameraStatus status);
+    boolean existsByCameraLoginId(String cameraLoginId);
     long countByConnectionStatus(CameraConnectionStatus connectionStatus);
 
     @Query("SELECT c.companyProfile.id, COUNT(c) FROM CorporateCamera c WHERE c.companyProfile.id IN :ids GROUP BY c.companyProfile.id")

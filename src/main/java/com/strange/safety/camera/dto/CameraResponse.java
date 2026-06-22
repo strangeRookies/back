@@ -46,4 +46,23 @@ public class CameraResponse {
                 .lastConnectionReportAt(camera.getLastConnectionReportAt())
                 .build();
     }
+
+    public static CameraResponse fromCorporate(com.strange.safety.corporatecamera.entity.CorporateCamera camera) {
+        return CameraResponse.builder()
+                .cameraId(camera.getId())
+                .facilityId(camera.getCompanyProfile().getId())
+                .cameraLoginId(camera.getCameraLoginId())
+                .cameraName(camera.getCameraName())
+                .cameraSerialNumber(camera.getCameraSerialNumber())
+                .rtspUrl(camera.getRtspUrl())
+                .status(camera.getStatus())
+                .locationDescription(camera.getLocationDescription())
+                .createdAt(camera.getCreatedAt())
+                .updatedAt(camera.getUpdatedAt())
+                .aiEnabled(true)
+                .assignedVideoPath(camera.getAssignedVideoPath())
+                .connectionStatus(camera.getConnectionStatus())
+                .lastConnectionReportAt(camera.getLastConnectionReportAt())
+                .build();
+    }
 }

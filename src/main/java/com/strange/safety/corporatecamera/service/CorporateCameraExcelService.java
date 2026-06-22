@@ -9,6 +9,8 @@ import com.strange.safety.corporatecamera.dto.BulkCorporateCameraUploadResult;
 import com.strange.safety.corporatecamera.dto.CorporateCameraResponse;
 import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
+import com.strange.safety.camera.service.VirtualCameraPoolService;
+import com.strange.safety.camera.service.RtspSimulationService;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,8 @@ public class CorporateCameraExcelService {
     private final CorporateCameraRepository corporateCameraRepository;
     private final CompanyProfileRepository companyProfileRepository;
     private final AesUtil aesUtil;
+    private final VirtualCameraPoolService virtualCameraPoolService;
+    private final RtspSimulationService rtspSimulationService;
 
     private static final int HEADER_ROW_INDEX = 0;
     private static final int COL_CAMERA_NAME = 0;
@@ -66,8 +70,20 @@ public class CorporateCameraExcelService {
             throw new CustomException(ErrorCode.EXCEL_PARSE_ERROR);
         }
 
-        List<CorporateCameraResponse> registeredCameras = corporateCameraRepository.saveAll(camerasToSave)
-                .stream().map(CorporateCameraResponse::from).collect(Collectors.toList());
+        List<CorporateCamera> savedCameras = corporateCameraRepository.saveAll(camerasToSave);
+        
+        // Start simulation immediately in a separate thread to ensure DB commits first
+        new Thread(() -> {
+            try {
+                Thread.sleep(500); // 500ms delay to allow tx commit
+            } catch (InterruptedException ignored) {}
+            for (CorporateCamera camera : savedCameras) {
+                rtspSimulationService.startSimulation(camera.getCameraLoginId(), camera.getAssignedVideoPath(), camera.getRtspUrl());
+            }
+        }).start();
+
+        List<CorporateCameraResponse> registeredCameras = savedCameras.stream()
+                .map(CorporateCameraResponse::from).collect(Collectors.toList());
 
         return BulkCorporateCameraUploadResult.builder()
                 .successCount(registeredCameras.size())
@@ -102,6 +118,13 @@ public class CorporateCameraExcelService {
             throw new IllegalArgumentException("RTSP 주소 누락");
         }
 
+        if (loginId == null || loginId.isBlank()) {
+            throw new IllegalArgumentException("로그인 아이디 누락");
+        }
+
+        String assignedVideoPath = virtualCameraPoolService.assignVideo();
+        String finalRtspUrl = rtspSimulationService.generateRtspUrl(loginId);
+
         String encryptedPassword = (password != null && !password.isBlank())
                 ? aesUtil.encrypt(password) : null;
 
@@ -109,10 +132,11 @@ public class CorporateCameraExcelService {
                 .companyProfile(companyProfile)
                 .cameraName(cameraName)
                 .cameraSerialNumber(serialNumber)
-                .rtspUrl(rtspUrl)
+                .rtspUrl(finalRtspUrl)
                 .locationDescription(locationDescription)
                 .cameraLoginId(loginId)
                 .cameraPasswordEncrypted(encryptedPassword)
+                .assignedVideoPath(assignedVideoPath)
                 .build();
     }
 

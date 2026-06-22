@@ -43,6 +43,7 @@ public class CameraService {
     private final AesUtil aesUtil;
     private final VirtualCameraPoolService virtualCameraPoolService;
     private final RtspSimulationService rtspSimulationService;
+    private final com.strange.safety.corporatecamera.repository.CorporateCameraRepository corporateCameraRepository;
 
     @Transactional
     public CameraResponse createCamera(Long userId, Long facilityId, CreateCameraRequest request) {
@@ -78,6 +79,11 @@ public class CameraService {
             }
         }
         Facility facility = facilityService.getFacilityWithOwnerCheck(userId, facilityId);
+
+        if (cameraRepository.existsByCameraLoginId(request.getCameraLoginId()) ||
+            corporateCameraRepository.existsByCameraLoginId(request.getCameraLoginId())) {
+            throw new CustomException(ErrorCode.DUPLICATE_CAMERA_LOGIN_ID);
+        }
 
         String encryptedPassword = null;
         if (request.getCameraPassword() != null) {
@@ -167,9 +173,17 @@ public class CameraService {
     }
 
     public List<CameraResponse> getActiveAiCameras() {
-        return cameraRepository.findByAiEnabledTrueAndStatus(CameraStatus.ACTIVE).stream()
+        List<CameraResponse> result = new java.util.ArrayList<>();
+        
+        result.addAll(cameraRepository.findByAiEnabledTrueAndStatus(CameraStatus.ACTIVE).stream()
                 .map(CameraResponse::from)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
+                
+        result.addAll(corporateCameraRepository.findByStatus(CameraStatus.ACTIVE).stream()
+                .map(CameraResponse::fromCorporate)
+                .collect(Collectors.toList()));
+                
+        return result;
     }
 
     public List<CameraResponse> getCamerasForAdmin(Long facilityId) {

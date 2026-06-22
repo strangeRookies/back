@@ -83,7 +83,9 @@ public class SecurityConfig {
                                 "/api/emergency-contacts/**",
                                 "/api/mypage/**",
                                 "/api/cameras/**",
-                                "/api/roi-configs/**"
+                                "/api/roi-configs/**",
+                                "/api/companies/**",
+                                "/api/corporate-cameras/**"
                         ).hasAnyRole("ADMIN", "INDIVIDUAL", "CORPORATE")
 
                         // ADMIN 전용

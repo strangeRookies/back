@@ -74,4 +74,13 @@ public class CorporateCamera extends BaseEntity {
         this.connectionStatus = CameraConnectionStatus.UNKNOWN;
         this.assignedVideoPath = assignedVideoPath;
     }
+
+    public void updateConnectionStatus(CameraConnectionStatus status, Instant reportedAt) {
+        this.connectionStatus = status;
+        if (reportedAt != null) {
+            this.lastConnectionReportAt = reportedAt;
+        } else {
+            this.lastConnectionReportAt = Instant.now();
+        }
+    }
 }
