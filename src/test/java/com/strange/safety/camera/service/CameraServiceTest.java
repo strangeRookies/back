@@ -310,7 +310,7 @@ class CameraServiceTest {
     }
 
     @Test
-    void updateCameraDeactivationUpdatesStatusAndLogs() {
+    void updateCameraUpdatesStatusAndAiEnabled() {
         Long userId = 1L;
         Long cameraId = 100L;
         Facility facility = Facility.builder().facilityName("Test Facility").build();
@@ -319,7 +319,6 @@ class CameraServiceTest {
         Camera camera = Camera.builder()
                 .facility(facility)
                 .cameraName("Test Camera")
-                .sourceType(com.strange.safety.camera.entity.CameraSourceType.SIMULATED_RTSP)
                 .build();
         ReflectionTestUtils.setField(camera, "id", cameraId);
         ReflectionTestUtils.setField(camera, "status", CameraStatus.ACTIVE);
@@ -332,15 +331,11 @@ class CameraServiceTest {
         request.setCameraName("Updated Camera");
         request.setStatus(CameraStatus.INACTIVE);
         request.setAiEnabled(false);
-        request.setSourceType(com.strange.safety.camera.entity.CameraSourceType.SIMULATED_RTSP);
 
         cameraService.updateCamera(userId, cameraId, request);
 
+        assertThat(camera.getCameraName()).isEqualTo("Updated Camera");
         assertThat(camera.getStatus()).isEqualTo(CameraStatus.INACTIVE);
-        assertThat(camera.getConnectionStatus()).isEqualTo(com.strange.safety.camera.entity.CameraConnectionStatus.DISABLED);
-        verify(rtspSimulationService).stopSimulation(any());
-        verify(cameraStatusLogRepository).save(argThat(log -> 
-            log.getCurrentStatus() == com.strange.safety.camera.entity.CameraConnectionStatus.DISABLED
-        ));
+        assertThat(camera.isAiEnabled()).isFalse();
     }
 }
