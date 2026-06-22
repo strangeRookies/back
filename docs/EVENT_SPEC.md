@@ -54,7 +54,7 @@ AI 분석 엔진은 쓰러짐(Faint) 등의 이상행동을 감지하는 순간 
    * `alert_events` 테이블에 기록을 삽입합니다.
    * 이때 상태(`status`)는 최초 생성 상태인 **`UNACKNOWLEDGED`** 또는 **`ACTIVE`**로 저장됩니다.
 4. **WebSocket STOMP 송출:**
-   * 데이터베이스 저장 완료 즉시 WebSocket 브로커로 전달되어 `/topic/alerts` 주소를 구독하고 있는 모든 세션에 실시간 경보 메시지를 송출합니다.
+   * 데이터베이스 저장 완료 즉시 WebSocket 브로커로 전달되어 `/topic/facility/{id}/alerts` 또는 기업용 `/topic/company/{id}/alerts` 주소를 구독하고 있는 모든 세션에 실시간 경보 메시지를 송출합니다.
 
 ---
 
@@ -63,7 +63,7 @@ AI 분석 엔진은 쓰러짐(Faint) 등의 이상행동을 감지하는 순간 
 웹 프론트엔드 대시보드는 백엔드 WebSocket 서버에 연결하여 STOMP 메시지 브로드캐스트를 받아 화면을 업데이트합니다.
 
 * **STOMP Endpoint:** `/ws`
-* **구독 목적지(Topic):** `/topic/alerts`
+* **구독 목적지(Topic):** `/topic/facility/{facilityId}/alerts` (개인용) 또는 `/topic/company/{companyId}/alerts` (기업용)
 * **메시지 데이터 파서 유연성:** 프론트엔드의 `useAiEvents.ts` 내부 `normalizeRawPayload` 함수가 Python(snake_case)과 Java(camelCase) 스타일 필드명을 모두 호환할 수 있게 정규화 단계를 거칩니다.
 
 ### 프론트엔드 수신 데이터 정규화 매핑표

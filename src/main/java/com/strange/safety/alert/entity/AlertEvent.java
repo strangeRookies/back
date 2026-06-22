@@ -3,6 +3,7 @@ package com.strange.safety.alert.entity;
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.common.entity.BaseEntity;
 import com.strange.safety.scenario.entity.Scenario;
+import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import com.strange.safety.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -26,8 +27,12 @@ public class AlertEvent extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "camera_id", nullable = false)
+    @JoinColumn(name = "camera_id")
     private Camera camera;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "corporate_camera_id")
+    private CorporateCamera corporateCamera;
 
     @OneToMany(mappedBy = "alertEvent", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Snapshot> snapshots = new ArrayList<>();
@@ -76,11 +81,12 @@ public class AlertEvent extends BaseEntity {
     private LocalDateTime acknowledgedAt;
 
     @Builder
-    private AlertEvent(Camera camera, Scenario scenario, Float confidenceScore,
+    private AlertEvent(Camera camera, CorporateCamera corporateCamera, Scenario scenario, Float confidenceScore,
                        AlertSeverity severity, String keypointData,
                        String boundingBoxData, String clipUrl, String clipPath,
                        Double faintProb, LocalDateTime detectedAt) {
         this.camera = camera;
+        this.corporateCamera = corporateCamera;
         this.scenario = scenario;
         this.confidenceScore = confidenceScore;
         this.severity = severity;

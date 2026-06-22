@@ -151,7 +151,7 @@
 
 ### 원인 후보
 1. 백엔드 서버의 MQTT 구독 파트가 비활성화되었거나 에러가 난 경우.
-2. WebSocket STOMP 연결 끊김 혹은 목적지(`destination: /topic/alerts`) 바인딩 오류.
+2. WebSocket STOMP 연결 끊김 혹은 목적지(`destination: /topic/facility/{id}/alerts` 등) 바인딩 오류.
 3. 프론트엔드가 STOMP 메시지 수신 후 fingerprint 캐시 필터에 의해 동일 이벤트로 인지되어 중복 무시 처리된 경우.
 
 ### 확인 방법

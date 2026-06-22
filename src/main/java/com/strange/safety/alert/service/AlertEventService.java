@@ -12,15 +12,21 @@ import com.strange.safety.alert.entity.AlertSeverity;
 import com.strange.safety.alert.entity.AlertStatus;
 import com.strange.safety.alert.repository.AlertEventRepository;
 import com.strange.safety.alert.repository.SnapshotRepository;
+import com.strange.safety.auth.entity.Role;
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.repository.CameraRepository;
 import com.strange.safety.common.exception.CustomException;
 import com.strange.safety.common.exception.ErrorCode;
+import com.strange.safety.company.entity.CompanyProfile;
+import com.strange.safety.company.repository.CompanyProfileRepository;
+import com.strange.safety.corporatecamera.entity.CorporateCamera;
+import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
 import com.strange.safety.event.SafetyEventDto;
 import com.strange.safety.facility.service.FacilityService;
 import com.strange.safety.scenario.entity.Scenario;
 import com.strange.safety.scenario.entity.ScenarioType;
 import com.strange.safety.scenario.repository.ScenarioRepository;
+import com.strange.safety.user.entity.User;
 import com.strange.safety.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -34,7 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.Instant;
 import java.util.List;
-
 import java.util.stream.Collectors;
 
 @Service
@@ -49,6 +54,8 @@ public class AlertEventService {
     private final FacilityService facilityService;
     private final UserRepository userRepository;
     private final CameraRepository cameraRepository;
+    private final CorporateCameraRepository corporateCameraRepository;
+    private final CompanyProfileRepository companyProfileRepository;
     private final ScenarioRepository scenarioRepository;
     private final ObjectMapper objectMapper;
     private final RecentAlertCacheStore recentAlertCacheStore;
@@ -57,11 +64,19 @@ public class AlertEventService {
                                             AlertSeverity severity, AlertStatus status,
                                             LocalDateTime dateFrom, LocalDateTime dateTo,
                                             Pageable pageable) {
-        facilityService.getFacilityWithOwnerCheck(userId, facilityId);
+        User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        Specification<AlertEvent> spec;
 
-        Specification<AlertEvent> spec = Specification
-                .where(facilityEquals(facilityId))
-                .and(severity != null ? (r, q, cb) -> cb.equal(r.get("severity"), severity) : null)
+        if (user.getRole() == Role.CORPORATE) {
+            CompanyProfile profile = companyProfileRepository.findById(facilityId).orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
+            if (!profile.getUser().getId().equals(userId)) throw new CustomException(ErrorCode.FACILITY_ACCESS_DENIED);
+            spec = Specification.where(companyProfileEquals(facilityId));
+        } else {
+            facilityService.getFacilityWithOwnerCheck(userId, facilityId);
+            spec = Specification.where(facilityEquals(facilityId));
+        }
+
+        spec = spec.and(severity != null ? (r, q, cb) -> cb.equal(r.get("severity"), severity) : null)
                 .and(status != null ? (r, q, cb) -> cb.equal(r.get("status"), status) : null)
                 .and(dateFrom != null ? (r, q, cb) -> cb.greaterThanOrEqualTo(r.get("detectedAt"), dateFrom) : null)
                 .and(dateTo != null ? (r, q, cb) -> cb.lessThanOrEqualTo(r.get("detectedAt"), dateTo) : null);
@@ -85,26 +100,44 @@ public class AlertEventService {
 
     public AlertStatsResponse getStats(Long userId, Long facilityId,
                                        LocalDateTime dateFrom, LocalDateTime dateTo) {
-        facilityService.getFacilityWithOwnerCheck(userId, facilityId);
-
-        // null 파라미터 바인딩 오류 방지 — 범위 미지정 시 전체 기간으로 대체
+        User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         LocalDateTime from = dateFrom != null ? dateFrom : LocalDateTime.of(2000, 1, 1, 0, 0);
         LocalDateTime to   = dateTo   != null ? dateTo   : LocalDateTime.now().plusYears(10);
 
-        long total     = alertEventRepository.countByFacilityAndDateRange(facilityId, from, to);
-        long warning   = alertEventRepository.countByFacilityAndSeverity(facilityId, AlertSeverity.WARNING, from, to);
-        long critical  = alertEventRepository.countByFacilityAndSeverity(facilityId, AlertSeverity.CRITICAL, from, to);
-        long pending   = alertEventRepository.countByFacilityAndStatus(facilityId, AlertStatus.PENDING, from, to);
-        long confirmed = alertEventRepository.countByFacilityAndStatus(facilityId, AlertStatus.CONFIRMED, from, to);
-        long dismissed = alertEventRepository.countByFacilityAndStatus(facilityId, AlertStatus.DISMISSED, from, to);
+        long total, warning, critical, pending, confirmed, dismissed;
+        List<AlertStatsResponse.ScenarioCount> byScenario;
 
-        List<AlertStatsResponse.ScenarioCount> byScenario =
-                alertEventRepository.countGroupByScenario(facilityId, from, to).stream()
-                        .map(row -> AlertStatsResponse.ScenarioCount.builder()
-                                .scenarioType((String) row[0])
-                                .count(((Number) row[1]).longValue())
-                                .build())
-                        .collect(Collectors.toList());
+        if (user.getRole() == Role.CORPORATE) {
+            CompanyProfile profile = companyProfileRepository.findById(facilityId).orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
+            if (!profile.getUser().getId().equals(userId)) throw new CustomException(ErrorCode.FACILITY_ACCESS_DENIED);
+
+            total     = alertEventRepository.countByCompanyProfileAndDateRange(facilityId, from, to);
+            warning   = alertEventRepository.countByCompanyProfileAndSeverity(facilityId, AlertSeverity.WARNING, from, to);
+            critical  = alertEventRepository.countByCompanyProfileAndSeverity(facilityId, AlertSeverity.CRITICAL, from, to);
+            pending   = alertEventRepository.countByCompanyProfileAndStatus(facilityId, AlertStatus.PENDING, from, to);
+            confirmed = alertEventRepository.countByCompanyProfileAndStatus(facilityId, AlertStatus.CONFIRMED, from, to);
+            dismissed = alertEventRepository.countByCompanyProfileAndStatus(facilityId, AlertStatus.DISMISSED, from, to);
+            byScenario = alertEventRepository.countGroupByScenarioForCompany(facilityId, from, to).stream()
+                    .map(row -> AlertStatsResponse.ScenarioCount.builder()
+                            .scenarioType((String) row[0])
+                            .count(((Number) row[1]).longValue())
+                            .build())
+                    .collect(Collectors.toList());
+        } else {
+            facilityService.getFacilityWithOwnerCheck(userId, facilityId);
+            total     = alertEventRepository.countByFacilityAndDateRange(facilityId, from, to);
+            warning   = alertEventRepository.countByFacilityAndSeverity(facilityId, AlertSeverity.WARNING, from, to);
+            critical  = alertEventRepository.countByFacilityAndSeverity(facilityId, AlertSeverity.CRITICAL, from, to);
+            pending   = alertEventRepository.countByFacilityAndStatus(facilityId, AlertStatus.PENDING, from, to);
+            confirmed = alertEventRepository.countByFacilityAndStatus(facilityId, AlertStatus.CONFIRMED, from, to);
+            dismissed = alertEventRepository.countByFacilityAndStatus(facilityId, AlertStatus.DISMISSED, from, to);
+            byScenario = alertEventRepository.countGroupByScenario(facilityId, from, to).stream()
+                    .map(row -> AlertStatsResponse.ScenarioCount.builder()
+                            .scenarioType((String) row[0])
+                            .count(((Number) row[1]).longValue())
+                            .build())
+                    .collect(Collectors.toList());
+        }
 
         return AlertStatsResponse.builder()
                 .total(total).warning(warning).critical(critical)
@@ -114,7 +147,14 @@ public class AlertEventService {
     }
 
     public List<AlertEventResponse> getRecent(Long userId, Long facilityId) {
-        facilityService.getFacilityWithOwnerCheck(userId, facilityId);
+        User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getRole() == Role.CORPORATE) {
+            CompanyProfile profile = companyProfileRepository.findById(facilityId).orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
+            if (!profile.getUser().getId().equals(userId)) throw new CustomException(ErrorCode.FACILITY_ACCESS_DENIED);
+        } else {
+            facilityService.getFacilityWithOwnerCheck(userId, facilityId);
+        }
 
         List<AlertEventResponse> cachedAlerts = recentAlertCacheStore.findRecent(facilityId);
         if (!cachedAlerts.isEmpty()) {
@@ -122,17 +162,39 @@ public class AlertEventService {
         }
 
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
-        return alertEventRepository
-                .findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff)
-                .stream()
-                .map(AlertEventResponse::from)
-                .collect(Collectors.toList());
+        if (user.getRole() == Role.CORPORATE) {
+            return alertEventRepository
+                    .findTop100ByCorporateCamera_CompanyProfile_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff)
+                    .stream()
+                    .map(AlertEventResponse::from)
+                    .collect(Collectors.toList());
+        } else {
+            return alertEventRepository
+                    .findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff)
+                    .stream()
+                    .map(AlertEventResponse::from)
+                    .collect(Collectors.toList());
+        }
     }
 
     private AlertEvent getEventWithOwnerCheck(Long userId, Long alertEventId) {
         AlertEvent event = alertEventRepository.findById(alertEventId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ALERT_NOT_FOUND));
-        facilityService.getFacilityWithOwnerCheck(userId, event.getCamera().getFacility().getId());
+        
+        User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        if (user.getRole() == Role.CORPORATE) {
+            Long userCompanyId = companyProfileRepository.findByUser_Id(userId)
+                    .map(CompanyProfile::getId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
+            if (event.getCorporateCamera() == null || !event.getCorporateCamera().getCompanyProfile().getId().equals(userCompanyId)) {
+                throw new CustomException(ErrorCode.FACILITY_ACCESS_DENIED);
+            }
+        } else {
+            if (event.getCamera() == null) {
+                throw new CustomException(ErrorCode.FACILITY_ACCESS_DENIED);
+            }
+            facilityService.getFacilityWithOwnerCheck(userId, event.getCamera().getFacility().getId());
+        }
         return event;
     }
 
@@ -142,6 +204,15 @@ public class AlertEventService {
             return cb.equal(
                     root.join("camera").join("facility").get("id"),
                     facilityId);
+        };
+    }
+
+    private static Specification<AlertEvent> companyProfileEquals(Long companyProfileId) {
+        return (root, query, cb) -> {
+            query.distinct(true);
+            return cb.equal(
+                    root.join("corporateCamera").join("companyProfile").get("id"),
+                    companyProfileId);
         };
     }
 
@@ -161,12 +232,17 @@ public class AlertEventService {
         }
 
         String finalCameraIdVal = cameraIdVal;
-        Camera camera = cameraRepository.findFirstByCameraLoginIdOrderByIdDesc(finalCameraIdVal)
-                .orElseThrow(() -> {
-                    log.error("Failed to map MQTT safety event camera: rawCameraLoginId={}, rawCameraId={}, normalizedCameraLoginId={}",
-                            dto.cameraLoginId(), dto.cameraId(), finalCameraIdVal);
-                    return new CustomException(ErrorCode.CAMERA_NOT_FOUND);
-                });
+        Camera camera = cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(finalCameraIdVal, com.strange.safety.camera.entity.CameraStatus.ACTIVE).orElse(null);
+        CorporateCamera corporateCamera = null;
+
+        if (camera == null) {
+            corporateCamera = corporateCameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(finalCameraIdVal, com.strange.safety.camera.entity.CameraStatus.ACTIVE)
+                    .orElseThrow(() -> {
+                        log.error("Failed to map MQTT safety event camera: rawCameraLoginId={}, rawCameraId={}, normalizedCameraLoginId={}",
+                                dto.cameraLoginId(), dto.cameraId(), finalCameraIdVal);
+                        return new CustomException(ErrorCode.CAMERA_NOT_FOUND);
+                    });
+        }
 
         ScenarioType scenarioType = mapToScenarioType(dto.type());
 
@@ -186,6 +262,7 @@ public class AlertEventService {
 
         AlertEvent event = AlertEvent.builder()
                 .camera(camera)
+                .corporateCamera(corporateCamera)
                 .scenario(scenario)
                 .confidenceScore(confidenceScore)
                 .severity(severity)
@@ -199,11 +276,13 @@ public class AlertEventService {
 
         AlertEvent saved = alertEventRepository.save(event);
         AlertEventResponse response = AlertEventResponse.from(saved);
+
+        Long contextId = camera != null ? camera.getFacility().getId() : corporateCamera.getCompanyProfile().getId();
         try {
-            recentAlertCacheStore.add(camera.getFacility().getId(), response);
+            recentAlertCacheStore.add(contextId, response);
         } catch (RuntimeException ex) {
-            log.warn("Failed to cache recent alert event: alertEventId={}, facilityId={}, error={}",
-                    saved.getId(), camera.getFacility().getId(), ex.getMessage());
+            log.warn("Failed to cache recent alert event: alertEventId={}, contextId={}, error={}",
+                    saved.getId(), contextId, ex.getMessage());
         }
         log.info("Saved MQTT safety alert event: alertEventId={}, cameraLoginId={}, scenarioType={}, severity={}, confidence={}, trackId={}",
                 saved.getId(), finalCameraIdVal, scenarioType, severity, confidenceScore, dto.trackId());

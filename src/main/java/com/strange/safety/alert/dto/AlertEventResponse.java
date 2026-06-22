@@ -26,11 +26,13 @@ public class AlertEventResponse {
     private LocalDateTime acknowledgedAt;
     private Long acknowledgedBy;
     private LocalDateTime createdAt;
+    private String cameraLoginId;
 
     public static AlertEventResponse from(AlertEvent event) {
         return AlertEventResponse.builder()
                 .alertEventId(event.getId())
-                .cameraId(event.getCamera().getId())
+                .cameraId(event.getCamera() != null ? event.getCamera().getId() : (event.getCorporateCamera() != null ? event.getCorporateCamera().getId() : null))
+                .cameraLoginId(event.getCamera() != null ? event.getCamera().getCameraLoginId() : (event.getCorporateCamera() != null ? event.getCorporateCamera().getCameraLoginId() : null))
                 .scenarioId(event.getScenario().getId())
                 .scenarioType(event.getScenario().getScenarioType().name())
                 .confidenceScore(event.getConfidenceScore())

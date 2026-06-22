@@ -52,6 +52,12 @@ class AlertEventServiceTest {
     private CameraRepository cameraRepository;
 
     @Mock
+    private com.strange.safety.corporatecamera.repository.CorporateCameraRepository corporateCameraRepository;
+
+    @Mock
+    private com.strange.safety.company.repository.CompanyProfileRepository companyProfileRepository;
+
+    @Mock
     private ScenarioRepository scenarioRepository;
 
     @Mock
@@ -67,6 +73,8 @@ class AlertEventServiceTest {
                 facilityService,
                 userRepository,
                 cameraRepository,
+                corporateCameraRepository,
+                companyProfileRepository,
                 scenarioRepository,
                 new ObjectMapper(),
                 recentAlertCacheStore
@@ -102,6 +110,8 @@ class AlertEventServiceTest {
         when(alertEventRepository.findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(
                 any(), any(LocalDateTime.class))).thenReturn(List.of(savedEvent));
 
+        when(userRepository.findById(1L)).thenReturn(Optional.of(com.strange.safety.user.entity.User.builder()
+                .email("test@test.com").passwordHash("pwd").name("User").phoneNumber("010").role(com.strange.safety.auth.entity.Role.INDIVIDUAL).build()));
         List<AlertEventResponse> alerts = alertEventService.getRecent(1L, 10L);
 
         assertThat(alerts).hasSize(1);
@@ -117,6 +127,8 @@ class AlertEventServiceTest {
                 .build();
         when(recentAlertCacheStore.findRecent(10L)).thenReturn(List.of(cached));
 
+        when(userRepository.findById(1L)).thenReturn(Optional.of(com.strange.safety.user.entity.User.builder()
+                .email("test@test.com").passwordHash("pwd").name("User").phoneNumber("010").role(com.strange.safety.auth.entity.Role.INDIVIDUAL).build()));
         List<AlertEventResponse> alerts = alertEventService.getRecent(1L, 10L);
 
         assertThat(alerts).containsExactly(cached);

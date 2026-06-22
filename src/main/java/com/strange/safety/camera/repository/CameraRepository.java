@@ -15,6 +15,8 @@ public interface CameraRepository extends JpaRepository<Camera, Long> {
     List<Camera> findByFacility_IdAndStatus(Long facilityId, CameraStatus status);
     List<Camera> findByAiEnabledTrueAndStatus(CameraStatus status);
     Optional<Camera> findFirstByCameraLoginIdOrderByIdDesc(String cameraLoginId);
+    Optional<Camera> findFirstByCameraLoginIdAndStatusOrderByIdDesc(String cameraLoginId, CameraStatus status);
+    boolean existsByCameraLoginId(String cameraLoginId);
     long countByConnectionStatus(CameraConnectionStatus connectionStatus);
 
     @Query("SELECT uf.user.id, COUNT(c) FROM Camera c " +

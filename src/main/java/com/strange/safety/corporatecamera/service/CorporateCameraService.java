@@ -9,6 +9,13 @@ import com.strange.safety.corporatecamera.dto.CorporateCameraRequest;
 import com.strange.safety.corporatecamera.dto.CorporateCameraResponse;
 import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
+import com.strange.safety.camera.repository.CameraStatusLogRepository;
+import com.strange.safety.camera.entity.CameraStatusLog;
+import com.strange.safety.camera.entity.CameraConnectionStatus;
+import com.strange.safety.camera.service.RtspSimulationService;
+import com.strange.safety.camera.service.VirtualCameraPoolService;
+import com.strange.safety.camera.repository.CameraRepository;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,13 +31,20 @@ public class CorporateCameraService {
     private final CorporateCameraRepository corporateCameraRepository;
     private final CompanyProfileRepository companyProfileRepository;
     private final AesUtil aesUtil;
-    private final com.strange.safety.camera.service.RtspSimulationService rtspSimulationService;
-    private final com.strange.safety.camera.service.VirtualCameraPoolService virtualCameraPoolService;
+    private final RtspSimulationService rtspSimulationService;
+    private final VirtualCameraPoolService virtualCameraPoolService;
+    private final CameraRepository cameraRepository;
+    private final CameraStatusLogRepository cameraStatusLogRepository;
 
     @Transactional
     public CorporateCameraResponse register(Long companyProfileId, CorporateCameraRequest request) {
         CompanyProfile companyProfile = companyProfileRepository.findById(companyProfileId)
                 .orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
+
+        if (corporateCameraRepository.existsByCameraLoginId(request.getCameraLoginId()) ||
+            cameraRepository.existsByCameraLoginId(request.getCameraLoginId())) {
+            throw new CustomException(ErrorCode.DUPLICATE_CAMERA_LOGIN_ID);
+        }
 
         String encryptedPassword = (request.getPassword() != null && !request.getPassword().isBlank())
                 ? aesUtil.encrypt(request.getPassword()) : null;
@@ -52,8 +66,20 @@ public class CorporateCameraService {
 
         camera = corporateCameraRepository.save(camera);
         
-        // Start simulation immediately
-        rtspSimulationService.startSimulation(camera.getCameraLoginId(), camera.getAssignedVideoPath(), camera.getRtspUrl());
+        // 최초 등록 상태 로그 저장
+        cameraStatusLogRepository.save(CameraStatusLog.builder()
+                .corporateCamera(camera)
+                .previousStatus(null)
+                .currentStatus(CameraConnectionStatus.UNKNOWN)
+                .reason("카메라 최초 등록")
+                .detectedAt(Instant.now())
+                .build());
+
+        final String loginId = camera.getCameraLoginId();
+        final String videoPath = camera.getAssignedVideoPath();
+        final String rtspUrl = camera.getRtspUrl();
+        
+        rtspSimulationService.startSimulation(loginId, videoPath, rtspUrl);
 
         return CorporateCameraResponse.from(camera);
     }
@@ -64,6 +90,12 @@ public class CorporateCameraService {
         }
         return corporateCameraRepository.findByCompanyProfile_Id(companyProfileId)
                 .stream().map(CorporateCameraResponse::from).collect(Collectors.toList());
+    }
+
+    public List<CorporateCameraResponse> getMyCameras(Long userId) {
+        CompanyProfile companyProfile = companyProfileRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
+        return getCamerasByCompany(companyProfile.getId());
     }
 
     @Transactional

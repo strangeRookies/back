@@ -27,7 +27,7 @@ strange_back/src/main/java/com/strange/safety/
 │   └── service/             # CameraService, CameraStatusService
 ├── common/                  # 전역 예외 처리(GlobalExceptionHandler) 및 공통 응답 정의
 ├── event/                   # MQTT Subscribe 및 WebSocket STOMP 브로드캐스트 라우팅 패키지
-│   ├── AlertBroadcastService.java       # WebSocket /topic/alerts 송출 클래스
+│   ├── AlertBroadcastService.java       # WebSocket /topic/facility/{id}/alerts 송출 클래스
 │   ├── AsyncEventProcessorService.java  # 비동기 경보/상태 분기 처리 서비스
 │   └── MqttSafetyEventSubscriber.java   # Spring Integration MQTT 수신 인터페이스
 ├── facility/                # 관제 대상 구역(Facility) 패키지
@@ -38,10 +38,9 @@ strange_back/src/main/java/com/strange/safety/
 
 ## 💾 핵심 엔티티 구조 (Entity)
 
-### 1. Camera (카메라)
-* **테이블명:** `cameras` (extends `BaseEntity`)
+### 1. Camera (개인용/일반 카메라) & CorporateCamera (기업용 카메라)
+* **테이블명:** `cameras`, `corporate_cameras` (extends `BaseEntity`)
 * **핵심 필드:**
-  * `id` (Long): PK
   * `cameraLoginId` (String): 프론트/AI 연동용 카메라 식별 아이디 (예: `cam_01`, `cam_02` 등)
   * `cameraName` (String): 카메라 이름
   * `rtspUrl` (String): YOLO 분석용 실시간 스트림 주소
@@ -79,7 +78,7 @@ strange_back/src/main/java/com/strange/safety/
 
 ### 3. WebSocket STOMP 실시간 방송
 * **송출 클래스:** `AlertBroadcastService.java`
-* **메커니즘:** 스프링의 `SimpMessagingTemplate`를 주입받아 `/topic/alerts` 주소로 역직렬화된 JSON 데이터를 `convertAndSend` 형태로 송출합니다.
+* **메커니즘:** 스프링의 `SimpMessagingTemplate`를 주입받아 `/topic/facility/{id}/alerts` 또는 `/topic/company/{id}/alerts` 주소로 역직렬화된 JSON 데이터를 `convertAndSend` 형태로 송출합니다.
 * **관련 설정:** `WebSocketConfig`에서 STOMP 엔드포인트 `/ws`를 선언하고, 프론트 포트 CORS 우회를 위한 `allowedOriginPatterns` 허용을 처리합니다.
 
 ---
@@ -101,7 +100,7 @@ strange_back/src/main/java/com/strange/safety/
 tail -f strange_back_run.log | grep -E "MQTT Async|Broadcasting"
 ```
 * **수신 성공 로그 포맷:** `Received MQTT message from topic safety/events: {...}`
-* **웹소켓 방송 성공 로그 포맷:** `Broadcasting safety event to /topic/alerts: type=faint, cameraId=1, severity=HIGH`
+* **웹소켓 방송 성공 로그 포맷:** `Broadcasting safety event to /topic/facility/1/alerts: type=faint, cameraId=1, severity=HIGH`
 
 ---
 

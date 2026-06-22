@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.strange.safety.auth.dto.AvailabilityResponse;
 import com.strange.safety.auth.service.SignupService;
 import com.strange.safety.common.exception.GlobalExceptionHandler;
+import com.strange.safety.company.repository.CompanyProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -19,13 +20,15 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class CompanyControllerTest {
 
     private SignupService signupService;
+    private CompanyProfileRepository companyProfileRepository;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         signupService = org.mockito.Mockito.mock(SignupService.class);
+        companyProfileRepository = org.mockito.Mockito.mock(CompanyProfileRepository.class);
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new CompanyController(signupService))
+                .standaloneSetup(new CompanyController(signupService, companyProfileRepository))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }

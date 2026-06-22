@@ -13,8 +13,6 @@ import org.springframework.stereotype.Service;
 public class CameraStatusBroadcastService {
 
     private static final Logger log = LoggerFactory.getLogger(CameraStatusBroadcastService.class);
-    private static final String CAMERA_STATUS_TOPIC_PREFIX = "/topic/facility/";
-    private static final String CAMERA_STATUS_TOPIC_SUFFIX = "/camera-status";
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -22,12 +20,13 @@ public class CameraStatusBroadcastService {
         this.messagingTemplate = messagingTemplate;
     }
 
-    public void broadcast(Long facilityId, CameraStatusEventDto event) {
-        if (facilityId == null) {
-            log.warn("FacilityId is null. Skipping camera status broadcast for: {}", event.cameraLoginId());
+    public void broadcast(Long targetId, boolean isCorporate, CameraStatusEventDto event) {
+        if (targetId == null) {
+            log.warn("TargetId is null. Skipping camera status broadcast for: {}", event.cameraLoginId());
             return;
         }
-        String topic = CAMERA_STATUS_TOPIC_PREFIX + facilityId + CAMERA_STATUS_TOPIC_SUFFIX;
+        String prefix = isCorporate ? "/topic/company/" : "/topic/facility/";
+        String topic = prefix + targetId + "/camera-status";
         log.info("Broadcasting camera status event to {}: cameraLoginId={}, status={}, reason={}",
                 topic, event.cameraLoginId(), event.status(), event.reason());
         messagingTemplate.convertAndSend(topic, event);
