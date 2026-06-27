@@ -191,7 +191,8 @@ public class AlertEventService {
             facilityService.getFacilityWithOwnerCheck(userId, facilityId);
         }
 
-        List<AlertEventResponse> cachedAlerts = recentAlertCacheStore.findRecent(facilityId);
+        String contextKey = user.getRole() == Role.CORPORATE ? "COMP_" + facilityId : "FAC_" + facilityId;
+        List<AlertEventResponse> cachedAlerts = recentAlertCacheStore.findRecent(contextKey);
         if (!cachedAlerts.isEmpty()) {
             return cachedAlerts;
         }
@@ -323,12 +324,12 @@ public class AlertEventService {
         AlertEvent saved = alertEventRepository.save(event);
         AlertEventResponse response = AlertEventResponse.from(saved);
 
-        Long contextId = camera != null ? camera.getFacility().getId() : corporateCamera.getCompanyProfile().getId();
+        String contextKey = camera != null ? "FAC_" + camera.getFacility().getId() : "COMP_" + corporateCamera.getCompanyProfile().getId();
         try {
-            recentAlertCacheStore.add(contextId, response);
+            recentAlertCacheStore.add(contextKey, response);
         } catch (RuntimeException ex) {
-            log.warn("Failed to cache recent alert event: alertEventId={}, contextId={}, error={}",
-                    saved.getId(), contextId, ex.getMessage());
+            log.warn("Failed to cache recent alert event: alertEventId={}, contextKey={}, error={}",
+                    saved.getId(), contextKey, ex.getMessage());
         }
         log.info("Saved MQTT safety alert event: alertEventId={}, cameraLoginId={}, scenarioType={}, severity={}, confidence={}, trackId={}",
                 saved.getId(), finalCameraIdVal, scenarioType, severity, confidenceScore, dto.trackId());
