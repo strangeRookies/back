@@ -37,7 +37,7 @@ class OverlayBroadcastServiceTest {
 
     private OverlayMessage message() {
         return new OverlayMessage(
-                "1.0",
+                "1.1",
                 "overlay",
                 1782177631123L,
                 "cam_03",
@@ -45,9 +45,12 @@ class OverlayBroadcastServiceTest {
                 1280,
                 720,
                 List.of(new OverlayEvent(
-                        "FALL_DETECTED",
-                        0.92,
+                        "tracking",
+                        0.91,
+                        false,
                         7L,
-                        new BoundingBox(420, 250, 180, 320))));
+                        new BoundingBox(420, 250, 180, 320),
+                        new BoundingBox(420, 250, 180, 320),
+                        List.of())));
     }
 }

@@ -155,6 +155,7 @@ class OverlayRelayServiceTest {
         ArgumentCaptor<OverlayMessage> captor = ArgumentCaptor.forClass(OverlayMessage.class);
         verify(broadcastService, times(2)).broadcast(captor.capture(), org.mockito.ArgumentMatchers.eq(4L), org.mockito.ArgumentMatchers.eq(false));
         OverlayMessage cleared = captor.getAllValues().get(1);
+        assertThat(cleared.schemaVersion()).isEqualTo("1.1");
         assertThat(cleared.timestampMs()).isEqualTo(12_000L);
         assertThat(cleared.events()).isEmpty();
     }
@@ -181,11 +182,11 @@ class OverlayRelayServiceTest {
     }
 
     private OverlayMessage message(long timestampMs, String streamId, String cameraLoginId, List<OverlayEvent> events) {
-        return new OverlayMessage("1.0", "overlay", timestampMs, streamId, cameraLoginId, 1280, 720, events);
+        return new OverlayMessage("1.1", "overlay", timestampMs, streamId, cameraLoginId, 1280, 720, events);
     }
 
     private OverlayEvent event(BoundingBox box) {
-        return new OverlayEvent("FALL_DETECTED", 0.92, 7L, box);
+        return new OverlayEvent("tracking", 0.92, false, 7L, box, box, List.of());
     }
 
     private BoundingBox validBox() {

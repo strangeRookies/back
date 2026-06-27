@@ -34,7 +34,7 @@ class MqttSafetyEventSubscriberTest {
                 "camera");
         String payload = """
                 {
-                  "schemaVersion": "1.0",
+                  "schemaVersion": "1.1",
                   "messageType": "overlay",
                   "timestampMs": 1782177631123,
                   "streamId": "cam_03",
@@ -42,10 +42,12 @@ class MqttSafetyEventSubscriberTest {
                   "frameWidth": 1280,
                   "frameHeight": 720,
                   "events": [{
-                    "type": "FALL_DETECTED",
-                    "confidence": 0.92,
+                    "type": "tracking",
+                    "confidence": 0.91,
+                    "eventTriggered": false,
                     "trackingId": 7,
-                    "bbox": {"x": 420, "y": 250, "width": 180, "height": 320}
+                    "bbox": {"x": 420, "y": 250, "width": 180, "height": 320},
+                    "keypoints": []
                   }]
                 }
                 """;
@@ -60,7 +62,11 @@ class MqttSafetyEventSubscriberTest {
         OverlayMessage message = captor.getValue();
         assertThat(message.streamId()).isEqualTo("cam_03");
         assertThat(message.cameraLoginId()).isEqualTo("cam_03");
+        assertThat(message.schemaVersion()).isEqualTo("1.1");
+        assertThat(message.events().getFirst().type()).isEqualTo("tracking");
+        assertThat(message.events().getFirst().eventTriggered()).isFalse();
         assertThat(message.events().getFirst().trackingId()).isEqualTo(7L);
+        assertThat(message.events().getFirst().bbox().width()).isEqualTo(180);
         assertThat(message.events().getFirst().boundingBox().width()).isEqualTo(180);
     }
 
