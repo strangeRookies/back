@@ -63,6 +63,7 @@ public class AlertEventService {
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
                                             LocalDateTime dateFrom, LocalDateTime dateTo,
+                                            Long cameraId, String keyword,
                                             Pageable pageable) {
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         Specification<AlertEvent> spec;
@@ -80,6 +81,40 @@ public class AlertEventService {
                 .and(status != null ? (r, q, cb) -> cb.equal(r.get("status"), status) : null)
                 .and(dateFrom != null ? (r, q, cb) -> cb.greaterThanOrEqualTo(r.get("detectedAt"), dateFrom) : null)
                 .and(dateTo != null ? (r, q, cb) -> cb.lessThanOrEqualTo(r.get("detectedAt"), dateTo) : null);
+
+        if (cameraId != null) {
+            if (user.getRole() == Role.CORPORATE) {
+                spec = spec.and((r, q, cb) -> cb.equal(r.join("corporateCamera").get("id"), cameraId));
+            } else {
+                spec = spec.and((r, q, cb) -> cb.equal(r.join("camera").get("id"), cameraId));
+            }
+        }
+
+        if (keyword != null && !keyword.isBlank()) {
+            String likePattern = "%" + keyword.trim() + "%";
+            List<ScenarioType> matchedTypes = getScenarioTypesByKeyword(keyword.trim());
+            
+            spec = spec.and((r, q, cb) -> {
+                jakarta.persistence.criteria.Predicate keywordPredicate;
+                if (user.getRole() == Role.CORPORATE) {
+                    keywordPredicate = cb.or(
+                            cb.like(r.get("keypointData"), likePattern),
+                            cb.like(r.join("corporateCamera").get("cameraName"), likePattern)
+                    );
+                } else {
+                    keywordPredicate = cb.or(
+                            cb.like(r.get("keypointData"), likePattern),
+                            cb.like(r.join("camera").get("cameraName"), likePattern)
+                    );
+                }
+                
+                if (!matchedTypes.isEmpty()) {
+                    jakarta.persistence.criteria.Predicate scenarioPredicate = r.join("scenario").get("scenarioType").in(matchedTypes);
+                    return cb.or(keywordPredicate, scenarioPredicate);
+                }
+                return keywordPredicate;
+            });
+        }
 
         return alertEventRepository.findAll(spec, pageable).map(AlertEventResponse::from);
     }
@@ -214,6 +249,17 @@ public class AlertEventService {
                     root.join("corporateCamera").join("companyProfile").get("id"),
                     companyProfileId);
         };
+    }
+
+    private List<ScenarioType> getScenarioTypesByKeyword(String keyword) {
+        String lower = keyword.toLowerCase();
+        List<ScenarioType> matches = new java.util.ArrayList<>();
+        if ("낙상".contains(lower) || "fall".contains(lower)) matches.add(ScenarioType.FALL_BED);
+        if ("실신".contains(lower) || "faint".contains(lower) || "syncope".contains(lower)) matches.add(ScenarioType.SYNCOPE);
+        if ("쓰러짐".contains(lower) || "collapse".contains(lower)) matches.add(ScenarioType.COLLAPSE);
+        if ("폭력".contains(lower) || "싸움".contains(lower) || "assault".contains(lower)) matches.add(ScenarioType.ASSAULT);
+        if ("이탈".contains(lower) || "배회".contains(lower) || "exit".contains(lower)) matches.add(ScenarioType.EXIT);
+        return matches;
     }
 
     public long countAllAlertsToday() {

@@ -33,10 +33,12 @@ public class AlertEventController {
             @RequestParam(required = false) AlertStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateTo,
+            @RequestParam(required = false) Long cameraId,
+            @RequestParam(required = false) String keyword,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
                 alertEventService.getList(userDetails.getUserId(), facilityId,
-                        severity, status, dateFrom, dateTo, pageable)));
+                        severity, status, dateFrom, dateTo, cameraId, keyword, pageable)));
     }
 
     @GetMapping("/api/alert-events/{alertEventId}")
