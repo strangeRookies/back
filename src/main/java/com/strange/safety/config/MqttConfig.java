@@ -29,6 +29,9 @@ public class MqttConfig {
     @Value("${mqtt.camera-status-topic:safety/cameras/status}")
     private String cameraStatusTopic;
 
+    @Value("${mqtt.overlay-topic:camera}")
+    private String overlayTopic;
+
     @Value("${MQTT_USERNAME:}")
     private String mqttUsername;
 
@@ -62,11 +65,12 @@ public class MqttConfig {
                 clientId + "-integration",
                 mqttClientFactory(),
                 safetyEventsTopic,
-                cameraStatusTopic);
+                cameraStatusTopic,
+                overlayTopic);
 
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
-        adapter.setQos(1);
+        adapter.setQos(1, 1, 0);
         adapter.setOutputChannel(mqttInputChannel());
         return adapter;
     }
