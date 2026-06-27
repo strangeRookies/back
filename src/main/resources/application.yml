@@ -60,7 +60,7 @@ mqtt:
   port: ${MQTT_PORT:1883}
   broker-url: tcp://${MQTT_HOST:localhost}:${MQTT_PORT:1883}
   client-id: spring-backend-${random.uuid}
-  topic: ${MQTT_TOPIC:safety/events}
+  topic: ${MQTT_TOPIC:event}
   camera-status-topic: ${MQTT_CAMERA_STATUS_TOPIC:safety/cameras/status}
   overlay-topic: ${MQTT_OVERLAY_TOPIC:camera}
   overlay-publish-interval-ms: ${MQTT_OVERLAY_PUBLISH_INTERVAL_MS:125}
