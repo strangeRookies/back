@@ -86,7 +86,7 @@ public class MqttSafetyEventSubscriber {
     private void handleOverlayMessage(String payload) {
         try {
             OverlayMessage message = objectMapper.readValue(payload, OverlayMessage.class);
-            if (!OVERLAY_MESSAGE_TYPE.equals(message.messageType())) {
+            if (!OVERLAY_MESSAGE_TYPE.equals(message.messageType()) && !"frame_sync".equals(message.messageType())) {
                 log.debug("Ignoring non-overlay MQTT message on overlay topic: messageType={}", message.messageType());
                 return;
             }

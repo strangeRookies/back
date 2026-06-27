@@ -13,7 +13,8 @@ public record OverlayEvent(
         Long trackingId,
         BoundingBox bbox,
         BoundingBox boundingBox,
-        List<?> keypoints
+        List<?> keypoints,
+        Long frameId
 ) {
     public OverlayEvent {
         if (bbox == null) {
@@ -26,7 +27,18 @@ public record OverlayEvent(
     }
 
     public OverlayEvent(String type, Double confidence, Long trackingId, BoundingBox boundingBox) {
-        this(type, confidence, null, trackingId, boundingBox, boundingBox, null);
+        this(type, confidence, null, trackingId, boundingBox, boundingBox, null, null);
+    }
+
+    public OverlayEvent(
+            String type,
+            Double confidence,
+            Boolean eventTriggered,
+            Long trackingId,
+            BoundingBox bbox,
+            BoundingBox boundingBox,
+            List<?> keypoints) {
+        this(type, confidence, eventTriggered, trackingId, bbox, boundingBox, keypoints, null);
     }
 
     public BoundingBox resolvedBoundingBox() {
