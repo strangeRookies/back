@@ -74,4 +74,37 @@ public class AlertEventController {
         return ResponseEntity.ok(ApiResponse.success(
                 alertEventService.getStats(userDetails.getUserId(), facilityId, dateFrom, dateTo)));
     }
+    @GetMapping("/api/companies/{companyProfileId}/alert-events")
+    public ResponseEntity<ApiResponse<Page<AlertEventResponse>>> getCompanyList(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long companyProfileId,
+            @RequestParam(required = false) AlertSeverity severity,
+            @RequestParam(required = false) AlertStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateTo,
+            @RequestParam(required = false) Long cameraId,
+            @RequestParam(required = false) String keyword,
+            Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(
+                alertEventService.getList(userDetails.getUserId(), companyProfileId,
+                        severity, status, dateFrom, dateTo, cameraId, keyword, pageable)));
+    }
+
+    @GetMapping("/api/companies/{companyProfileId}/alert-events/recent")
+    public ResponseEntity<ApiResponse<List<AlertEventResponse>>> getCompanyRecent(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long companyProfileId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                alertEventService.getRecent(userDetails.getUserId(), companyProfileId)));
+    }
+
+    @GetMapping("/api/companies/{companyProfileId}/alert-events/stats")
+    public ResponseEntity<ApiResponse<AlertStatsResponse>> getCompanyStats(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long companyProfileId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateTo) {
+        return ResponseEntity.ok(ApiResponse.success(
+                alertEventService.getStats(userDetails.getUserId(), companyProfileId, dateFrom, dateTo)));
+    }
 }

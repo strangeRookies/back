@@ -17,11 +17,11 @@ public class InMemoryRecentAlertCacheStore implements RecentAlertCacheStore {
     private static final Duration RECENT_WINDOW = Duration.ofMinutes(10);
     private static final int RECENT_LIMIT = 100;
 
-    private final Map<Long, List<AlertEventResponse>> alertsByFacility = new ConcurrentHashMap<>();
+    private final Map<String, List<AlertEventResponse>> alertsByContext = new ConcurrentHashMap<>();
 
     @Override
-    public void add(Long facilityId, AlertEventResponse alert) {
-        alertsByFacility.compute(facilityId, (key, current) -> {
+    public void add(String contextKey, AlertEventResponse alert) {
+        alertsByContext.compute(contextKey, (key, current) -> {
             List<AlertEventResponse> alerts = current == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(current);
             alerts.add(alert);
             LocalDateTime cutoff = LocalDateTime.now().minus(RECENT_WINDOW);
@@ -34,7 +34,7 @@ public class InMemoryRecentAlertCacheStore implements RecentAlertCacheStore {
     }
 
     @Override
-    public List<AlertEventResponse> findRecent(Long facilityId) {
-        return alertsByFacility.getOrDefault(facilityId, List.of());
+    public List<AlertEventResponse> findRecent(String contextKey) {
+        return alertsByContext.getOrDefault(contextKey, List.of());
     }
 }
