@@ -23,6 +23,12 @@ spring:
     console:
       enabled: ${H2_CONSOLE_ENABLED:false}
       path: /h2-console
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:3s}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -54,7 +60,7 @@ mqtt:
   port: ${MQTT_PORT:1883}
   broker-url: tcp://${MQTT_HOST:localhost}:${MQTT_PORT:1883}
   client-id: spring-backend-${random.uuid}
-  topic: ${MQTT_TOPIC:safety/events}
+  topic: ${MQTT_TOPIC:event}
   camera-status-topic: ${MQTT_CAMERA_STATUS_TOPIC:safety/cameras/status}
   reconnect-delay-ms: ${MQTT_RECONNECT_DELAY_MS:5000}
   initial-connect-delay-ms: ${MQTT_INITIAL_CONNECT_DELAY_MS:1000}
@@ -74,6 +80,8 @@ sms:
     daily-limit-per-phone: ${SMS_DAILY_LIMIT_PER_PHONE:5}
 
 app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   websocket:
     allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173}
   aes:
