@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.slf4j.Logger;
@@ -22,7 +23,8 @@ import org.springframework.stereotype.Service;
 public class OverlayRelayService {
 
     private static final Logger log = LoggerFactory.getLogger(OverlayRelayService.class);
-    private static final String SCHEMA_VERSION = "1.0";
+    private static final String DEFAULT_SCHEMA_VERSION = "1.1";
+    private static final Set<String> SUPPORTED_SCHEMA_VERSIONS = Set.of("1.0", "1.1");
     private static final String MESSAGE_TYPE = "overlay";
 
     private final CameraRepository cameraRepository;
@@ -152,7 +154,7 @@ public class OverlayRelayService {
             }
 
             OverlayMessage cleared = new OverlayMessage(
-                    SCHEMA_VERSION,
+                    current.message().schemaVersion() == null ? DEFAULT_SCHEMA_VERSION : current.message().schemaVersion(),
                     MESSAGE_TYPE,
                     timestampMs,
                     current.message().streamId(),
@@ -172,7 +174,7 @@ public class OverlayRelayService {
 
     private CameraMatch validateAndMatch(OverlayMessage message) {
         if (message == null
-                || !SCHEMA_VERSION.equals(message.schemaVersion())
+                || !SUPPORTED_SCHEMA_VERSIONS.contains(message.schemaVersion())
                 || !MESSAGE_TYPE.equals(message.messageType())
                 || message.resolvedCameraLoginId() == null
                 || message.resolvedCameraLoginId().isBlank()
@@ -183,7 +185,7 @@ public class OverlayRelayService {
             return null;
         }
         for (OverlayEvent event : message.events()) {
-            if (event == null || !isValidBox(event.boundingBox(), message.frameWidth(), message.frameHeight())) {
+            if (event == null || !isValidBox(event.resolvedBoundingBox(), message.frameWidth(), message.frameHeight())) {
                 log.warn("Discarding overlay with invalid bounding box: cameraLoginId={}, timestampMs={}",
                         message.resolvedCameraLoginId(), message.timestampMs());
                 return null;
