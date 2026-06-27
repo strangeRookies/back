@@ -21,6 +21,7 @@ public class MqttSafetyEventSubscriber {
     private static final Logger log = LoggerFactory.getLogger(MqttSafetyEventSubscriber.class);
 
     private static final String CAMERA_STATUS_TOPIC = "safety/cameras/status";
+    private static final String OVERLAY_MESSAGE_TYPE = "overlay";
 
     private final ObjectMapper objectMapper;
     private final AsyncEventProcessorService asyncEventProcessorService;
@@ -85,6 +86,13 @@ public class MqttSafetyEventSubscriber {
     private void handleOverlayMessage(String payload) {
         try {
             OverlayMessage message = objectMapper.readValue(payload, OverlayMessage.class);
+            if (!OVERLAY_MESSAGE_TYPE.equals(message.messageType())) {
+                log.debug("Ignoring non-overlay MQTT message on overlay topic: messageType={}", message.messageType());
+                return;
+            }
+            int eventCount = message.events() == null ? 0 : message.events().size();
+            log.info("MQTT overlay received topic={} cameraLoginId={} events={}",
+                    overlayTopic, message.resolvedCameraLoginId(), eventCount);
             overlayRelayService.accept(message);
         } catch (JsonProcessingException ex) {
             log.warn("Failed to parse MQTT overlay JSON: error={}", ex.getOriginalMessage());

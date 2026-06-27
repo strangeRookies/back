@@ -16,12 +16,31 @@ class OverlayBroadcastServiceTest {
     private SimpMessagingTemplate messagingTemplate;
 
     @Test
-    void broadcastsToCameraOverlayTopic() {
+    void broadcastsToFacilityOverlayTopic() {
         OverlayBroadcastService service = new OverlayBroadcastService(messagingTemplate);
-        OverlayMessage message = new OverlayMessage(
+        OverlayMessage message = message();
+
+        service.broadcast(message, 4L, false);
+
+        verify(messagingTemplate).convertAndSend("/topic/facility/4/camera-overlays", message);
+    }
+
+    @Test
+    void broadcastsToCompanyOverlayTopic() {
+        OverlayBroadcastService service = new OverlayBroadcastService(messagingTemplate);
+        OverlayMessage message = message();
+
+        service.broadcast(message, 9L, true);
+
+        verify(messagingTemplate).convertAndSend("/topic/company/9/camera-overlays", message);
+    }
+
+    private OverlayMessage message() {
+        return new OverlayMessage(
                 "1.0",
                 "overlay",
                 1782177631123L,
+                "cam_03",
                 "cam_03",
                 1280,
                 720,
@@ -30,9 +49,5 @@ class OverlayBroadcastServiceTest {
                         0.92,
                         7L,
                         new BoundingBox(420, 250, 180, 320))));
-
-        service.broadcast(message);
-
-        verify(messagingTemplate).convertAndSend("/topic/cameras/cam_03/overlay", message);
     }
 }

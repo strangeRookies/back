@@ -38,13 +38,14 @@ class MqttSafetyEventSubscriberTest {
                   "messageType": "overlay",
                   "timestampMs": 1782177631123,
                   "streamId": "cam_03",
+                  "cameraLoginId": "cam_03",
                   "frameWidth": 1280,
                   "frameHeight": 720,
                   "events": [{
                     "type": "FALL_DETECTED",
                     "confidence": 0.92,
                     "trackingId": 7,
-                    "boundingBox": {"x": 420, "y": 250, "width": 180, "height": 320}
+                    "bbox": {"x": 420, "y": 250, "width": 180, "height": 320}
                   }]
                 }
                 """;
@@ -58,7 +59,31 @@ class MqttSafetyEventSubscriberTest {
         verify(asyncEventProcessorService, never()).processEvent(any());
         OverlayMessage message = captor.getValue();
         assertThat(message.streamId()).isEqualTo("cam_03");
+        assertThat(message.cameraLoginId()).isEqualTo("cam_03");
         assertThat(message.events().getFirst().trackingId()).isEqualTo(7L);
         assertThat(message.events().getFirst().boundingBox().width()).isEqualTo(180);
+    }
+
+    @Test
+    void ignoresNonOverlayMessageOnOverlayTopicWithoutInvokingSafetyEventFlow() {
+        MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
+                new ObjectMapper(),
+                asyncEventProcessorService,
+                overlayRelayService,
+                "camera");
+        String payload = """
+                {
+                  "messageType": "event",
+                  "streamId": "cam_03",
+                  "type": "fall"
+                }
+                """;
+
+        subscriber.messageArrived(MessageBuilder.withPayload(payload)
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, "camera")
+                .build());
+
+        verify(overlayRelayService, never()).accept(any());
+        verify(asyncEventProcessorService, never()).processEvent(any());
     }
 }

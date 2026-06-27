@@ -64,6 +64,7 @@ mqtt:
   camera-status-topic: ${MQTT_CAMERA_STATUS_TOPIC:safety/cameras/status}
   overlay-topic: ${MQTT_OVERLAY_TOPIC:camera}
   overlay-publish-interval-ms: ${MQTT_OVERLAY_PUBLISH_INTERVAL_MS:125}
+  overlay-stale-after-ms: ${MQTT_OVERLAY_STALE_AFTER_MS:2000}
   reconnect-delay-ms: ${MQTT_RECONNECT_DELAY_MS:5000}
   initial-connect-delay-ms: ${MQTT_INITIAL_CONNECT_DELAY_MS:1000}
 
