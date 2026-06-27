@@ -89,14 +89,15 @@ class AlertEventServiceTest {
         AlertEvent savedEvent = alertEvent(40L, camera, scenario);
         SafetyEventDto event = safetyEvent("cam_01");
 
-        when(cameraRepository.findFirstByCameraLoginIdOrderByIdDesc("cam_01")).thenReturn(Optional.of(camera));
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
         when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
         when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
 
         AlertEventResponse response = alertEventService.createEvent(event);
 
         assertThat(response.getAlertEventId()).isEqualTo(40L);
-        verify(recentAlertCacheStore).add(10L, response);
+        verify(recentAlertCacheStore).add("FAC_10", response);
     }
 
     @Test
@@ -106,7 +107,7 @@ class AlertEventServiceTest {
         Scenario scenario = scenario(30L);
         AlertEvent savedEvent = alertEvent(40L, camera, scenario);
 
-        when(recentAlertCacheStore.findRecent(10L)).thenReturn(List.of());
+        when(recentAlertCacheStore.findRecent("FAC_10")).thenReturn(List.of());
         when(alertEventRepository.findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(
                 any(), any(LocalDateTime.class))).thenReturn(List.of(savedEvent));
 
@@ -125,7 +126,7 @@ class AlertEventServiceTest {
                 .alertEventId(40L)
                 .detectedAt(LocalDateTime.now())
                 .build();
-        when(recentAlertCacheStore.findRecent(10L)).thenReturn(List.of(cached));
+        when(recentAlertCacheStore.findRecent("FAC_10")).thenReturn(List.of(cached));
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(com.strange.safety.user.entity.User.builder()
                 .email("test@test.com").passwordHash("pwd").name("User").phoneNumber("010").role(com.strange.safety.auth.entity.Role.INDIVIDUAL).build()));
@@ -144,7 +145,8 @@ class AlertEventServiceTest {
         AlertEvent savedEvent = alertEvent(40L, camera, scenario);
         SafetyEventDto event = safetyEvent("cam_01");
 
-        when(cameraRepository.findFirstByCameraLoginIdOrderByIdDesc("cam_01")).thenReturn(Optional.of(camera));
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
         when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
         when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
         org.mockito.Mockito.doThrow(new RuntimeException("redis down"))
