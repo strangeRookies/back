@@ -5,7 +5,7 @@ import java.util.List;
 
 public interface RecentAlertCacheStore {
 
-    void add(Long facilityId, AlertEventResponse alert);
+    void add(String contextKey, AlertEventResponse alert);
 
-    List<AlertEventResponse> findRecent(Long facilityId);
+    List<AlertEventResponse> findRecent(String contextKey);
 }
