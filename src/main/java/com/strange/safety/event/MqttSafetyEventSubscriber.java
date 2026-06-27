@@ -91,7 +91,7 @@ public class MqttSafetyEventSubscriber {
                 return;
             }
             int eventCount = message.events() == null ? 0 : message.events().size();
-            log.info("MQTT overlay received topic={} cameraLoginId={} events={}",
+            log.debug("MQTT overlay received topic={} cameraLoginId={} events={}",
                     overlayTopic, message.resolvedCameraLoginId(), eventCount);
             overlayRelayService.accept(message);
         } catch (JsonProcessingException ex) {

@@ -19,6 +19,6 @@ public class OverlayBroadcastService {
                 ? "/topic/company/" + targetId + "/camera-overlays"
                 : "/topic/facility/" + targetId + "/camera-overlays";
         messagingTemplate.convertAndSend(destination, message);
-        log.info("Overlay STOMP published destination={}", destination);
+        log.debug("Overlay STOMP published destination={}", destination);
     }
 }
