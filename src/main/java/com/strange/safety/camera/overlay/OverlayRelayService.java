@@ -197,7 +197,7 @@ public class OverlayRelayService {
                 .findFirstByCameraLoginIdAndStatusOrderByIdDesc(cameraLoginId, CameraStatus.ACTIVE);
         if (camera.isPresent() && camera.get().getFacility() != null && camera.get().getFacility().getId() != null) {
             Long facilityId = camera.get().getFacility().getId();
-            log.info("Overlay camera matched cameraLoginId={} facilityId={}", cameraLoginId, facilityId);
+            log.debug("Overlay camera matched cameraLoginId={} facilityId={}", cameraLoginId, facilityId);
             return new CameraMatch(cameraLoginId, facilityId, false);
         }
 
@@ -207,7 +207,7 @@ public class OverlayRelayService {
                 && corporateCamera.get().getCompanyProfile() != null
                 && corporateCamera.get().getCompanyProfile().getId() != null) {
             Long companyProfileId = corporateCamera.get().getCompanyProfile().getId();
-            log.info("Overlay camera matched cameraLoginId={} companyProfileId={}", cameraLoginId, companyProfileId);
+            log.debug("Overlay camera matched cameraLoginId={} companyProfileId={}", cameraLoginId, companyProfileId);
             return new CameraMatch(cameraLoginId, companyProfileId, true);
         }
 
