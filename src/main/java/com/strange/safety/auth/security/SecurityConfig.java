@@ -88,10 +88,9 @@ public class SecurityConfig {
                                 "/api/corporate-cameras/**"
                         ).hasAnyRole("ADMIN", "INDIVIDUAL", "CORPORATE")
 
-                        // ADMIN 전용
-                        .requestMatchers(
-                                "/api/scenarios/**"
-                        ).hasRole("ADMIN")
+                        // 시나리오 조회는 모든 인증 사용자 허용, 수정은 ADMIN 전용
+                        .requestMatchers(HttpMethod.GET, "/api/scenarios", "/api/scenarios/*/params").hasAnyRole("ADMIN", "INDIVIDUAL", "CORPORATE")
+                        .requestMatchers("/api/scenarios/**").hasRole("ADMIN")
 
                         // 문의(Inquiry) 접근 제어
                         .requestMatchers(HttpMethod.POST, "/api/inquiries").hasAnyRole("INDIVIDUAL", "CORPORATE")
