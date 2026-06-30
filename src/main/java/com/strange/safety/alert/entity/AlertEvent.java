@@ -26,6 +26,9 @@ public class AlertEvent extends BaseEntity {
     @Column(name = "alert_event_id")
     private Long id;
 
+    @Column(name = "event_id", length = 64, unique = true)
+    private String eventId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "camera_id")
     private Camera camera;
@@ -84,7 +87,7 @@ public class AlertEvent extends BaseEntity {
     private AlertEvent(Camera camera, CorporateCamera corporateCamera, Scenario scenario, Float confidenceScore,
                        AlertSeverity severity, String keypointData,
                        String boundingBoxData, String clipUrl, String clipPath,
-                       Double faintProb, LocalDateTime detectedAt) {
+                       Double faintProb, LocalDateTime detectedAt, String eventId) {
         this.camera = camera;
         this.corporateCamera = corporateCamera;
         this.scenario = scenario;
@@ -97,6 +100,7 @@ public class AlertEvent extends BaseEntity {
         this.clipPath = clipPath;
         this.faintProb = faintProb;
         this.detectedAt = detectedAt;
+        this.eventId = eventId;
     }
 
     public void acknowledge(User user) {

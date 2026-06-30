@@ -105,3 +105,10 @@ simulation:
     pool-path: ${SIMULATION_VIDEO_POOL_PATH:video_pool}
   rtsp:
     base-url: ${SIMULATION_RTSP_BASE_URL:rtsp://localhost:8554}
+
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET:safety-risk-media-bucket}
+    region: ${AWS_S3_REGION:ap-northeast-2}
+
+    

@@ -10,9 +10,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface AlertEventRepository extends JpaRepository<AlertEvent, Long>,
         JpaSpecificationExecutor<AlertEvent> {
+
+    Optional<AlertEvent> findByEventId(String eventId);
 
     @Query("SELECT COUNT(a) FROM AlertEvent a JOIN a.camera c JOIN c.facility f " +
            "WHERE f.id = :facilityId AND a.detectedAt >= :dateFrom AND a.detectedAt <= :dateTo")

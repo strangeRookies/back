@@ -53,6 +53,10 @@ dependencies {
     // 엑셀 파일 파싱
     implementation 'org.apache.poi:poi:5.3.0'
     implementation 'org.apache.poi:poi-ooxml:5.3.0'
+
+    // AWS SDK v2 S3
+    implementation 'software.amazon.awssdk:s3:2.29.36'
+    
 }
 
 tasks.withType(JavaCompile) {

@@ -10,6 +10,7 @@ import com.strange.safety.alert.dto.SnapshotResponse;
 import com.strange.safety.alert.entity.AlertEvent;
 import com.strange.safety.alert.entity.AlertSeverity;
 import com.strange.safety.alert.entity.AlertStatus;
+import com.strange.safety.alert.entity.Snapshot;
 import com.strange.safety.alert.repository.AlertEventRepository;
 import com.strange.safety.alert.repository.SnapshotRepository;
 import com.strange.safety.auth.entity.Role;
@@ -59,6 +60,7 @@ public class AlertEventService {
     private final ScenarioRepository scenarioRepository;
     private final ObjectMapper objectMapper;
     private final RecentAlertCacheStore recentAlertCacheStore;
+    private final S3Service s3Service;
 
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
@@ -116,13 +118,27 @@ public class AlertEventService {
             });
         }
 
-        return alertEventRepository.findAll(spec, pageable).map(AlertEventResponse::from);
+        return alertEventRepository.findAll(spec, pageable).map(event -> {
+            String snapshotUrl = event.getSnapshots().isEmpty() ? null :
+                    s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
+            return AlertEventResponse.from(event, snapshotUrl);
+        });
     }
 
     public AlertEventDetailResponse getDetail(Long userId, Long alertEventId) {
         AlertEvent event = getEventWithOwnerCheck(userId, alertEventId);
         List<SnapshotResponse> snapshots = snapshotRepository.findByAlertEvent_Id(alertEventId)
-                .stream().map(SnapshotResponse::from).collect(Collectors.toList());
+                .stream()
+                .map(snapshot -> {
+                    String presignedUrl = s3Service.generatePresignedUrl(snapshot.getSnapshotUrl());
+                    return SnapshotResponse.builder()
+                            .snapshotId(snapshot.getId())
+                            .snapshotUrl(presignedUrl)
+                            .fileSizeBytes(snapshot.getFileSizeBytes())
+                            .createdAt(snapshot.getCreatedAt())
+                            .build();
+                })
+                .collect(Collectors.toList());
         return AlertEventDetailResponse.from(event, snapshots);
     }
 
@@ -130,7 +146,9 @@ public class AlertEventService {
     public AlertEventResponse acknowledge(Long userId, Long alertEventId) {
         AlertEvent event = getEventWithOwnerCheck(userId, alertEventId);
         event.acknowledge(userRepository.getReferenceById(userId));
-        return AlertEventResponse.from(event);
+        String snapshotUrl = event.getSnapshots().isEmpty() ? null :
+                s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
+        return AlertEventResponse.from(event, snapshotUrl);
     }
 
     public AlertStatsResponse getStats(Long userId, Long facilityId,
@@ -191,26 +209,60 @@ public class AlertEventService {
             facilityService.getFacilityWithOwnerCheck(userId, facilityId);
         }
 
-        String contextKey = user.getRole() == Role.CORPORATE ? "COMP_" + facilityId : "FAC_" + facilityId;
-        List<AlertEventResponse> cachedAlerts = recentAlertCacheStore.findRecent(contextKey);
-        if (!cachedAlerts.isEmpty()) {
-            return cachedAlerts;
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
+        List<AlertEvent> events;
+        if (user.getRole() == Role.CORPORATE) {
+            events = alertEventRepository
+                    .findTop100ByCorporateCamera_CompanyProfile_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff);
+        } else {
+            events = alertEventRepository
+                    .findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff);
+        }
+        return events.stream()
+                .map(event -> {
+                    String snapshotUrl = event.getSnapshots().isEmpty() ? null :
+                            s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
+                    return AlertEventResponse.from(event, snapshotUrl);
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * AI 서버로부터 업로드된 프레임 이미지를 S3에 저장하고, 해당 AlertEvent에 Snapshot 레코드를 바인딩합니다.
+     * 비동기성 레이스 컨디션(MQTT 메시지가 DB에 저장되기 전에 업로드 API가 먼저 실행되는 현상)을 방지하기 위해 1초 간격으로 최대 3회 재시도합니다.
+     */
+    @Transactional
+    public void uploadSnapshot(String eventId, byte[] imageBytes, long size) {
+        AlertEvent event = null;
+        for (int i = 0; i < 3; i++) {
+            event = alertEventRepository.findByEventId(eventId).orElse(null);
+            if (event != null) {
+                break;
+            }
+            try {
+                log.info("[Snapshot] AlertEvent not found yet. Retrying in 1 second... eventId={}", eventId);
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
-        if (user.getRole() == Role.CORPORATE) {
-            return alertEventRepository
-                    .findTop100ByCorporateCamera_CompanyProfile_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff)
-                    .stream()
-                    .map(AlertEventResponse::from)
-                    .collect(Collectors.toList());
-        } else {
-            return alertEventRepository
-                    .findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff)
-                    .stream()
-                    .map(AlertEventResponse::from)
-                    .collect(Collectors.toList());
+        if (event == null) {
+            log.error("[Snapshot][error] Failed to find AlertEvent for snapshot upload: eventId={}", eventId);
+            throw new CustomException(ErrorCode.ALERT_NOT_FOUND);
         }
+
+        // S3에 업로드
+        String objectKey = s3Service.uploadSnapshot(eventId, imageBytes);
+
+        // Snapshot 레코드 저장
+        Snapshot snapshot = Snapshot.builder()
+                .alertEvent(event)
+                .snapshotUrl(objectKey)
+                .fileSizeBytes(size)
+                .build();
+        snapshotRepository.save(snapshot);
+        log.info("[Snapshot] Saved snapshot for alertEventId={}, eventId={}, S3Key={}", event.getId(), eventId, objectKey);
     }
 
     private AlertEvent getEventWithOwnerCheck(Long userId, Long alertEventId) {
@@ -271,7 +323,6 @@ public class AlertEventService {
     public AlertEventResponse createEvent(SafetyEventDto dto) {
         String cameraIdVal = firstNonBlank(dto.cameraLoginId(), dto.cameraId(), "cam_01");
         
-        // Convert "cam1", "cam2" or "CCTV-01" into DB format "cam_01"
         if (cameraIdVal.startsWith("cam") && cameraIdVal.length() == 4) {
             cameraIdVal = "cam_0" + cameraIdVal.charAt(3);
         } else if (cameraIdVal.startsWith("CCTV-0") && cameraIdVal.length() == 7) {
@@ -319,10 +370,13 @@ public class AlertEventService {
                 .clipPath(dto.clipPath())
                 .faintProb(dto.faintProb())
                 .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneOffset.UTC))
+                .eventId(dto.eventId())
                 .build();
 
         AlertEvent saved = alertEventRepository.save(event);
-        AlertEventResponse response = AlertEventResponse.from(saved);
+        
+        String snapshotUrl = null;
+        AlertEventResponse response = AlertEventResponse.from(saved, snapshotUrl);
 
         String contextKey = camera != null ? "FAC_" + camera.getFacility().getId() : "COMP_" + corporateCamera.getCompanyProfile().getId();
         try {
@@ -361,7 +415,6 @@ public class AlertEventService {
 
     private record SafetyEventDetectionData(List<Number> bbox, String trackId) {
     }
-
 
     private ScenarioType mapToScenarioType(String type) {
         if (type == null) return ScenarioType.SYNCOPE;

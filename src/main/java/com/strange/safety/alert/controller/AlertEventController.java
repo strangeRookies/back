@@ -15,7 +15,9 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,6 +26,17 @@ import java.util.List;
 public class AlertEventController {
 
     private final AlertEventService alertEventService;
+
+    /**
+     * AI 서버가 검출한 실시간 이상상황 스냅샷 프레임 이미지를 업로드하는 API입니다.
+     */
+    @PostMapping("/api/alert-events/{eventId}/snapshot")
+    public ResponseEntity<ApiResponse<Void>> uploadSnapshot(
+            @PathVariable String eventId,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        alertEventService.uploadSnapshot(eventId, file.getBytes(), file.getSize());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 
     @GetMapping("/api/facilities/{facilityId}/alert-events")
     public ResponseEntity<ApiResponse<Page<AlertEventResponse>>> getList(
@@ -74,6 +87,7 @@ public class AlertEventController {
         return ResponseEntity.ok(ApiResponse.success(
                 alertEventService.getStats(userDetails.getUserId(), facilityId, dateFrom, dateTo)));
     }
+
     @GetMapping("/api/companies/{companyProfileId}/alert-events")
     public ResponseEntity<ApiResponse<Page<AlertEventResponse>>> getCompanyList(
             @AuthenticationPrincipal CustomUserDetails userDetails,

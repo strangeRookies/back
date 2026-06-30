@@ -63,6 +63,9 @@ class AlertEventServiceTest {
     @Mock
     private RecentAlertCacheStore recentAlertCacheStore;
 
+    @Mock
+    private S3Service s3Service;
+
     private AlertEventService alertEventService;
 
     @BeforeEach
@@ -77,7 +80,8 @@ class AlertEventServiceTest {
                 companyProfileRepository,
                 scenarioRepository,
                 new ObjectMapper(),
-                recentAlertCacheStore
+                recentAlertCacheStore,
+                s3Service
         );
     }
 
@@ -164,6 +168,7 @@ class AlertEventServiceTest {
                 "SYNCOPE",
                 null,
                 cameraLoginId,
+                "test-event-id",
                 Instant.parse("2026-06-19T00:00:00Z").toString(),
                 "CRITICAL",
                 "AI safety event detected",

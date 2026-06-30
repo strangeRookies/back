@@ -52,6 +52,13 @@ public record SafetyEventDto(
         String cameraLoginId,
 
         /**
+         * AI 서버가 보내는 고유 이벤트 ID.
+         */
+        @JsonProperty("eventId")
+        @JsonAlias({"eventId", "event_id"})
+        String eventId,
+
+        /**
          * AI 서버가 보내는 timestamp.
          * float (Unix epoch 초)이면 Jackson이 직렬화 실패하므로
          * rawTimestamp(Number)로 받아서 resolvedTimestamp()에서 Instant로 변환한다.
