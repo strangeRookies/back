@@ -3,11 +3,13 @@ package com.strange.safety.camera.dto;
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.entity.CameraConnectionStatus;
 import com.strange.safety.camera.entity.CameraStatus;
+import com.strange.safety.camera.entity.RoiConfig;
 import lombok.Builder;
 import lombok.Getter;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -27,8 +29,22 @@ public class CameraResponse {
     private String assignedVideoPath;
     private CameraConnectionStatus connectionStatus;
     private Instant lastConnectionReportAt;
+    private List<RoiConfigEntry> roiConfigs;
+
+    @Getter
+    @Builder
+    public static class RoiConfigEntry {
+        private Long roiConfigId;
+        private Long scenarioId;
+        private String scenarioType;
+        private String polygonPoints;
+    }
 
     public static CameraResponse from(Camera camera) {
+        return fromWithRoi(camera, List.of());
+    }
+
+    public static CameraResponse fromWithRoi(Camera camera, List<RoiConfig> activeRois) {
         return CameraResponse.builder()
                 .cameraId(camera.getId())
                 .facilityId(camera.getFacility().getId())
@@ -44,6 +60,14 @@ public class CameraResponse {
                 .assignedVideoPath(camera.getAssignedVideoPath())
                 .connectionStatus(camera.getConnectionStatus())
                 .lastConnectionReportAt(camera.getLastConnectionReportAt())
+                .roiConfigs(activeRois.stream()
+                        .map(roi -> RoiConfigEntry.builder()
+                                .roiConfigId(roi.getId())
+                                .scenarioId(roi.getScenario().getId())
+                                .scenarioType(roi.getScenario().getScenarioType().name())
+                                .polygonPoints(roi.getPolygonPoints())
+                                .build())
+                        .toList())
                 .build();
     }
 
@@ -63,6 +87,7 @@ public class CameraResponse {
                 .assignedVideoPath(camera.getAssignedVideoPath())
                 .connectionStatus(camera.getConnectionStatus())
                 .lastConnectionReportAt(camera.getLastConnectionReportAt())
+                .roiConfigs(List.of())
                 .build();
     }
 }

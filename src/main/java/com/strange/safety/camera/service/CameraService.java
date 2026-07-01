@@ -174,15 +174,20 @@ public class CameraService {
 
     public List<CameraResponse> getActiveAiCameras() {
         List<CameraResponse> result = new java.util.ArrayList<>();
-        
-        result.addAll(cameraRepository.findByAiEnabledTrueAndStatus(CameraStatus.ACTIVE).stream()
-                .map(CameraResponse::from)
+
+        result.addAll(cameraRepository.findAiEnabledWithRoisAndScenarios(CameraStatus.ACTIVE).stream()
+                .map(camera -> {
+                    List<com.strange.safety.camera.entity.RoiConfig> activeRois = camera.getRoiConfigs().stream()
+                            .filter(com.strange.safety.camera.entity.RoiConfig::isActive)
+                            .toList();
+                    return CameraResponse.fromWithRoi(camera, activeRois);
+                })
                 .collect(Collectors.toList()));
-                
+
         result.addAll(corporateCameraRepository.findByStatus(CameraStatus.ACTIVE).stream()
                 .map(CameraResponse::fromCorporate)
                 .collect(Collectors.toList()));
-                
+
         return result;
     }
 

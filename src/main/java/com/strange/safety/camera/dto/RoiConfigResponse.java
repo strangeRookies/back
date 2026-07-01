@@ -13,6 +13,7 @@ public class RoiConfigResponse {
     private Long roiConfigId;
     private Long cameraId;
     private Long scenarioId;
+    private String scenarioType;
     private String polygonPoints;
     private boolean isActive;
     private LocalDateTime createdAt;
@@ -23,6 +24,7 @@ public class RoiConfigResponse {
                 .roiConfigId(roiConfig.getId())
                 .cameraId(roiConfig.getCamera().getId())
                 .scenarioId(roiConfig.getScenario().getId())
+                .scenarioType(roiConfig.getScenario().getScenarioType().name())
                 .polygonPoints(roiConfig.getPolygonPoints())
                 .isActive(roiConfig.isActive())
                 .createdAt(roiConfig.getCreatedAt())
