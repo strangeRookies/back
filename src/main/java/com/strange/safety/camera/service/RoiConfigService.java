@@ -1,5 +1,8 @@
 package com.strange.safety.camera.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strange.safety.camera.dto.CreateRoiConfigRequest;
 import com.strange.safety.camera.dto.RoiConfigResponse;
 import com.strange.safety.camera.dto.UpdateRoiConfigRequest;
@@ -28,9 +31,11 @@ public class RoiConfigService {
     private final CameraRepository cameraRepository;
     private final ScenarioRepository scenarioRepository;
     private final FacilityService facilityService;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public RoiConfigResponse create(Long userId, Long cameraId, CreateRoiConfigRequest request) {
+        validatePolygonPoints(request.getPolygonPoints());
         Camera camera = getCameraWithOwnerCheck(userId, cameraId);
         Scenario scenario = scenarioRepository.findById(request.getScenarioId())
                 .orElseThrow(() -> new CustomException(ErrorCode.SCENARIO_NOT_FOUND));
@@ -58,6 +63,9 @@ public class RoiConfigService {
 
     @Transactional
     public RoiConfigResponse update(Long userId, Long roiConfigId, UpdateRoiConfigRequest request) {
+        if (request.getPolygonPoints() != null) {
+            validatePolygonPoints(request.getPolygonPoints());
+        }
         RoiConfig roiConfig = getRoiWithOwnerCheck(userId, roiConfigId);
         roiConfig.update(request.getPolygonPoints(), request.getIsActive());
         return RoiConfigResponse.from(roiConfig);
@@ -67,6 +75,27 @@ public class RoiConfigService {
     public void delete(Long userId, Long roiConfigId) {
         RoiConfig roiConfig = getRoiWithOwnerCheck(userId, roiConfigId);
         roiConfig.deactivate();
+    }
+
+    private void validatePolygonPoints(String polygonPoints) {
+        try {
+            JsonNode root = objectMapper.readTree(polygonPoints);
+            if (!root.isArray() || root.size() < 3) {
+                throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+            }
+            for (JsonNode point : root) {
+                if (!point.isArray() || point.size() != 2) {
+                    throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+                }
+                double x = point.get(0).asDouble(Double.NaN);
+                double y = point.get(1).asDouble(Double.NaN);
+                if (Double.isNaN(x) || Double.isNaN(y) || x < 0.0 || x > 1.0 || y < 0.0 || y > 1.0) {
+                    throw new CustomException(ErrorCode.ROI_INVALID_COORDINATES);
+                }
+            }
+        } catch (JsonProcessingException e) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        }
     }
 
     private Camera getCameraWithOwnerCheck(Long userId, Long cameraId) {

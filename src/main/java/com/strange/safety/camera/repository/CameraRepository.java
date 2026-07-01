@@ -14,6 +14,12 @@ public interface CameraRepository extends JpaRepository<Camera, Long> {
     List<Camera> findByFacility_Id(Long facilityId);
     List<Camera> findByFacility_IdAndStatus(Long facilityId, CameraStatus status);
     List<Camera> findByAiEnabledTrueAndStatus(CameraStatus status);
+
+    @Query("SELECT DISTINCT c FROM Camera c " +
+           "LEFT JOIN FETCH c.roiConfigs roi " +
+           "LEFT JOIN FETCH roi.scenario " +
+           "WHERE c.aiEnabled = true AND c.status = :status")
+    List<Camera> findAiEnabledWithRoisAndScenarios(@Param("status") CameraStatus status);
     Optional<Camera> findFirstByCameraLoginIdOrderByIdDesc(String cameraLoginId);
     Optional<Camera> findFirstByCameraLoginIdAndStatusOrderByIdDesc(String cameraLoginId, CameraStatus status);
     boolean existsByCameraLoginId(String cameraLoginId);

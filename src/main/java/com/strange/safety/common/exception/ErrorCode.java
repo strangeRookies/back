@@ -48,6 +48,7 @@ public enum ErrorCode {
     EMERGENCY_JURISDICTION_NOT_FOUND(HttpStatus.NOT_FOUND, "EMERGENCY_JURISDICTION_NOT_FOUND", "입력한 주소의 관할 응급기관을 찾을 수 없습니다."),
 
     ROI_CONFIG_NOT_FOUND(HttpStatus.NOT_FOUND, "ROI_CONFIG_NOT_FOUND", "ROI 설정을 찾을 수 없습니다."),
+    ROI_INVALID_COORDINATES(HttpStatus.BAD_REQUEST, "ROI_INVALID_COORDINATES", "polygon_points의 좌표 값은 0.0~1.0 사이여야 합니다."),
 
     SCENARIO_NOT_FOUND(HttpStatus.NOT_FOUND, "SCENARIO_NOT_FOUND", "시나리오를 찾을 수 없습니다."),
     SCENARIO_PARAMS_NOT_FOUND(HttpStatus.NOT_FOUND, "SCENARIO_PARAMS_NOT_FOUND", "시나리오 파라미터를 찾을 수 없습니다."),
