@@ -1,5 +1,6 @@
 package com.strange.safety.camera.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.strange.safety.camera.entity.RoiConfig;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,6 +16,7 @@ public class RoiConfigResponse {
     private Long scenarioId;
     private String scenarioType;
     private String polygonPoints;
+    @JsonProperty("isActive")
     private boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
