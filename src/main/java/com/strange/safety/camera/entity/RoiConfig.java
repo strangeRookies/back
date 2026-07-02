@@ -46,7 +46,4 @@ public class RoiConfig extends BaseEntity {
         if (isActive != null) this.isActive = isActive;
     }
 
-    public void deactivate() {
-        this.isActive = false;
-    }
 }
