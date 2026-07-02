@@ -30,6 +30,11 @@ public class CameraSeeder implements CommandLineRunner {
         }
 
         Camera cam01 = cam01Opt.get();
+        if ("rtsp://localhost:8554/cam1".equals(cam01.getRtspUrl())) {
+            log.info("Updating cam_01 rtspUrl from cam1 to cam_01 to match naming convention.");
+            cam01.update(null, null, "rtsp://localhost:8554/cam_01", null, null, null, null);
+            cameraRepository.save(cam01);
+        }
         Facility facility = cam01.getFacility();
 
         String[] camIds = {"cam_02", "cam_03", "cam_04"};
@@ -52,6 +57,13 @@ public class CameraSeeder implements CommandLineRunner {
                 log.info("Successfully seeded camera: {}", camId);
             } else {
                 log.info("Camera {} already exists.", camId);
+                Camera camera = camOpt.get();
+                String expectedUrl = "rtsp://localhost:8554/" + camId;
+                if (!expectedUrl.equals(camera.getRtspUrl())) {
+                    log.info("Updating {} rtspUrl from {} to {}.", camId, camera.getRtspUrl(), expectedUrl);
+                    camera.update(null, null, expectedUrl, null, null, null, null);
+                    cameraRepository.save(camera);
+                }
             }
         }
     }

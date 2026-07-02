@@ -71,6 +71,52 @@ class MqttSafetyEventSubscriberTest {
     }
 
     @Test
+    void routesOverlayMessageWithTrackAliasesAndDisplayFields() {
+        MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
+                new ObjectMapper(),
+                asyncEventProcessorService,
+                overlayRelayService,
+                "camera");
+        String payload = """
+                {
+                  "schemaVersion": "1.1",
+                  "messageType": "overlay",
+                  "timestampMs": 1782177631123,
+                  "streamId": "cam_02",
+                  "cameraLoginId": "cam_02",
+                  "frameWidth": 1280,
+                  "frameHeight": 720,
+                  "events": [{
+                    "type": "tracking",
+                    "confidence": 0.91,
+                    "eventTriggered": false,
+                    "trackId": 987654321,
+                    "displayId": 2,
+                    "display_id": 2,
+                    "displayLabel": "ID 2",
+                    "bbox": {"x": 420, "y": 250, "width": 180, "height": 320},
+                    "keypoints": [],
+                    "futureField": "must not break overlay parsing"
+                  }]
+                }
+                """;
+
+        subscriber.messageArrived(MessageBuilder.withPayload(payload)
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, "camera")
+                .build());
+
+        ArgumentCaptor<OverlayMessage> captor = ArgumentCaptor.forClass(OverlayMessage.class);
+        verify(overlayRelayService).accept(captor.capture());
+        verify(asyncEventProcessorService, never()).processEvent(any());
+        OverlayMessage message = captor.getValue();
+        assertThat(message.cameraLoginId()).isEqualTo("cam_02");
+        assertThat(message.events()).hasSize(1);
+        assertThat(message.events().getFirst().trackingId()).isEqualTo(987654321L);
+        assertThat(message.events().getFirst().displayId()).isEqualTo(2L);
+        assertThat(message.events().getFirst().displayLabel()).isEqualTo("ID 2");
+    }
+
+    @Test
     void ignoresNonOverlayMessageOnOverlayTopicWithoutInvokingSafetyEventFlow() {
         MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
                 new ObjectMapper(),

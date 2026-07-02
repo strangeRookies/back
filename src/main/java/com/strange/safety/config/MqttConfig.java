@@ -68,7 +68,7 @@ public class MqttConfig {
                 cameraStatusTopic,
                 overlayTopic);
 
-        adapter.setCompletionTimeout(5000);
+        adapter.setCompletionTimeout(5000); // kafka!!
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1, 1, 0);
         adapter.setOutputChannel(mqttInputChannel());

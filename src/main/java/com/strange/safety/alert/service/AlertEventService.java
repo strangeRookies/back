@@ -270,7 +270,7 @@ public class AlertEventService {
     @Transactional
     public AlertEventResponse createEvent(SafetyEventDto dto) {
         String cameraIdVal = firstNonBlank(dto.cameraLoginId(), dto.cameraId(), "cam_01");
-        
+
         // Convert "cam1", "cam2" or "CCTV-01" into DB format "cam_01"
         if (cameraIdVal.startsWith("cam") && cameraIdVal.length() == 4) {
             cameraIdVal = "cam_0" + cameraIdVal.charAt(3);
@@ -303,7 +303,8 @@ public class AlertEventService {
         AlertSeverity severity = mapToAlertSeverity(dto.severity());
 
         Instant timestampVal = dto.resolvedTimestamp() != null ? dto.resolvedTimestamp() : Instant.now();
-        String messageVal = dto.message() != null ? dto.message() : (dto.type() != null ? dto.type() + " detected" : "AI safety event detected");
+        String messageVal = dto.message() != null ? dto.message()
+                : (dto.type() != null ? dto.type() + " detected" : "AI safety event detected");
         Float confidenceScore = dto.confidence() != null ? dto.confidence() : 0.85f;
         String boundingBoxData = serializeBoundingBox(dto);
 
@@ -362,16 +363,21 @@ public class AlertEventService {
     private record SafetyEventDetectionData(List<Number> bbox, String trackId) {
     }
 
-
     private ScenarioType mapToScenarioType(String type) {
-        if (type == null) return ScenarioType.SYNCOPE;
+        if (type == null)
+            return ScenarioType.SYNCOPE;
         String upper = type.toUpperCase();
-        if (upper.contains("FALL")) return ScenarioType.FALL_BED;
-        if (upper.contains("COLLAPSE")) return ScenarioType.COLLAPSE;
-        if (upper.contains("FAINT") || upper.contains("SYNCOPE")) return ScenarioType.SYNCOPE;
-        if (upper.contains("EXIT")) return ScenarioType.EXIT;
-        if (upper.contains("ASSAULT") || upper.contains("VIOLENCE") || upper.contains("FIGHT")) return ScenarioType.ASSAULT;
-        
+        if (upper.contains("FALL"))
+            return ScenarioType.FALL_BED;
+        if (upper.contains("COLLAPSE"))
+            return ScenarioType.COLLAPSE;
+        if (upper.contains("FAINT") || upper.contains("SYNCOPE"))
+            return ScenarioType.SYNCOPE;
+        if (upper.contains("EXIT"))
+            return ScenarioType.EXIT;
+        if (upper.contains("ASSAULT") || upper.contains("VIOLENCE") || upper.contains("FIGHT"))
+            return ScenarioType.ASSAULT;
+
         try {
             return ScenarioType.valueOf(upper);
         } catch (IllegalArgumentException e) {
@@ -380,10 +386,13 @@ public class AlertEventService {
     }
 
     private AlertSeverity mapToAlertSeverity(String severity) {
-        if (severity == null) return AlertSeverity.CRITICAL;
+        if (severity == null)
+            return AlertSeverity.CRITICAL;
         String upper = severity.toUpperCase();
-        if (upper.contains("CRITICAL") || upper.contains("HIGH")) return AlertSeverity.CRITICAL;
-        if (upper.contains("WARNING") || upper.contains("MEDIUM")) return AlertSeverity.WARNING;
+        if (upper.contains("CRITICAL") || upper.contains("HIGH"))
+            return AlertSeverity.CRITICAL;
+        if (upper.contains("WARNING") || upper.contains("MEDIUM"))
+            return AlertSeverity.WARNING;
         return AlertSeverity.WARNING;
     }
 }
