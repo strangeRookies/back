@@ -10,32 +10,32 @@
 
 ```mermaid
 graph TD
-    subgraph CCTV / Video Source
-        CCTV_1[CCTV Cam 1] -->|RTSP Stream| MediaMTX[MediaMTX Stream Server]
-        CCTV_2[CCTV Cam 2] -->|RTSP Stream| MediaMTX
+    subgraph VideoSource["CCTV and Video Source"]
+        CCTV_1["CCTV Cam 1"] -->|"RTSP Stream"| MediaMTX["MediaMTX Stream Server"]
+        CCTV_2["CCTV Cam 2"] -->|"RTSP Stream"| MediaMTX
     end
 
-    subgraph AI Pipeline (strange_ai)
-        MediaMTX -->|RTSP Stream| OpenCV[OpenCV Frame Reader]
-        OpenCV -->|Frames| YOLO[YOLO26n-pose Extractor]
-        YOLO -->|Keypoints| Tracker[ByteTrack Fallback Tracker]
-        Tracker -->|Sequence Buffer| LSTM[LSTM Action Classifier]
-        LSTM -->|Faint Detected| MQTT_Pub[MQTT Client Publisher]
+    subgraph AIPipeline["AI Pipeline - strange_ai"]
+        MediaMTX -->|"RTSP Stream"| OpenCV["OpenCV Frame Reader"]
+        OpenCV -->|"Frames"| YOLO["YOLO26n-pose Extractor"]
+        YOLO -->|"Keypoints"| Tracker["ByteTrack Fallback Tracker"]
+        Tracker -->|"Sequence Buffer"| LSTM["LSTM Action Classifier"]
+        LSTM -->|"Faint Detected"| MQTT_Pub["MQTT Client Publisher"]
     end
 
-    subgraph Messaging Infrastructure
-        MQTT_Pub -->|safety/events| Broker[MQTT Broker EMQX/Mosquitto]
+    subgraph Messaging["Messaging Infrastructure"]
+        MQTT_Pub -->|"safety events"| Broker["MQTT Broker EMQX or Mosquitto"]
     end
 
-    subgraph Backend Server (strange_back)
-        Broker -->|Subscribe| SpringBoot[Spring Boot Service]
-        SpringBoot -->|Persist Alert| PostgreSQL[(PostgreSQL DB)]
-        SpringBoot -->|Broadcast Frame| STOMP[WebSocket STOMP Server]
+    subgraph Backend["Backend Server - strange_back"]
+        Broker -->|"Subscribe"| SpringBoot["Spring Boot Service"]
+        SpringBoot -->|"Persist Alert"| PostgreSQL[("PostgreSQL DB")]
+        SpringBoot -->|"Broadcast Frame"| STOMP["WebSocket STOMP Server"]
     end
 
-    subgraph Frontend Dashboard (strange_front)
-        STOMP -->|/topic/facility/{id}/alerts| React[React Dashboard]
-        MediaMTX -->|HLS Stream| ReactVideo[React CCTV HLS Player]
+    subgraph Frontend["Frontend Dashboard - strange_front"]
+        STOMP -->|"facility alerts topic"| React["React Dashboard"]
+        MediaMTX -->|"HLS Stream"| ReactVideo["React CCTV HLS Player"]
     end
 
     classDef ai fill:#f9f,stroke:#333,stroke-width:2px;
