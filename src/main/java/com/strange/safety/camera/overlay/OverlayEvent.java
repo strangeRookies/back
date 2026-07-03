@@ -9,11 +9,15 @@ public record OverlayEvent(
         String type,
         Double confidence,
         Boolean eventTriggered,
-        @JsonAlias("track_id")
+        @JsonAlias({"trackId", "track_id"})
         Long trackingId,
         BoundingBox bbox,
         BoundingBox boundingBox,
-        List<?> keypoints
+        List<?> keypoints,
+        Long frameId,
+        @JsonAlias("display_id")
+        Long displayId,
+        String displayLabel
 ) {
     public OverlayEvent {
         if (bbox == null) {
@@ -25,8 +29,32 @@ public record OverlayEvent(
         keypoints = keypoints == null ? null : List.copyOf(keypoints);
     }
 
+    public OverlayEvent(
+            String type,
+            Double confidence,
+            Boolean eventTriggered,
+            Long trackingId,
+            BoundingBox bbox,
+            BoundingBox boundingBox,
+            List<?> keypoints
+    ) {
+        this(type, confidence, eventTriggered, trackingId, bbox, boundingBox, keypoints, null, null, null);
+    }
+
     public OverlayEvent(String type, Double confidence, Long trackingId, BoundingBox boundingBox) {
-        this(type, confidence, null, trackingId, boundingBox, boundingBox, null);
+        this(type, confidence, null, trackingId, boundingBox, boundingBox, null, null, null, null);
+    }
+
+    public OverlayEvent(
+            String type,
+            Double confidence,
+            Boolean eventTriggered,
+            Long trackingId,
+            BoundingBox bbox,
+            BoundingBox boundingBox,
+            List<?> keypoints,
+            Long frameId) {
+        this(type, confidence, eventTriggered, trackingId, bbox, boundingBox, keypoints, frameId, null, null);
     }
 
     public BoundingBox resolvedBoundingBox() {

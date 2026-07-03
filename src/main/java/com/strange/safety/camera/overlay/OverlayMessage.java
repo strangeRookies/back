@@ -14,10 +14,28 @@ public record OverlayMessage(
         String cameraLoginId,
         int frameWidth,
         int frameHeight,
-        List<OverlayEvent> events
+        List<OverlayEvent> events,
+        Long frameId,
+        Long capturedAtMs,
+        Long processedAtMs,
+        Long publishedAtMs,
+        Long queueLagMs,
+        Long droppedFrameCount
 ) {
     public OverlayMessage {
         events = events == null ? null : List.copyOf(events);
+    }
+
+    public OverlayMessage(
+            String schemaVersion,
+            String messageType,
+            long timestampMs,
+            String streamId,
+            String cameraLoginId,
+            int frameWidth,
+            int frameHeight,
+            List<OverlayEvent> events) {
+        this(schemaVersion, messageType, timestampMs, streamId, cameraLoginId, frameWidth, frameHeight, events, null, null, null, null, null, null);
     }
 
     public String resolvedCameraLoginId() {
@@ -36,6 +54,12 @@ public record OverlayMessage(
                 matchedCameraLoginId,
                 frameWidth,
                 frameHeight,
-                events);
+                events,
+                frameId,
+                capturedAtMs,
+                processedAtMs,
+                publishedAtMs,
+                queueLagMs,
+                droppedFrameCount);
     }
 }

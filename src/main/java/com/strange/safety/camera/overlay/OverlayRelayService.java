@@ -78,6 +78,12 @@ public class OverlayRelayService {
 
         String cameraLoginId = match.cameraLoginId();
         OverlayMessage matchedMessage = message.withCameraLoginId(cameraLoginId);
+
+        if ("frame_sync".equals(message.messageType())) {
+            broadcastService.broadcast(matchedMessage, match.targetId(), match.corporate());
+            return true;
+        }
+
         synchronized (lockFor(cameraLoginId)) {
             Long previousTimestamp = sourceTimestamps.get(cameraLoginId);
             if (previousTimestamp != null && message.timestampMs() <= previousTimestamp) {
@@ -173,22 +179,34 @@ public class OverlayRelayService {
     }
 
     private CameraMatch validateAndMatch(OverlayMessage message) {
-        if (message == null
-                || !SUPPORTED_SCHEMA_VERSIONS.contains(message.schemaVersion())
-                || !MESSAGE_TYPE.equals(message.messageType())
-                || message.resolvedCameraLoginId() == null
-                || message.resolvedCameraLoginId().isBlank()
-                || message.frameWidth() <= 0
-                || message.frameHeight() <= 0
-                || message.events() == null) {
-            log.warn("Discarding invalid overlay header");
+        if (message == null || !SUPPORTED_SCHEMA_VERSIONS.contains(message.schemaVersion())) {
+            log.warn("Discarding invalid overlay header schemaVersion");
             return null;
         }
-        for (OverlayEvent event : message.events()) {
-            if (event == null || !isValidBox(event.resolvedBoundingBox(), message.frameWidth(), message.frameHeight())) {
-                log.warn("Discarding overlay with invalid bounding box: cameraLoginId={}, timestampMs={}",
-                        message.resolvedCameraLoginId(), message.timestampMs());
+        boolean isOverlay = MESSAGE_TYPE.equals(message.messageType());
+        boolean isFrameSync = "frame_sync".equals(message.messageType());
+        if (!isOverlay && !isFrameSync) {
+            log.warn("Discarding invalid overlay messageType: {}", message.messageType());
+            return null;
+        }
+        if (message.resolvedCameraLoginId() == null || message.resolvedCameraLoginId().isBlank()) {
+            log.warn("Discarding invalid overlay cameraLoginId");
+            return null;
+        }
+
+        if (isOverlay) {
+            if (message.frameWidth() <= 0
+                    || message.frameHeight() <= 0
+                    || message.events() == null) {
+                log.warn("Discarding invalid overlay details");
                 return null;
+            }
+            for (OverlayEvent event : message.events()) {
+                if (event == null || !isValidBox(event.resolvedBoundingBox(), message.frameWidth(), message.frameHeight())) {
+                    log.warn("Discarding overlay with invalid bounding box: cameraLoginId={}, timestampMs={}",
+                            message.resolvedCameraLoginId(), message.timestampMs());
+                    return null;
+                }
             }
         }
 

@@ -74,7 +74,7 @@ public class RoiConfigService {
     @Transactional
     public void delete(Long userId, Long roiConfigId) {
         RoiConfig roiConfig = getRoiWithOwnerCheck(userId, roiConfigId);
-        roiConfig.deactivate();
+        roiConfigRepository.delete(roiConfig);
     }
 
     private void validatePolygonPoints(String polygonPoints) {
