@@ -377,7 +377,22 @@ public class AlertEventService {
 
         AlertEvent saved = alertEventRepository.save(event);
         
-        String snapshotUrl = null;
+        String s3Key = dto.clipUrl();
+        if (s3Key != null && s3Key.contains(".amazonaws.com/")) {
+            s3Key = s3Key.substring(s3Key.indexOf(".amazonaws.com/") + 15);
+        }
+
+        if (s3Key != null && !s3Key.trim().isEmpty()) {
+            Snapshot snapshot = Snapshot.builder()
+                    .alertEvent(saved)
+                    .snapshotUrl(s3Key)
+                    .fileSizeBytes(null)
+                    .build();
+            snapshotRepository.save(snapshot);
+            log.info("Saved Snapshot record for alertEventId={} with snapshotUrl={}", saved.getId(), s3Key);
+        }
+
+        String snapshotUrl = (s3Key != null && !s3Key.trim().isEmpty()) ? s3Service.generatePresignedUrl(s3Key) : null;
         AlertEventResponse response = AlertEventResponse.from(saved, snapshotUrl);
 
         String contextKey = camera != null ? "FAC_" + camera.getFacility().getId() : "COMP_" + corporateCamera.getCompanyProfile().getId();
