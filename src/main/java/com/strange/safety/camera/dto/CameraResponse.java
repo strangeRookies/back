@@ -4,6 +4,7 @@ import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.entity.CameraConnectionStatus;
 import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.camera.entity.RoiConfig;
+import com.strange.safety.camera.overlay.AiOverlayResponse;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -14,6 +15,8 @@ import java.util.List;
 @Getter
 @Builder
 public class CameraResponse {
+
+    private static final String OVERLAY_STREAM_TYPE_MJPEG = "MJPEG";
 
     private Long cameraId;
     private Long facilityId;
@@ -30,6 +33,9 @@ public class CameraResponse {
     private CameraConnectionStatus connectionStatus;
     private Instant lastConnectionReportAt;
     private List<RoiConfigEntry> roiConfigs;
+    private String overlayUrl;
+    private String overlayStreamType;
+    private boolean overlayRenderedInStream;
 
     @Getter
     @Builder
@@ -41,11 +47,19 @@ public class CameraResponse {
     }
 
     public static CameraResponse from(Camera camera) {
-        return fromWithRoi(camera, List.of());
+        return from(camera, null);
+    }
+
+    public static CameraResponse from(Camera camera, AiOverlayResponse overlay) {
+        return fromWithRoi(camera, List.of(), overlay);
     }
 
     public static CameraResponse fromWithRoi(Camera camera, List<RoiConfig> activeRois) {
-        return CameraResponse.builder()
+        return fromWithRoi(camera, activeRois, null);
+    }
+
+    public static CameraResponse fromWithRoi(Camera camera, List<RoiConfig> activeRois, AiOverlayResponse overlay) {
+        CameraResponseBuilder builder = CameraResponse.builder()
                 .cameraId(camera.getId())
                 .facilityId(camera.getFacility().getId())
                 .cameraLoginId(camera.getCameraLoginId())
@@ -68,11 +82,19 @@ public class CameraResponse {
                                 .polygonPoints(roi.getPolygonPoints())
                                 .build())
                         .toList())
-                .build();
+                .overlayRenderedInStream(false);
+        applyOverlay(builder, overlay);
+        return builder.build();
     }
 
     public static CameraResponse fromCorporate(com.strange.safety.corporatecamera.entity.CorporateCamera camera) {
-        return CameraResponse.builder()
+        return fromCorporate(camera, null);
+    }
+
+    public static CameraResponse fromCorporate(
+            com.strange.safety.corporatecamera.entity.CorporateCamera camera,
+            AiOverlayResponse overlay) {
+        CameraResponseBuilder builder = CameraResponse.builder()
                 .cameraId(camera.getId())
                 .facilityId(camera.getCompanyProfile().getId())
                 .cameraLoginId(camera.getCameraLoginId())
@@ -88,6 +110,17 @@ public class CameraResponse {
                 .connectionStatus(camera.getConnectionStatus())
                 .lastConnectionReportAt(camera.getLastConnectionReportAt())
                 .roiConfigs(List.of())
-                .build();
+                .overlayRenderedInStream(false);
+        applyOverlay(builder, overlay);
+        return builder.build();
+    }
+
+    private static void applyOverlay(CameraResponseBuilder builder, AiOverlayResponse overlay) {
+        if (overlay == null || overlay.overlayUrl() == null) {
+            return;
+        }
+        builder.overlayUrl(overlay.overlayUrl())
+                .overlayStreamType(OVERLAY_STREAM_TYPE_MJPEG)
+                .overlayRenderedInStream(true);
     }
 }

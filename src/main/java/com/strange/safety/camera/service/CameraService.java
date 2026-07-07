@@ -7,6 +7,7 @@ import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.camera.entity.CameraConnectionStatus;
 import com.strange.safety.camera.entity.CameraStatusLog;
+import com.strange.safety.camera.overlay.AiOverlayRegistryService;
 import com.strange.safety.camera.repository.CameraRepository;
 import com.strange.safety.camera.repository.CameraStatusLogRepository;
 import com.strange.safety.common.exception.CustomException;
@@ -44,6 +45,7 @@ public class CameraService {
     private final VirtualCameraPoolService virtualCameraPoolService;
     private final RtspSimulationService rtspSimulationService;
     private final com.strange.safety.corporatecamera.repository.CorporateCameraRepository corporateCameraRepository;
+    private final AiOverlayRegistryService aiOverlayRegistryService;
 
     @Transactional
     public CameraResponse createCamera(Long userId, Long facilityId, CreateCameraRequest request) {
@@ -121,7 +123,7 @@ public class CameraService {
         rtspSimulationService.startSimulation(camera.getCameraLoginId(), camera.getAssignedVideoPath(),
                 camera.getRtspUrl());
 
-        return CameraResponse.from(camera);
+        return toResponse(camera);
     }
 
     public List<CameraResponse> getCameras(Long userId, Long facilityId) {
@@ -143,7 +145,7 @@ public class CameraService {
         }
         facilityService.getFacilityWithOwnerCheck(userId, facilityId);
         return cameraRepository.findByFacility_IdAndStatus(facilityId, CameraStatus.ACTIVE).stream()
-                .map(CameraResponse::from)
+                .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
@@ -157,7 +159,7 @@ public class CameraService {
                 request.getStatus(), request.getLocationDescription(), request.getAiEnabled(),
                 request.getAssignedVideoPath());
 
-        return CameraResponse.from(camera);
+        return toResponse(camera);
     }
 
     @Transactional
@@ -180,12 +182,15 @@ public class CameraService {
                     List<com.strange.safety.camera.entity.RoiConfig> activeRois = camera.getRoiConfigs().stream()
                             .filter(com.strange.safety.camera.entity.RoiConfig::isActive)
                             .toList();
-                    return CameraResponse.fromWithRoi(camera, activeRois);
+                    return CameraResponse.fromWithRoi(
+                            camera,
+                            activeRois,
+                            aiOverlayRegistryService.getForCameraResponse(camera.getCameraLoginId()));
                 })
                 .collect(Collectors.toList()));
 
         result.addAll(corporateCameraRepository.findByStatus(CameraStatus.ACTIVE).stream()
-                .map(CameraResponse::fromCorporate)
+                .map(this::toCorporateCameraResponse)
                 .collect(Collectors.toList()));
 
         return result;
@@ -194,7 +199,20 @@ public class CameraService {
     public List<CameraResponse> getCamerasForAdmin(Long facilityId) {
         facilityService.getFacilityForAdmin(facilityId);
         return cameraRepository.findByFacility_Id(facilityId).stream()
-                .map(CameraResponse::from)
+                .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    private CameraResponse toResponse(Camera camera) {
+        return CameraResponse.from(
+                camera,
+                aiOverlayRegistryService.getForCameraResponse(camera.getCameraLoginId()));
+    }
+
+    private CameraResponse toCorporateCameraResponse(
+            com.strange.safety.corporatecamera.entity.CorporateCamera camera) {
+        return CameraResponse.fromCorporate(
+                camera,
+                aiOverlayRegistryService.getForCameraResponse(camera.getCameraLoginId()));
     }
 }

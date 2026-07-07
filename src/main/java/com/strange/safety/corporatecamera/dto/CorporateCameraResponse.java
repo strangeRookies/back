@@ -2,6 +2,7 @@ package com.strange.safety.corporatecamera.dto;
 
 import com.strange.safety.camera.entity.CameraConnectionStatus;
 import com.strange.safety.camera.entity.CameraStatus;
+import com.strange.safety.camera.overlay.AiOverlayResponse;
 import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,6 +13,8 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 public class CorporateCameraResponse {
+
+    private static final String OVERLAY_STREAM_TYPE_MJPEG = "MJPEG";
 
     private Long cameraId;
     private Long companyProfileId;
@@ -27,9 +30,16 @@ public class CorporateCameraResponse {
     private String assignedVideoPath;
     private CameraConnectionStatus connectionStatus;
     private Instant lastConnectionReportAt;
+    private String overlayUrl;
+    private String overlayStreamType;
+    private boolean overlayRenderedInStream;
 
     public static CorporateCameraResponse from(CorporateCamera camera) {
-        return CorporateCameraResponse.builder()
+        return from(camera, null);
+    }
+
+    public static CorporateCameraResponse from(CorporateCamera camera, AiOverlayResponse overlay) {
+        CorporateCameraResponseBuilder builder = CorporateCameraResponse.builder()
                 .cameraId(camera.getId())
                 .companyProfileId(camera.getCompanyProfile().getId())
                 .cameraName(camera.getCameraName())
@@ -44,6 +54,17 @@ public class CorporateCameraResponse {
                 .assignedVideoPath(camera.getAssignedVideoPath())
                 .connectionStatus(camera.getConnectionStatus())
                 .lastConnectionReportAt(camera.getLastConnectionReportAt())
-                .build();
+                .overlayRenderedInStream(false);
+        applyOverlay(builder, overlay);
+        return builder.build();
+    }
+
+    private static void applyOverlay(CorporateCameraResponseBuilder builder, AiOverlayResponse overlay) {
+        if (overlay == null || overlay.overlayUrl() == null) {
+            return;
+        }
+        builder.overlayUrl(overlay.overlayUrl())
+                .overlayStreamType(OVERLAY_STREAM_TYPE_MJPEG)
+                .overlayRenderedInStream(true);
     }
 }

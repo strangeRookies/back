@@ -11,6 +11,9 @@ import com.strange.safety.camera.dto.CameraResponse;
 import com.strange.safety.camera.dto.CreateCameraRequest;
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.entity.CameraStatus;
+import com.strange.safety.camera.overlay.AiOverlayRegistryService;
+import com.strange.safety.camera.overlay.AiOverlayResponse;
+import com.strange.safety.camera.overlay.AiOverlayStatus;
 import com.strange.safety.camera.repository.CameraRepository;
 import com.strange.safety.camera.repository.CameraStatusLogRepository;
 import com.strange.safety.common.exception.CustomException;
@@ -24,6 +27,7 @@ import com.strange.safety.facility.repository.UserFacilityRepository;
 import com.strange.safety.facility.service.FacilityService;
 import com.strange.safety.user.entity.User;
 import com.strange.safety.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,6 +73,9 @@ class CameraServiceTest {
     @Mock
     private com.strange.safety.corporatecamera.repository.CorporateCameraRepository corporateCameraRepository;
 
+    @Mock
+    private AiOverlayRegistryService aiOverlayRegistryService;
+
     private CameraService cameraService;
 
     @BeforeEach
@@ -83,7 +90,8 @@ class CameraServiceTest {
                 aesUtil,
                 virtualCameraPoolService,
                 rtspSimulationService,
-                corporateCameraRepository
+                corporateCameraRepository,
+                aiOverlayRegistryService
         );
     }
 
@@ -238,6 +246,43 @@ class CameraServiceTest {
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).getCameraId()).isEqualTo(500L);
         verify(facilityRepository, never()).findActiveFacilitiesByManagerId(any(), any(), any());
+    }
+
+    @Test
+    void getCamerasMergesReportedOverlayInfo() {
+        Long userId = 1L;
+        Long facilityId = 100L;
+
+        Facility facility = Facility.builder().facilityName("Test Facility").build();
+        ReflectionTestUtils.setField(facility, "id", facilityId);
+
+        Camera camera = Camera.builder()
+                .facility(facility)
+                .cameraLoginId("cam_02")
+                .cameraName("Test Camera")
+                .cameraSerialNumber("SN123")
+                .build();
+        ReflectionTestUtils.setField(camera, "id", 500L);
+
+        when(facilityService.getFacilityWithOwnerCheck(userId, facilityId)).thenReturn(facility);
+        when(cameraRepository.findByFacility_IdAndStatus(facilityId, CameraStatus.ACTIVE))
+                .thenReturn(List.of(camera));
+        when(aiOverlayRegistryService.getForCameraResponse("cam_02"))
+                .thenReturn(new AiOverlayResponse(
+                        "cam_02",
+                        "rtsp://127.0.0.1:8554/cam_02",
+                        8012,
+                        "http://localhost:8012/mjpeg/cam_02",
+                        1234L,
+                        AiOverlayStatus.RUNNING,
+                        Instant.parse("2026-06-19T00:00:00Z")));
+
+        List<CameraResponse> responses = cameraService.getCameras(userId, facilityId);
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).getOverlayUrl()).isEqualTo("http://localhost:8012/mjpeg/cam_02");
+        assertThat(responses.get(0).getOverlayStreamType()).isEqualTo("MJPEG");
+        assertThat(responses.get(0).isOverlayRenderedInStream()).isTrue();
     }
 
     @Test

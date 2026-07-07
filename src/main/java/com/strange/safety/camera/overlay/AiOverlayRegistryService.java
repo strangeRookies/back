@@ -37,6 +37,21 @@ public class AiOverlayRegistryService {
         return overlays.getOrDefault(normalizedCameraLoginId, unknown(normalizedCameraLoginId));
     }
 
+    public AiOverlayResponse getForCameraResponse(String cameraLoginId) {
+        AiOverlayResponse response = get(cameraLoginId);
+        if (response.overlayUrl() == null || !isOverlayPortOpen(response)) {
+            return new AiOverlayResponse(
+                    response.cameraLoginId(),
+                    response.rtspUrl(),
+                    response.overlayPort(),
+                    null,
+                    response.pid(),
+                    response.status(),
+                    response.updatedAt());
+        }
+        return response;
+    }
+
     public AiOverlayResponse requestStart(String cameraLoginId) {
         String normalizedCameraLoginId = normalizeCameraLoginId(cameraLoginId);
         return overlays.compute(normalizedCameraLoginId, (key, existing) -> {
@@ -83,7 +98,7 @@ public class AiOverlayRegistryService {
                 normalizedCameraLoginId,
                 request.rtspUrl(),
                 request.overlayPort(),
-                request.overlayUrl(),
+                normalizeBrowserUrl(request.overlayUrl()),
                 request.pid(),
                 status,
                 clock.instant());
@@ -144,5 +159,37 @@ public class AiOverlayRegistryService {
         } catch (IOException ignored) {
             return false;
         }
+    }
+
+    private String normalizeBrowserUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = new URI(url.trim());
+            String host = uri.getHost();
+            if (!isWildcardHost(host)) {
+                return uri.toString();
+            }
+            return new URI(
+                    uri.getScheme(),
+                    uri.getUserInfo(),
+                    "localhost",
+                    uri.getPort(),
+                    uri.getPath(),
+                    uri.getQuery(),
+                    uri.getFragment()).toString();
+        } catch (URISyntaxException ignored) {
+            return url.trim();
+        }
+    }
+
+    private boolean isWildcardHost(String host) {
+        if (host == null) {
+            return false;
+        }
+        return host.equals("0.0.0.0")
+                || host.equals("::")
+                || host.equals("0:0:0:0:0:0:0:0");
     }
 }

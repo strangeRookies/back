@@ -12,6 +12,7 @@ import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
 import com.strange.safety.camera.repository.CameraStatusLogRepository;
 import com.strange.safety.camera.entity.CameraStatusLog;
 import com.strange.safety.camera.entity.CameraConnectionStatus;
+import com.strange.safety.camera.overlay.AiOverlayRegistryService;
 import com.strange.safety.camera.service.RtspSimulationService;
 import com.strange.safety.camera.service.VirtualCameraPoolService;
 import com.strange.safety.camera.repository.CameraRepository;
@@ -35,6 +36,7 @@ public class CorporateCameraService {
     private final VirtualCameraPoolService virtualCameraPoolService;
     private final CameraRepository cameraRepository;
     private final CameraStatusLogRepository cameraStatusLogRepository;
+    private final AiOverlayRegistryService aiOverlayRegistryService;
 
     @Transactional
     public CorporateCameraResponse register(Long companyProfileId, CorporateCameraRequest request) {
@@ -81,7 +83,7 @@ public class CorporateCameraService {
         
         rtspSimulationService.startSimulation(loginId, videoPath, rtspUrl);
 
-        return CorporateCameraResponse.from(camera);
+        return toResponse(camera);
     }
 
     public List<CorporateCameraResponse> getCamerasByCompany(Long companyProfileId) {
@@ -89,7 +91,7 @@ public class CorporateCameraService {
             throw new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND);
         }
         return corporateCameraRepository.findByCompanyProfile_Id(companyProfileId)
-                .stream().map(CorporateCameraResponse::from).collect(Collectors.toList());
+                .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     public List<CorporateCameraResponse> getMyCameras(Long userId) {
@@ -103,5 +105,11 @@ public class CorporateCameraService {
         CorporateCamera camera = corporateCameraRepository.findById(cameraId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CAMERA_NOT_FOUND));
         corporateCameraRepository.delete(camera);
+    }
+
+    private CorporateCameraResponse toResponse(CorporateCamera camera) {
+        return CorporateCameraResponse.from(
+                camera,
+                aiOverlayRegistryService.getForCameraResponse(camera.getCameraLoginId()));
     }
 }
