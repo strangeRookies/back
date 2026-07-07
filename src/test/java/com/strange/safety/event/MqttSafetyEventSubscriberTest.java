@@ -138,4 +138,37 @@ class MqttSafetyEventSubscriberTest {
         verify(overlayRelayService, never()).accept(any());
         verify(asyncEventProcessorService, never()).processEvent(any());
     }
+
+    @Test
+    void enrichesSafetyEventWithLatencyTimestamps() {
+        MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
+                new ObjectMapper(),
+                asyncEventProcessorService,
+                overlayRelayService,
+                "camera");
+        String payload = """
+                {
+                  "cameraLoginId": "cam_05",
+                  "eventType": "faint",
+                  "severity": "HIGH",
+                  "timestamp": 1783410062.653,
+                  "capturedAtMs": 1783410059000,
+                  "processedAtMs": 1783410062400,
+                  "trackId": "3"
+                }
+                """;
+
+        subscriber.messageArrived(MessageBuilder.withPayload(payload)
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, "safety/events")
+                .build());
+
+        ArgumentCaptor<SafetyEventDto> captor = ArgumentCaptor.forClass(SafetyEventDto.class);
+        verify(asyncEventProcessorService).processEvent(captor.capture());
+        SafetyEventDto event = captor.getValue();
+        assertThat(event.cameraLoginId()).isEqualTo("cam_05");
+        assertThat(event.capturedAtMs()).isEqualTo(1783410059000L);
+        assertThat(event.processedAtMs()).isEqualTo(1783410062400L);
+        assertThat(event.mqttReceivedAtMs()).isNotNull();
+        assertThat(event.publishedAtMs()).isNull();
+    }
 }

@@ -178,6 +178,10 @@ class AlertEventServiceTest {
                 null,
                 "track-1",
                 null,
+                null,
+                null,
+                null,
+                null,
                 null
         );
     }

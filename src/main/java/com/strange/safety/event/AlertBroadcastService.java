@@ -23,8 +23,19 @@ public class AlertBroadcastService {
         }
         String prefix = isCorporate ? "/topic/company/" : "/topic/facility/";
         String topic = prefix + targetId + "/alerts";
+        SafetyEventDto publishedEvent = event.withPublishedAtMs(System.currentTimeMillis());
         log.info("Broadcasting safety event to {}: type={}, cameraId={}, severity={}",
-                topic, event.type(), event.cameraId(), event.severity());
-        messagingTemplate.convertAndSend(topic, event);
+                topic, publishedEvent.type(), publishedEvent.cameraId(), publishedEvent.severity());
+        log.info("[ai-alert-latency] STOMP safety event publishing destination={} cameraId={} cameraLoginId={} type={} trackId={} capturedAtMs={} processedAtMs={} mqttReceivedAtMs={} publishedAtMs={}",
+                topic,
+                publishedEvent.cameraId(),
+                publishedEvent.cameraLoginId(),
+                publishedEvent.type(),
+                publishedEvent.trackId(),
+                publishedEvent.capturedAtMs(),
+                publishedEvent.processedAtMs(),
+                publishedEvent.mqttReceivedAtMs(),
+                publishedEvent.publishedAtMs());
+        messagingTemplate.convertAndSend(topic, publishedEvent);
     }
 }

@@ -76,7 +76,17 @@ public class MqttSafetyEventSubscriber {
 
     private void handleSafetyEvent(String payload) {
         try {
-            SafetyEventDto event = objectMapper.readValue(payload, SafetyEventDto.class);
+            long mqttReceivedAtMs = System.currentTimeMillis();
+            SafetyEventDto event = objectMapper.readValue(payload, SafetyEventDto.class)
+                    .withMqttReceivedAtMs(mqttReceivedAtMs);
+            log.info("[ai-alert-latency] MQTT safety event received cameraId={} cameraLoginId={} type={} trackId={} capturedAtMs={} processedAtMs={} mqttReceivedAtMs={}",
+                    event.cameraId(),
+                    event.cameraLoginId(),
+                    event.type(),
+                    event.trackId(),
+                    event.capturedAtMs(),
+                    event.processedAtMs(),
+                    event.mqttReceivedAtMs());
             asyncEventProcessorService.processEvent(event);
         } catch (Exception e) {
             log.error("[MQTT Debug] Failed to process MQTT safety event: payload={}, error={}", payload, e.getMessage(), e);

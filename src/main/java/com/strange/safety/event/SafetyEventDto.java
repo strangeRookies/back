@@ -98,7 +98,23 @@ public record SafetyEventDto(
 
         @JsonProperty("clip_url")
         @JsonAlias({"clip_url", "clipUrl"})
-        String clipUrl
+        String clipUrl,
+
+        @JsonProperty("capturedAtMs")
+        @JsonAlias({"capturedAtMs", "captured_at_ms"})
+        Long capturedAtMs,
+
+        @JsonProperty("processedAtMs")
+        @JsonAlias({"processedAtMs", "processed_at_ms"})
+        Long processedAtMs,
+
+        @JsonProperty("publishedAtMs")
+        @JsonAlias({"publishedAtMs", "published_at_ms"})
+        Long publishedAtMs,
+
+        @JsonProperty("mqttReceivedAtMs")
+        @JsonAlias({"mqttReceivedAtMs", "mqtt_received_at_ms"})
+        Long mqttReceivedAtMs
 ) {
     /**
      * rawTimestamp를 {@link Instant}로 변환한다.
@@ -127,5 +143,40 @@ public record SafetyEventDto(
         }
         
         return null;
+    }
+
+    public SafetyEventDto withMqttReceivedAtMs(long mqttReceivedAtMs) {
+        return copy(capturedAtMs, processedAtMs, publishedAtMs, mqttReceivedAtMs);
+    }
+
+    public SafetyEventDto withPublishedAtMs(long publishedAtMs) {
+        return copy(capturedAtMs, processedAtMs, publishedAtMs, mqttReceivedAtMs);
+    }
+
+    private SafetyEventDto copy(
+            Long capturedAtMs,
+            Long processedAtMs,
+            Long publishedAtMs,
+            Long mqttReceivedAtMs) {
+        return new SafetyEventDto(
+                messageType,
+                type,
+                cameraId,
+                cameraLoginId,
+                eventId,
+                rawTimestamp,
+                severity,
+                message,
+                source,
+                confidence,
+                faintProb,
+                bbox,
+                trackId,
+                clipPath,
+                clipUrl,
+                capturedAtMs,
+                processedAtMs,
+                publishedAtMs,
+                mqttReceivedAtMs);
     }
 }
