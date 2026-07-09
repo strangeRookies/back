@@ -312,6 +312,7 @@ public class AlertEventService {
         if ("쓰러짐".contains(lower) || "collapse".contains(lower)) matches.add(ScenarioType.COLLAPSE);
         if ("폭력".contains(lower) || "싸움".contains(lower) || "assault".contains(lower)) matches.add(ScenarioType.ASSAULT);
         if ("이탈".contains(lower) || "배회".contains(lower) || "exit".contains(lower)) matches.add(ScenarioType.EXIT);
+        if ("위험".contains(lower) || "침범".contains(lower) || "hazard".contains(lower)) matches.add(ScenarioType.HAZARD_ZONE);
         return matches;
     }
 
@@ -447,6 +448,8 @@ public class AlertEventService {
             return ScenarioType.EXIT;
         if (upper.contains("ASSAULT") || upper.contains("VIOLENCE") || upper.contains("FIGHT"))
             return ScenarioType.ASSAULT;
+        if (upper.contains("HAZARD"))
+            return ScenarioType.HAZARD_ZONE;
 
         try {
             return ScenarioType.valueOf(upper);

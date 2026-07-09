@@ -28,6 +28,7 @@ public class ScenarioDataInitializer implements ApplicationRunner {
         init(ScenarioType.SYNCOPE,   "실신 감지",     3, 0.8f, null);
         init(ScenarioType.EXIT,      "이탈 감지",    10, 0.6f, "00:00-08:00");
         init(ScenarioType.ASSAULT,   "폭행 감지",     2, 0.9f, null);
+        init(ScenarioType.HAZARD_ZONE,"위험구역 침범",  0, 0.5f, null);
     }
 
     private void init(ScenarioType type, String desc, int timeSec, float motion, String timeRestriction) {
