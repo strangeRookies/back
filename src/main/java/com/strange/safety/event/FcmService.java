@@ -103,6 +103,8 @@ public class FcmService {
         if (type.contains("COLLAPSE")) return "쓰러짐";
         if (type.contains("FIGHT") || type.contains("VIOLENCE") || type.contains("ASSAULT")) return "폭력";
         if (type.contains("FIRE")) return "화재";
+        if (type.contains("EXIT")) return "이탈";
+        if (type.contains("HAZARD")) return "위험구역 침범";
         return type;
     }
 }
