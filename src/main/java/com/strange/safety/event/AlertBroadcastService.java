@@ -26,16 +26,33 @@ public class AlertBroadcastService {
         SafetyEventDto publishedEvent = event.withPublishedAtMs(System.currentTimeMillis());
         log.info("Broadcasting safety event to {}: type={}, cameraId={}, severity={}",
                 topic, publishedEvent.type(), publishedEvent.cameraId(), publishedEvent.severity());
-        log.info("[ai-alert-latency] STOMP safety event publishing destination={} cameraId={} cameraLoginId={} type={} trackId={} capturedAtMs={} processedAtMs={} mqttReceivedAtMs={} publishedAtMs={}",
+        log.info("[ai-alert-latency] STOMP safety event publishing destination={} cameraId={} cameraLoginId={} eventId={} type={} severity={} trackId={} capturedAtMs={} processedAtMs={} mqttPublishStartedAtMs={} mqttPublishedAtMs={} mqttReceivedAtMs={} stompPublishedAtMs={} processedToMqttMs={} mqttToBackendMs={} backendToStompMs={} processedToBackendMs={} clipPath={} clipUrl={}",
                 topic,
                 publishedEvent.cameraId(),
                 publishedEvent.cameraLoginId(),
+                publishedEvent.eventId(),
                 publishedEvent.type(),
+                publishedEvent.severity(),
                 publishedEvent.trackId(),
                 publishedEvent.capturedAtMs(),
                 publishedEvent.processedAtMs(),
+                publishedEvent.mqttPublishStartedAtMs(),
+                publishedEvent.mqttPublishedAtMs(),
                 publishedEvent.mqttReceivedAtMs(),
-                publishedEvent.publishedAtMs());
+                publishedEvent.publishedAtMs(),
+                elapsed(publishedEvent.processedAtMs(), publishedEvent.mqttPublishedAtMs()),
+                elapsed(publishedEvent.mqttPublishedAtMs(), publishedEvent.mqttReceivedAtMs()),
+                elapsed(publishedEvent.mqttReceivedAtMs(), publishedEvent.publishedAtMs()),
+                elapsed(publishedEvent.processedAtMs(), publishedEvent.mqttReceivedAtMs()),
+                publishedEvent.clipPath(),
+                publishedEvent.clipUrl());
         messagingTemplate.convertAndSend(topic, publishedEvent);
+    }
+
+    private Long elapsed(Long startAtMs, Long endAtMs) {
+        if (startAtMs == null || endAtMs == null) {
+            return null;
+        }
+        return endAtMs - startAtMs;
     }
 }

@@ -79,14 +79,23 @@ public class MqttSafetyEventSubscriber {
             long mqttReceivedAtMs = System.currentTimeMillis();
             SafetyEventDto event = objectMapper.readValue(payload, SafetyEventDto.class)
                     .withMqttReceivedAtMs(mqttReceivedAtMs);
-            log.info("[ai-alert-latency] MQTT safety event received cameraId={} cameraLoginId={} type={} trackId={} capturedAtMs={} processedAtMs={} mqttReceivedAtMs={}",
+            log.info("[ai-alert-latency] MQTT safety event received cameraId={} cameraLoginId={} eventId={} type={} severity={} trackId={} capturedAtMs={} processedAtMs={} mqttPublishStartedAtMs={} mqttPublishedAtMs={} mqttReceivedAtMs={} processedToMqttMs={} mqttToBackendMs={} processedToBackendMs={} clipPath={} clipUrl={}",
                     event.cameraId(),
                     event.cameraLoginId(),
+                    event.eventId(),
                     event.type(),
+                    event.severity(),
                     event.trackId(),
                     event.capturedAtMs(),
                     event.processedAtMs(),
-                    event.mqttReceivedAtMs());
+                    event.mqttPublishStartedAtMs(),
+                    event.mqttPublishedAtMs(),
+                    event.mqttReceivedAtMs(),
+                    elapsed(event.processedAtMs(), event.mqttPublishedAtMs()),
+                    elapsed(event.mqttPublishedAtMs(), event.mqttReceivedAtMs()),
+                    elapsed(event.processedAtMs(), event.mqttReceivedAtMs()),
+                    event.clipPath(),
+                    event.clipUrl());
             asyncEventProcessorService.processEvent(event);
         } catch (Exception e) {
             log.error("[MQTT Debug] Failed to process MQTT safety event: payload={}, error={}", payload, e.getMessage(), e);
@@ -126,5 +135,12 @@ public class MqttSafetyEventSubscriber {
             return new String(bytes, StandardCharsets.UTF_8);
         }
         return String.valueOf(payload);
+    }
+
+    private Long elapsed(Long startAtMs, Long endAtMs) {
+        if (startAtMs == null || endAtMs == null) {
+            return null;
+        }
+        return endAtMs - startAtMs;
     }
 }

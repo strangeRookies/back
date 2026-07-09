@@ -154,6 +154,8 @@ class MqttSafetyEventSubscriberTest {
                   "timestamp": 1783410062.653,
                   "capturedAtMs": 1783410059000,
                   "processedAtMs": 1783410062400,
+                  "mqttPublishStartedAtMs": 1783410062500,
+                  "mqttPublishedAtMs": 1783410062500,
                   "trackId": "3"
                 }
                 """;
@@ -168,6 +170,8 @@ class MqttSafetyEventSubscriberTest {
         assertThat(event.cameraLoginId()).isEqualTo("cam_05");
         assertThat(event.capturedAtMs()).isEqualTo(1783410059000L);
         assertThat(event.processedAtMs()).isEqualTo(1783410062400L);
+        assertThat(event.mqttPublishStartedAtMs()).isEqualTo(1783410062500L);
+        assertThat(event.mqttPublishedAtMs()).isEqualTo(1783410062500L);
         assertThat(event.mqttReceivedAtMs()).isNotNull();
         assertThat(event.publishedAtMs()).isNull();
     }

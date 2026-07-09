@@ -108,6 +108,14 @@ public record SafetyEventDto(
         @JsonAlias({"processedAtMs", "processed_at_ms"})
         Long processedAtMs,
 
+        @JsonProperty("mqttPublishStartedAtMs")
+        @JsonAlias({"mqttPublishStartedAtMs", "mqtt_publish_started_at_ms"})
+        Long mqttPublishStartedAtMs,
+
+        @JsonProperty("mqttPublishedAtMs")
+        @JsonAlias({"mqttPublishedAtMs", "mqtt_published_at_ms"})
+        Long mqttPublishedAtMs,
+
         @JsonProperty("publishedAtMs")
         @JsonAlias({"publishedAtMs", "published_at_ms"})
         Long publishedAtMs,
@@ -146,16 +154,18 @@ public record SafetyEventDto(
     }
 
     public SafetyEventDto withMqttReceivedAtMs(long mqttReceivedAtMs) {
-        return copy(capturedAtMs, processedAtMs, publishedAtMs, mqttReceivedAtMs);
+        return copy(capturedAtMs, processedAtMs, mqttPublishStartedAtMs, mqttPublishedAtMs, publishedAtMs, mqttReceivedAtMs);
     }
 
     public SafetyEventDto withPublishedAtMs(long publishedAtMs) {
-        return copy(capturedAtMs, processedAtMs, publishedAtMs, mqttReceivedAtMs);
+        return copy(capturedAtMs, processedAtMs, mqttPublishStartedAtMs, mqttPublishedAtMs, publishedAtMs, mqttReceivedAtMs);
     }
 
     private SafetyEventDto copy(
             Long capturedAtMs,
             Long processedAtMs,
+            Long mqttPublishStartedAtMs,
+            Long mqttPublishedAtMs,
             Long publishedAtMs,
             Long mqttReceivedAtMs) {
         return new SafetyEventDto(
@@ -176,6 +186,8 @@ public record SafetyEventDto(
                 clipUrl,
                 capturedAtMs,
                 processedAtMs,
+                mqttPublishStartedAtMs,
+                mqttPublishedAtMs,
                 publishedAtMs,
                 mqttReceivedAtMs);
     }

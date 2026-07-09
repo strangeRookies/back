@@ -182,6 +182,8 @@ class AlertEventServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
         );
     }
