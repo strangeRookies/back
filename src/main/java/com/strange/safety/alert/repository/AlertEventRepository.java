@@ -17,6 +17,8 @@ public interface AlertEventRepository extends JpaRepository<AlertEvent, Long>,
 
     Optional<AlertEvent> findByEventId(String eventId);
 
+    boolean existsByEventId(String eventId);
+
     @Query("SELECT COUNT(a) FROM AlertEvent a JOIN a.camera c JOIN c.facility f " +
            "WHERE f.id = :facilityId AND a.detectedAt >= :dateFrom AND a.detectedAt <= :dateTo")
     long countByFacilityAndDateRange(@Param("facilityId") Long facilityId,

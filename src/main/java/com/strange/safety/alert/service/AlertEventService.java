@@ -422,6 +422,15 @@ public class AlertEventService {
         return alertEventRepository.findByEventId(eventId.trim()).orElse(null);
     }
 
+    /**
+     * 낙상 하나당 MQTT가 두 번(즉시 발행 + 클립 완성 후 재발행) 오는데, 두 번째는 이미
+     * alert_events 행이 있는 재발행이므로 WebSocket/FCM 알림을 다시 보내면 안 된다.
+     * AsyncEventProcessorService에서 broadcast 전에 호출해서 중복 알림을 막는다.
+     */
+    public boolean isAlreadyNotified(String eventId) {
+        return eventId != null && !eventId.isBlank() && alertEventRepository.existsByEventId(eventId);
+    }
+
     private AlertEventResponse toResponseWithFirstSnapshot(AlertEvent event) {
         String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                 s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());

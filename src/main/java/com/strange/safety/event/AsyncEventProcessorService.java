@@ -40,10 +40,15 @@ public class AsyncEventProcessorService {
                 }
             }
 
-            log.info("[MQTT Async] Parsed event. type={}, cameraId={}, targetId={}, isCorporate={}", 
+            log.info("[MQTT Async] Parsed event. type={}, cameraId={}, targetId={}, isCorporate={}",
                     event.type(), event.cameraId(), targetId, isCorporate);
-            alertBroadcastService.broadcast(targetId, isCorporate, event);
-            fcmService.sendAlertNotification(event);
+            if (alertEventService.isAlreadyNotified(event.eventId())) {
+                log.info("[MQTT Async] eventId={} already has an alert row; skipping duplicate broadcast/FCM (clip re-publish).",
+                        event.eventId());
+            } else {
+                alertBroadcastService.broadcast(targetId, isCorporate, event);
+                fcmService.sendAlertNotification(event);
+            }
         } catch (RuntimeException ex) {
             log.error("Failed to broadcast safety event asynchronously: cameraId={}, type={}, error={}",
                     event.cameraId(), event.type(), ex.getMessage(), ex);
