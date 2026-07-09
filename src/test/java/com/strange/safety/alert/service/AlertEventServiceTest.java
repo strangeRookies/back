@@ -22,6 +22,7 @@ import com.strange.safety.scenario.entity.Scenario;
 import com.strange.safety.scenario.entity.ScenarioType;
 import com.strange.safety.scenario.repository.ScenarioRepository;
 import com.strange.safety.user.repository.UserRepository;
+import com.strange.safety.vlm.service.VlmDescriptionEnqueueService;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -66,6 +67,9 @@ class AlertEventServiceTest {
     @Mock
     private S3Service s3Service;
 
+    @Mock
+    private VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
+
     private AlertEventService alertEventService;
 
     @BeforeEach
@@ -81,7 +85,8 @@ class AlertEventServiceTest {
                 scenarioRepository,
                 new ObjectMapper(),
                 recentAlertCacheStore,
-                s3Service
+                s3Service,
+                vlmDescriptionEnqueueService
         );
     }
 
@@ -160,6 +165,23 @@ class AlertEventServiceTest {
 
         assertThat(response.getAlertEventId()).isEqualTo(40L);
         verify(alertEventRepository).save(any(AlertEvent.class));
+    }
+
+    @Test
+    void createEventReturnsExistingEventWhenEventIdWasAlreadyPersisted() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent existingEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEvent("cam_01");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getAlertEventId()).isEqualTo(40L);
+        verify(alertEventRepository, never()).save(any(AlertEvent.class));
+        verify(vlmDescriptionEnqueueService, never()).enqueueIfMediaExists(any(AlertEvent.class));
     }
 
     private SafetyEventDto safetyEvent(String cameraLoginId) {
