@@ -162,6 +162,24 @@ class AlertEventServiceTest {
         verify(alertEventRepository).save(any(AlertEvent.class));
     }
 
+    @Test
+    void createEventReturnsExistingEventWhenEventIdIsDuplicated() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent existingEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEvent("cam_01");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getAlertEventId()).isEqualTo(40L);
+        verify(alertEventRepository, never()).save(any(AlertEvent.class));
+        verify(cameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());
+        verify(recentAlertCacheStore, never()).add(any(), any());
+    }
+
     private SafetyEventDto safetyEvent(String cameraLoginId) {
         return new SafetyEventDto(
                 null,
@@ -225,6 +243,7 @@ class AlertEventServiceTest {
                 .severity(com.strange.safety.alert.entity.AlertSeverity.CRITICAL)
                 .keypointData("message")
                 .detectedAt(LocalDateTime.of(2026, 6, 19, 0, 0))
+                .eventId("test-event-id")
                 .build();
         ReflectionTestUtils.setField(event, "id", id);
         return event;

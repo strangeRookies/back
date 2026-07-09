@@ -321,6 +321,13 @@ public class AlertEventService {
 
     @Transactional
     public AlertEventResponse createEvent(SafetyEventDto dto) {
+        AlertEventResponse duplicateResponse = findExistingEventResponse(dto.eventId());
+        if (duplicateResponse != null) {
+            log.warn("Skipping duplicate MQTT safety alert event: eventId={}, cameraLoginId={}, cameraId={}, type={}",
+                    dto.eventId(), dto.cameraLoginId(), dto.cameraId(), dto.type());
+            return duplicateResponse;
+        }
+
         String cameraIdVal = firstNonBlank(dto.cameraLoginId(), dto.cameraId(), "cam_01");
 
         // Convert "cam1", "cam2" or "CCTV-01" into DB format "cam_01"
@@ -405,6 +412,19 @@ public class AlertEventService {
         log.info("Saved MQTT safety alert event: alertEventId={}, cameraLoginId={}, scenarioType={}, severity={}, confidence={}, trackId={}",
                 saved.getId(), finalCameraIdVal, scenarioType, severity, confidenceScore, dto.trackId());
         return response;
+    }
+
+    private AlertEventResponse findExistingEventResponse(String eventId) {
+        if (eventId == null || eventId.isBlank()) {
+            return null;
+        }
+        return alertEventRepository.findByEventId(eventId.trim())
+                .map(existing -> {
+                    String snapshotUrl = existing.getSnapshots().isEmpty() ? null :
+                            s3Service.generatePresignedUrl(existing.getSnapshots().get(0).getSnapshotUrl());
+                    return AlertEventResponse.from(existing, snapshotUrl);
+                })
+                .orElse(null);
     }
 
     private String firstNonBlank(String... values) {

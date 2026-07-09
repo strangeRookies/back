@@ -1,6 +1,8 @@
 package com.strange.safety.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +18,8 @@ import org.springframework.messaging.MessageChannel;
 @Configuration
 @IntegrationComponentScan
 public class MqttConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(MqttConfig.class);
 
     @Value("${mqtt.broker-url}")
     private String brokerUrl;
@@ -61,6 +65,12 @@ public class MqttConfig {
 
     @Bean
     public MessageProducer inbound() {
+        log.info("Configuring MQTT inbound adapter: brokerUrl={}, clientId={}, topics=[{}, {}, {}], qos=[1, 1, 0], automaticReconnect=true",
+                brokerUrl,
+                clientId + "-integration",
+                safetyEventsTopic,
+                cameraStatusTopic,
+                overlayTopic);
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
                 clientId + "-integration",
                 mqttClientFactory(),

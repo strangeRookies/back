@@ -42,7 +42,12 @@ public class MqttSafetyEventSubscriber {
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void messageArrived(Message<?> message) {
+        long rawMqttReceivedAtMs = System.currentTimeMillis();
         String topic = String.valueOf(message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC));
+        if (!overlayTopic.equals(topic)) {
+            log.info("[ai-alert-latency] MQTT raw received topic={} rawMqttReceivedAtMs={} thread={}",
+                    topic, rawMqttReceivedAtMs, Thread.currentThread().getName());
+        }
         String payload = payloadAsString(message.getPayload());
 
         if (overlayTopic.equals(topic)) {
@@ -55,7 +60,7 @@ public class MqttSafetyEventSubscriber {
         if (CAMERA_STATUS_TOPIC.equals(topic)) {
             handleCameraStatusEvent(payload);
         } else {
-            handleSafetyEvent(payload);
+            handleSafetyEvent(payload, rawMqttReceivedAtMs);
         }
     }
 
@@ -74,12 +79,12 @@ public class MqttSafetyEventSubscriber {
         }
     }
 
-    private void handleSafetyEvent(String payload) {
+    private void handleSafetyEvent(String payload, long rawMqttReceivedAtMs) {
         try {
-            long mqttReceivedAtMs = System.currentTimeMillis();
+            long mqttReceivedAtMs = rawMqttReceivedAtMs;
             SafetyEventDto event = objectMapper.readValue(payload, SafetyEventDto.class)
                     .withMqttReceivedAtMs(mqttReceivedAtMs);
-            log.info("[ai-alert-latency] MQTT safety event received cameraId={} cameraLoginId={} eventId={} type={} severity={} trackId={} capturedAtMs={} processedAtMs={} mqttPublishStartedAtMs={} mqttPublishedAtMs={} mqttReceivedAtMs={} processedToMqttMs={} mqttToBackendMs={} processedToBackendMs={} clipPath={} clipUrl={}",
+            log.info("[ai-alert-latency] MQTT safety event received cameraId={} cameraLoginId={} eventId={} type={} severity={} trackId={} capturedAtMs={} processedAtMs={} mqttPublishStartedAtMs={} mqttPublishedAtMs={} mqttReceivedAtMs={} rawToSafetyHandlerMs={} processedToMqttMs={} mqttToBackendMs={} processedToBackendMs={} clipPath={} clipUrl={}",
                     event.cameraId(),
                     event.cameraLoginId(),
                     event.eventId(),
@@ -91,6 +96,7 @@ public class MqttSafetyEventSubscriber {
                     event.mqttPublishStartedAtMs(),
                     event.mqttPublishedAtMs(),
                     event.mqttReceivedAtMs(),
+                    System.currentTimeMillis() - rawMqttReceivedAtMs,
                     elapsed(event.processedAtMs(), event.mqttPublishedAtMs()),
                     elapsed(event.mqttPublishedAtMs(), event.mqttReceivedAtMs()),
                     elapsed(event.processedAtMs(), event.mqttReceivedAtMs()),
