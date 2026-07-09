@@ -109,4 +109,9 @@ public class AlertEvent extends BaseEntity {
         this.acknowledgedAt = LocalDateTime.now();
         this.resolvedAt = LocalDateTime.now();
     }
+
+    public void attachClip(String clipUrl, String clipPath) {
+        this.clipUrl = clipUrl;
+        this.clipPath = clipPath;
+    }
 }

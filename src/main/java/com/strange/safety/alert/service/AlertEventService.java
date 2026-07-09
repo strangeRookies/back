@@ -325,9 +325,7 @@ public class AlertEventService {
     public AlertEventResponse createEvent(SafetyEventDto dto) {
         AlertEvent existingEvent = findExistingEvent(dto.eventId());
         if (existingEvent != null) {
-            log.warn("Skipping duplicate MQTT safety alert event: alertEventId={}, eventId={}, cameraLoginId={}, cameraId={}, type={}",
-                    existingEvent.getId(), dto.eventId(), dto.cameraLoginId(), dto.cameraId(), dto.type());
-            return toResponseWithFirstSnapshot(existingEvent);
+            return attachClipToExisting(existingEvent, dto);
         }
 
         String cameraIdVal = firstNonBlank(dto.cameraLoginId(), dto.cameraId(), "cam_01");
@@ -428,6 +426,47 @@ public class AlertEventService {
         String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                 s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
         return AlertEventResponse.from(event, snapshotUrl);
+    }
+
+    /**
+     * 낙상 즉시 발행(clip_url 없음)으로 이미 만들어진 alert_events 행에, 클립 인코딩+S3 업로드가
+     * 끝난 뒤 같은 eventId로 재발행된 clip_url/clip_path를 붙인다. 새 행을 INSERT하지 않으므로
+     * event_id unique 제약 위반 없이 항상 반영된다. 이번 메시지에 clip_url이 없으면(순수 중복
+     * 재발행) 기존 스냅샷 기준으로 응답만 돌려주고 스킵한다.
+     */
+    @Transactional
+    protected AlertEventResponse attachClipToExisting(AlertEvent existing, SafetyEventDto dto) {
+        String clipUrl = dto.clipUrl();
+        if (clipUrl == null || clipUrl.isBlank()) {
+            log.info("Skipped duplicate MQTT safety alert event: alertEventId={}, eventId={}",
+                    existing.getId(), dto.eventId());
+            return toResponseWithFirstSnapshot(existing);
+        }
+
+        existing.attachClip(clipUrl, dto.clipPath());
+
+        String s3Key = clipUrl;
+        if (s3Key.contains(".amazonaws.com/")) {
+            s3Key = s3Key.substring(s3Key.indexOf(".amazonaws.com/") + 15);
+        }
+
+        String snapshotUrl = null;
+        if (!s3Key.trim().isEmpty()) {
+            if (snapshotRepository.findByAlertEvent_Id(existing.getId()).isEmpty()) {
+                Snapshot snapshot = Snapshot.builder()
+                        .alertEvent(existing)
+                        .snapshotUrl(s3Key)
+                        .fileSizeBytes(null)
+                        .build();
+                snapshotRepository.save(snapshot);
+                log.info("Attached snapshot to existing alertEvent: alertEventId={}, eventId={}, snapshotUrl={}",
+                        existing.getId(), dto.eventId(), s3Key);
+            }
+            snapshotUrl = s3Service.generatePresignedUrl(s3Key);
+            vlmDescriptionEnqueueService.enqueueIfMediaExists(existing);
+        }
+
+        return AlertEventResponse.from(existing, snapshotUrl);
     }
 
     private String firstNonBlank(String... values) {
