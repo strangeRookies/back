@@ -111,4 +111,16 @@ aws:
     bucket: ${AWS_S3_BUCKET:safety-risk-media-bucket}
     region: ${AWS_S3_REGION:ap-northeast-2}
 
+vlm:
+  mock-mode: ${VLM_MOCK_MODE:true}
+  scheduler-delay-ms: ${VLM_SCHEDULER_DELAY_MS:15000}
+  batch-size: ${VLM_BATCH_SIZE:2}
+  timeout-seconds: ${VLM_TIMEOUT_SECONDS:120}
+  max-retries: ${VLM_MAX_RETRIES:3}
+  prompt-version: ${VLM_PROMPT_VERSION:v1}
+  model-name: ${VLM_MODEL_NAME:mock-vlm}
+  python-executable: ${VLM_PYTHON_EXECUTABLE:python}
+  process-script: ${VLM_PROCESS_SCRIPT:../strange_ai/scripts/process_vlm.py}
+  gemini-api-key: ${GEMINI_API_KEY:}
+
     

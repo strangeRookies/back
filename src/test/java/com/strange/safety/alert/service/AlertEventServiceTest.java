@@ -22,6 +22,7 @@ import com.strange.safety.scenario.entity.Scenario;
 import com.strange.safety.scenario.entity.ScenarioType;
 import com.strange.safety.scenario.repository.ScenarioRepository;
 import com.strange.safety.user.repository.UserRepository;
+import com.strange.safety.vlm.service.VlmDescriptionEnqueueService;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -66,6 +67,9 @@ class AlertEventServiceTest {
     @Mock
     private S3Service s3Service;
 
+    @Mock
+    private VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
+
     private AlertEventService alertEventService;
 
     @BeforeEach
@@ -81,7 +85,8 @@ class AlertEventServiceTest {
                 scenarioRepository,
                 new ObjectMapper(),
                 recentAlertCacheStore,
-                s3Service
+                s3Service,
+                vlmDescriptionEnqueueService
         );
     }
 
@@ -163,7 +168,7 @@ class AlertEventServiceTest {
     }
 
     @Test
-    void createEventReturnsExistingEventWhenEventIdIsDuplicated() {
+    void createEventReturnsExistingEventWhenEventIdWasAlreadyPersisted() {
         Facility facility = facility(10L);
         Camera camera = camera(20L, facility);
         Scenario scenario = scenario(30L);
@@ -178,6 +183,7 @@ class AlertEventServiceTest {
         verify(alertEventRepository, never()).save(any(AlertEvent.class));
         verify(cameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());
         verify(recentAlertCacheStore, never()).add(any(), any());
+        verify(vlmDescriptionEnqueueService, never()).enqueueIfMediaExists(any(AlertEvent.class));
     }
 
     private SafetyEventDto safetyEvent(String cameraLoginId) {

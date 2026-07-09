@@ -29,6 +29,7 @@ import com.strange.safety.scenario.entity.ScenarioType;
 import com.strange.safety.scenario.repository.ScenarioRepository;
 import com.strange.safety.user.entity.User;
 import com.strange.safety.user.repository.UserRepository;
+import com.strange.safety.vlm.service.VlmDescriptionEnqueueService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,7 @@ public class AlertEventService {
     private final ObjectMapper objectMapper;
     private final RecentAlertCacheStore recentAlertCacheStore;
     private final S3Service s3Service;
+    private final VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
 
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
@@ -321,11 +323,11 @@ public class AlertEventService {
 
     @Transactional
     public AlertEventResponse createEvent(SafetyEventDto dto) {
-        AlertEventResponse duplicateResponse = findExistingEventResponse(dto.eventId());
-        if (duplicateResponse != null) {
-            log.warn("Skipping duplicate MQTT safety alert event: eventId={}, cameraLoginId={}, cameraId={}, type={}",
-                    dto.eventId(), dto.cameraLoginId(), dto.cameraId(), dto.type());
-            return duplicateResponse;
+        AlertEvent existingEvent = findExistingEvent(dto.eventId());
+        if (existingEvent != null) {
+            log.warn("Skipping duplicate MQTT safety alert event: alertEventId={}, eventId={}, cameraLoginId={}, cameraId={}, type={}",
+                    existingEvent.getId(), dto.eventId(), dto.cameraLoginId(), dto.cameraId(), dto.type());
+            return toResponseWithFirstSnapshot(existingEvent);
         }
 
         String cameraIdVal = firstNonBlank(dto.cameraLoginId(), dto.cameraId(), "cam_01");
@@ -383,6 +385,7 @@ public class AlertEventService {
                 .build();
 
         AlertEvent saved = alertEventRepository.save(event);
+        vlmDescriptionEnqueueService.enqueueIfMediaExists(saved);
         
         String s3Key = dto.clipUrl();
         if (s3Key != null && s3Key.contains(".amazonaws.com/")) {
@@ -414,17 +417,17 @@ public class AlertEventService {
         return response;
     }
 
-    private AlertEventResponse findExistingEventResponse(String eventId) {
+    private AlertEvent findExistingEvent(String eventId) {
         if (eventId == null || eventId.isBlank()) {
             return null;
         }
-        return alertEventRepository.findByEventId(eventId.trim())
-                .map(existing -> {
-                    String snapshotUrl = existing.getSnapshots().isEmpty() ? null :
-                            s3Service.generatePresignedUrl(existing.getSnapshots().get(0).getSnapshotUrl());
-                    return AlertEventResponse.from(existing, snapshotUrl);
-                })
-                .orElse(null);
+        return alertEventRepository.findByEventId(eventId.trim()).orElse(null);
+    }
+
+    private AlertEventResponse toResponseWithFirstSnapshot(AlertEvent event) {
+        String snapshotUrl = event.getSnapshots().isEmpty() ? null :
+                s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
+        return AlertEventResponse.from(event, snapshotUrl);
     }
 
     private String firstNonBlank(String... values) {
