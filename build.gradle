@@ -83,4 +83,14 @@ tasks.register('runAllTests', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.strange.safety.camera.service.TestRunner'
 }
+
+tasks.register('runMockVlmRagTests', JavaExec) {
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.strange.safety.vlm.mock.MockVlmRagTestRunner'
+}
+
+tasks.register('runMockVlmRagDemo', JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.strange.safety.vlm.mock.MockVlmRagDemo'
+}
 check.dependsOn runAllTests
