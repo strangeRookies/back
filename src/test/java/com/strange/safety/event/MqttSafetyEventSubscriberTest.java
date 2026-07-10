@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strange.safety.camera.overlay.OverlayMessage;
 import com.strange.safety.camera.overlay.OverlayRelayService;
@@ -24,6 +25,48 @@ class MqttSafetyEventSubscriberTest {
 
     @Mock
     private OverlayRelayService overlayRelayService;
+
+    @Test
+    void serializesRealtimeAndEvidenceFlagsForStompPayload() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        SafetyEventDto event = new SafetyEventDto(
+                "event",
+                "realtime",
+                "frame-1",
+                "faint",
+                null,
+                "cam_05",
+                "evt-1",
+                "2026-07-09T00:00:00Z",
+                "HIGH",
+                "AI safety event detected",
+                null,
+                0.9f,
+                null,
+                null,
+                "track-1",
+                null,
+                null,
+                1783410059000L,
+                1783410062400L,
+                1783410062500L,
+                1783410062500L,
+                1783410062700L,
+                1783410062600L
+        );
+
+        JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(event));
+
+        assertThat(json.get("eventPhase").asText()).isEqualTo("realtime");
+        assertThat(json.get("frameId").asText()).isEqualTo("frame-1");
+        assertThat(json.get("realtimeEvent").asBoolean()).isTrue();
+        assertThat(json.get("evidenceEvent").asBoolean()).isFalse();
+        assertThat(json.get("capturedAtMs").asLong()).isEqualTo(1783410059000L);
+        assertThat(json.get("processedAtMs").asLong()).isEqualTo(1783410062400L);
+        assertThat(json.get("mqttPublishedAtMs").asLong()).isEqualTo(1783410062500L);
+        assertThat(json.get("mqttReceivedAtMs").asLong()).isEqualTo(1783410062600L);
+        assertThat(json.get("publishedAtMs").asLong()).isEqualTo(1783410062700L);
+    }
 
     @Test
     void routesCamelCaseOverlayMessageWithoutInvokingSafetyEventFlow() {
@@ -149,6 +192,8 @@ class MqttSafetyEventSubscriberTest {
         String payload = """
                 {
                   "cameraLoginId": "cam_05",
+                  "eventPhase": "realtime",
+                  "frameId": "frame-1",
                   "eventType": "faint",
                   "severity": "HIGH",
                   "timestamp": 1783410062.653,
@@ -168,11 +213,110 @@ class MqttSafetyEventSubscriberTest {
         verify(asyncEventProcessorService).processEvent(captor.capture());
         SafetyEventDto event = captor.getValue();
         assertThat(event.cameraLoginId()).isEqualTo("cam_05");
+        assertThat(event.eventPhase()).isEqualTo("realtime");
+        assertThat(event.frameId()).isEqualTo("frame-1");
+        assertThat(event.isRealtimeEvent()).isTrue();
+        assertThat(event.isEvidenceEvent()).isFalse();
         assertThat(event.capturedAtMs()).isEqualTo(1783410059000L);
         assertThat(event.processedAtMs()).isEqualTo(1783410062400L);
         assertThat(event.mqttPublishStartedAtMs()).isEqualTo(1783410062500L);
         assertThat(event.mqttPublishedAtMs()).isEqualTo(1783410062500L);
         assertThat(event.mqttReceivedAtMs()).isNotNull();
         assertThat(event.publishedAtMs()).isNull();
+    }
+
+    @Test
+    void mapsEvidenceEventPhaseWithoutInvokingOverlayFlow() {
+        MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
+                new ObjectMapper(),
+                asyncEventProcessorService,
+                overlayRelayService,
+                "camera");
+        String payload = """
+                {
+                  "messageType": "event",
+                  "eventPhase": "evidence",
+                  "frame_id": "frame-2",
+                  "cameraLoginId": "cam_05",
+                  "eventId": "evt-1",
+                  "eventType": "faint",
+                  "clip_url": "https://example.com/clip.mp4",
+                  "capturedAtMs": 1783410059000,
+                  "processedAtMs": 1783410062400,
+                  "mqttPublishedAtMs": 1783410062500
+                }
+                """;
+
+        subscriber.messageArrived(MessageBuilder.withPayload(payload)
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, "event")
+                .build());
+
+        ArgumentCaptor<SafetyEventDto> captor = ArgumentCaptor.forClass(SafetyEventDto.class);
+        verify(asyncEventProcessorService).processEvent(captor.capture());
+        SafetyEventDto event = captor.getValue();
+        assertThat(event.eventPhase()).isEqualTo("evidence");
+        assertThat(event.frameId()).isEqualTo("frame-2");
+        assertThat(event.clipUrl()).isEqualTo("https://example.com/clip.mp4");
+        assertThat(event.isRealtimeEvent()).isFalse();
+        assertThat(event.isEvidenceEvent()).isTrue();
+    }
+
+    @Test
+    void treatsClipUrlAsEvidenceWhenEventPhaseIsMissing() {
+        MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
+                new ObjectMapper(),
+                asyncEventProcessorService,
+                overlayRelayService,
+                "camera");
+        String payload = """
+                {
+                  "messageType": "event",
+                  "cameraLoginId": "cam_05",
+                  "eventId": "evt-2",
+                  "eventType": "faint",
+                  "clip_url": "https://example.com/clip.mp4"
+                }
+                """;
+
+        subscriber.messageArrived(MessageBuilder.withPayload(payload)
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, "event")
+                .build());
+
+        ArgumentCaptor<SafetyEventDto> captor = ArgumentCaptor.forClass(SafetyEventDto.class);
+        verify(asyncEventProcessorService).processEvent(captor.capture());
+        SafetyEventDto event = captor.getValue();
+        assertThat(event.eventPhase()).isEqualTo("evidence");
+        assertThat(event.isRealtimeEvent()).isFalse();
+        assertThat(event.isEvidenceEvent()).isTrue();
+    }
+
+    @Test
+    void treatsMissingEventPhaseWithoutClipAsRealtime() {
+        MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
+                new ObjectMapper(),
+                asyncEventProcessorService,
+                overlayRelayService,
+                "camera");
+        String payload = """
+                {
+                  "messageType": "event",
+                  "cameraLoginId": "cam_05",
+                  "eventId": "evt-3",
+                  "eventType": "faint",
+                  "capturedAtMs": 1783410059000,
+                  "processedAtMs": 1783410062400
+                }
+                """;
+
+        subscriber.messageArrived(MessageBuilder.withPayload(payload)
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, "event")
+                .build());
+
+        ArgumentCaptor<SafetyEventDto> captor = ArgumentCaptor.forClass(SafetyEventDto.class);
+        verify(asyncEventProcessorService).processEvent(captor.capture());
+        SafetyEventDto event = captor.getValue();
+        assertThat(event.eventPhase()).isEqualTo("realtime");
+        assertThat(event.isRealtimeEvent()).isTrue();
+        assertThat(event.isEvidenceEvent()).isFalse();
     }
 }

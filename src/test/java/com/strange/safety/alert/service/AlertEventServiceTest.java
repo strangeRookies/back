@@ -186,9 +186,57 @@ class AlertEventServiceTest {
         verify(vlmDescriptionEnqueueService, never()).enqueueIfMediaExists(any(AlertEvent.class));
     }
 
+    @Test
+    void createEventAttachesEvidenceClipToExistingEvent() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent existingEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = evidenceEvent("cam_01");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
+        when(snapshotRepository.findByAlertEvent_Id(40L)).thenReturn(List.of());
+        when(s3Service.generatePresignedUrl("clips/test.mp4")).thenReturn("https://signed.example.com/clips/test.mp4");
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getAlertEventId()).isEqualTo(40L);
+        assertThat(existingEvent.getClipUrl()).isEqualTo("clips/test.mp4");
+        assertThat(existingEvent.getClipPath()).isEqualTo("clips/test.mp4");
+        verify(alertEventRepository, never()).save(any(AlertEvent.class));
+        verify(snapshotRepository).save(any());
+        verify(recentAlertCacheStore, never()).add(any(), any());
+        verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
+    }
+
+    @Test
+    void createEventStoresEvidenceFirstEventWithoutRecentAlertCache() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent savedEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = evidenceEvent("cam_01");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.empty());
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
+        when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
+        when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getAlertEventId()).isEqualTo(40L);
+        verify(alertEventRepository).save(any(AlertEvent.class));
+        verify(snapshotRepository).save(any());
+        verify(recentAlertCacheStore, never()).add(any(), any());
+        verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(savedEvent);
+    }
+
     private SafetyEventDto safetyEvent(String cameraLoginId) {
         return new SafetyEventDto(
                 null,
+                null,
+                "frame-1",
                 "SYNCOPE",
                 null,
                 cameraLoginId,
@@ -209,6 +257,34 @@ class AlertEventServiceTest {
                 null,
                 null,
                 null
+        );
+    }
+
+    private SafetyEventDto evidenceEvent(String cameraLoginId) {
+        return new SafetyEventDto(
+                "event",
+                "evidence",
+                "frame-1",
+                "SYNCOPE",
+                null,
+                cameraLoginId,
+                "test-event-id",
+                Instant.parse("2026-06-19T00:00:00Z").toString(),
+                "CRITICAL",
+                "AI safety event evidence",
+                null,
+                0.9f,
+                null,
+                null,
+                "track-1",
+                "clips/test.mp4",
+                "clips/test.mp4",
+                1783410059000L,
+                1783410062400L,
+                1783410062500L,
+                1783410062500L,
+                null,
+                1783410062600L
         );
     }
 

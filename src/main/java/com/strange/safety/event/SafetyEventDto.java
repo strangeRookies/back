@@ -36,6 +36,14 @@ public record SafetyEventDto(
         @JsonAlias({"message_type", "messageType"})
         String messageType,
 
+        @JsonProperty("eventPhase")
+        @JsonAlias({"eventPhase", "event_phase"})
+        String eventPhase,
+
+        @JsonProperty("frameId")
+        @JsonAlias({"frameId", "frame_id"})
+        String frameId,
+
         /**
          * 이상행동 유형. AI 서버는 "event_type" 키로 전송한다.
          * e.g. "Faint", "Fall", "Fight"
@@ -161,6 +169,33 @@ public record SafetyEventDto(
         return copy(capturedAtMs, processedAtMs, mqttPublishStartedAtMs, mqttPublishedAtMs, publishedAtMs, mqttReceivedAtMs);
     }
 
+    @JsonProperty("eventPhase")
+    public String eventPhase() {
+        if (eventPhase != null && !eventPhase.isBlank()) {
+            return eventPhase;
+        }
+        return isEvidenceEvent() ? "evidence" : "realtime";
+    }
+
+    @JsonProperty("evidenceEvent")
+    public boolean isEvidenceEvent() {
+        if (eventPhase != null && "evidence".equalsIgnoreCase(eventPhase.trim())) {
+            return true;
+        }
+        if (eventPhase != null && "realtime".equalsIgnoreCase(eventPhase.trim())) {
+            return false;
+        }
+        return hasText(clipUrl) || hasText(clipPath);
+    }
+
+    @JsonProperty("realtimeEvent")
+    public boolean isRealtimeEvent() {
+        if (eventPhase != null && "realtime".equalsIgnoreCase(eventPhase.trim())) {
+            return true;
+        }
+        return !isEvidenceEvent();
+    }
+
     private SafetyEventDto copy(
             Long capturedAtMs,
             Long processedAtMs,
@@ -170,6 +205,8 @@ public record SafetyEventDto(
             Long mqttReceivedAtMs) {
         return new SafetyEventDto(
                 messageType,
+                eventPhase,
+                frameId,
                 type,
                 cameraId,
                 cameraLoginId,
@@ -190,5 +227,9 @@ public record SafetyEventDto(
                 mqttPublishedAtMs,
                 publishedAtMs,
                 mqttReceivedAtMs);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

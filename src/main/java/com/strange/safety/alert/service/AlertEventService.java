@@ -404,12 +404,17 @@ public class AlertEventService {
         String snapshotUrl = (s3Key != null && !s3Key.trim().isEmpty()) ? s3Service.generatePresignedUrl(s3Key) : null;
         AlertEventResponse response = AlertEventResponse.from(saved, snapshotUrl);
 
-        String contextKey = camera != null ? "FAC_" + camera.getFacility().getId() : "COMP_" + corporateCamera.getCompanyProfile().getId();
-        try {
-            recentAlertCacheStore.add(contextKey, response);
-        } catch (RuntimeException ex) {
-            log.warn("Failed to cache recent alert event: alertEventId={}, contextKey={}, error={}",
-                    saved.getId(), contextKey, ex.getMessage());
+        if (dto.isRealtimeEvent()) {
+            String contextKey = camera != null ? "FAC_" + camera.getFacility().getId() : "COMP_" + corporateCamera.getCompanyProfile().getId();
+            try {
+                recentAlertCacheStore.add(contextKey, response);
+            } catch (RuntimeException ex) {
+                log.warn("Failed to cache recent alert event: alertEventId={}, contextKey={}, error={}",
+                        saved.getId(), contextKey, ex.getMessage());
+            }
+        } else {
+            log.info("Saved evidence safety alert event without recent-alert cache: alertEventId={}, eventId={}, clipUrl={}",
+                    saved.getId(), dto.eventId(), dto.clipUrl());
         }
         log.info("Saved MQTT safety alert event: alertEventId={}, cameraLoginId={}, scenarioType={}, severity={}, confidence={}, trackId={}",
                 saved.getId(), finalCameraIdVal, scenarioType, severity, confidenceScore, dto.trackId());

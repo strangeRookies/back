@@ -60,7 +60,7 @@ public class MqttSafetyEventSubscriber {
         if (CAMERA_STATUS_TOPIC.equals(topic)) {
             handleCameraStatusEvent(payload);
         } else {
-            handleSafetyEvent(payload, rawMqttReceivedAtMs);
+            handleSafetyEvent(topic, payload, rawMqttReceivedAtMs);
         }
     }
 
@@ -79,15 +79,32 @@ public class MqttSafetyEventSubscriber {
         }
     }
 
-    private void handleSafetyEvent(String payload, long rawMqttReceivedAtMs) {
+    private void handleSafetyEvent(String topic, String payload, long rawMqttReceivedAtMs) {
         try {
             long mqttReceivedAtMs = rawMqttReceivedAtMs;
             SafetyEventDto event = objectMapper.readValue(payload, SafetyEventDto.class)
                     .withMqttReceivedAtMs(mqttReceivedAtMs);
-            log.info("[ai-alert-latency] MQTT safety event received cameraId={} cameraLoginId={} eventId={} type={} severity={} trackId={} capturedAtMs={} processedAtMs={} mqttPublishStartedAtMs={} mqttPublishedAtMs={} mqttReceivedAtMs={} rawToSafetyHandlerMs={} processedToMqttMs={} mqttToBackendMs={} processedToBackendMs={} clipPath={} clipUrl={}",
+            log.info("[ai-alert-raw] MQTT safety event raw topic={} eventId={} frameId={} messageType={} eventPhase={} realtimeEvent={} evidenceEvent={} clipUrl={} capturedAtMs={} processedAtMs={} mqttPublishedAtMs={} rawMqttReceivedAtMs={}",
+                    topic,
+                    event.eventId(),
+                    event.frameId(),
+                    event.messageType(),
+                    event.eventPhase(),
+                    event.isRealtimeEvent(),
+                    event.isEvidenceEvent(),
+                    event.clipUrl(),
+                    event.capturedAtMs(),
+                    event.processedAtMs(),
+                    event.mqttPublishedAtMs(),
+                    rawMqttReceivedAtMs);
+            log.info("[ai-alert-latency] MQTT safety event received cameraId={} cameraLoginId={} eventId={} frameId={} eventPhase={} realtimeEvent={} evidenceEvent={} type={} severity={} trackId={} capturedAtMs={} processedAtMs={} mqttPublishStartedAtMs={} mqttPublishedAtMs={} mqttReceivedAtMs={} rawToSafetyHandlerMs={} processedToMqttMs={} mqttToBackendMs={} processedToBackendMs={} clipPath={} clipUrl={}",
                     event.cameraId(),
                     event.cameraLoginId(),
                     event.eventId(),
+                    event.frameId(),
+                    event.eventPhase(),
+                    event.isRealtimeEvent(),
+                    event.isEvidenceEvent(),
                     event.type(),
                     event.severity(),
                     event.trackId(),
@@ -104,7 +121,8 @@ public class MqttSafetyEventSubscriber {
                     event.clipUrl());
             asyncEventProcessorService.processEvent(event);
         } catch (Exception e) {
-            log.error("[MQTT Debug] Failed to process MQTT safety event: payload={}, error={}", payload, e.getMessage(), e);
+            log.error("[ai-alert-raw] Failed to parse/process MQTT safety event topic={} rawMqttReceivedAtMs={} payloadExcerpt={} error={}",
+                    topic, rawMqttReceivedAtMs, abbreviate(payload), e.getMessage(), e);
         }
     }
 
@@ -148,5 +166,12 @@ public class MqttSafetyEventSubscriber {
             return null;
         }
         return endAtMs - startAtMs;
+    }
+
+    private String abbreviate(String payload) {
+        if (payload == null || payload.length() <= 500) {
+            return payload;
+        }
+        return payload.substring(0, 500) + "...";
     }
 }

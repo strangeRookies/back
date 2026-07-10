@@ -26,11 +26,15 @@ public class AlertBroadcastService {
         SafetyEventDto publishedEvent = event.withPublishedAtMs(System.currentTimeMillis());
         log.info("Broadcasting safety event to {}: type={}, cameraId={}, severity={}",
                 topic, publishedEvent.type(), publishedEvent.cameraId(), publishedEvent.severity());
-        log.info("[ai-alert-latency] STOMP safety event publishing destination={} cameraId={} cameraLoginId={} eventId={} type={} severity={} trackId={} capturedAtMs={} processedAtMs={} mqttPublishStartedAtMs={} mqttPublishedAtMs={} mqttReceivedAtMs={} stompPublishedAtMs={} processedToMqttMs={} mqttToBackendMs={} backendToStompMs={} processedToBackendMs={} clipPath={} clipUrl={}",
+        log.info("[ai-alert-latency] STOMP safety event publishing destination={} cameraId={} cameraLoginId={} eventId={} frameId={} eventPhase={} realtimeEvent={} evidenceEvent={} type={} severity={} trackId={} capturedAtMs={} processedAtMs={} mqttPublishStartedAtMs={} mqttPublishedAtMs={} mqttReceivedAtMs={} stompPublishedAtMs={} processedToMqttMs={} mqttToBackendMs={} backendToStompMs={} processedToBackendMs={} clipPath={} clipUrl={}",
                 topic,
                 publishedEvent.cameraId(),
                 publishedEvent.cameraLoginId(),
                 publishedEvent.eventId(),
+                publishedEvent.frameId(),
+                publishedEvent.eventPhase(),
+                publishedEvent.isRealtimeEvent(),
+                publishedEvent.isEvidenceEvent(),
                 publishedEvent.type(),
                 publishedEvent.severity(),
                 publishedEvent.trackId(),

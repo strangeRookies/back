@@ -23,6 +23,13 @@ public class AsyncEventProcessorService {
 
     @Async("eventProcessingExecutor")
     public void processEvent(SafetyEventDto event) {
+        if (event.isEvidenceEvent()) {
+            log.info("[MQTT Async] Evidence event received. Skipping STOMP/FCM and persisting only: eventId={}, cameraId={}, cameraLoginId={}, clipUrl={}",
+                    event.eventId(), event.cameraId(), event.cameraLoginId(), event.clipUrl());
+            persistEvent(event);
+            return;
+        }
+
         Long targetId = null;
         boolean isCorporate = false;
         try {
@@ -40,8 +47,8 @@ public class AsyncEventProcessorService {
                 }
             }
 
-            log.info("[MQTT Async] Parsed event. type={}, cameraId={}, targetId={}, isCorporate={}",
-                    event.type(), event.cameraId(), targetId, isCorporate);
+            log.info("[MQTT Async] Parsed event. type={}, eventPhase={}, cameraId={}, targetId={}, isCorporate={}",
+                    event.type(), event.eventPhase(), event.cameraId(), targetId, isCorporate);
             if (alertEventService.isAlreadyNotified(event.eventId())) {
                 log.info("[MQTT Async] eventId={} already has an alert row; skipping duplicate broadcast/FCM (clip re-publish).",
                         event.eventId());
@@ -54,11 +61,15 @@ public class AsyncEventProcessorService {
                     event.cameraId(), event.type(), ex.getMessage(), ex);
         }
 
+        persistEvent(event);
+    }
+
+    private void persistEvent(SafetyEventDto event) {
         try {
             alertEventService.createEvent(event);
         } catch (RuntimeException ex) {
-            log.error("Failed to persist safety event asynchronously: cameraId={}, type={}, error={}",
-                    event.cameraId(), event.type(), ex.getMessage(), ex);
+            log.error("Failed to persist safety event asynchronously: cameraId={}, type={}, eventPhase={}, error={}",
+                    event.cameraId(), event.type(), event.eventPhase(), ex.getMessage(), ex);
         }
     }
 
