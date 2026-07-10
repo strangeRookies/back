@@ -4,8 +4,10 @@ spring:
   application:
     name: strange-back
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/strange_safety}
+    #AWS RDS 엔드포인트 주소 적용 완료
+    url: ${DB_URL:jdbc:postgresql://smart-safety-db-new.cleq04iqogz6.ap-northeast-2.rds.amazonaws.com:5432/postgres?sslmode=require}
     username: ${DB_USERNAME:postgres}
+    # 비밀번호는 깃허브에 올리지 않고 EKS Secret에서 주입받습니다 (보안 유지)
     password: ${DB_PASSWORD}
     driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
   jpa:
@@ -25,9 +27,10 @@ spring:
       path: /h2-console
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      # EC2 내부망(프라이빗 IP) 주소 적용 완료
+      host: ${REDIS_HOST:10.0.1.84}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD}
       timeout: ${REDIS_TIMEOUT:3s}
 
 server:
@@ -56,9 +59,10 @@ auth:
     path: ${REFRESH_TOKEN_COOKIE_PATH:/api/auth}
 
 mqtt:
-  host: ${MQTT_HOST:localhost}
+  # 확인된 공통 EC2 서버 IP 적용 완료
+  host: ${MQTT_HOST:15.165.248.37}
   port: ${MQTT_PORT:1883}
-  broker-url: tcp://${MQTT_HOST:localhost}:${MQTT_PORT:1883}
+  broker-url: tcp://${MQTT_HOST:15.165.248.37}:${MQTT_PORT:1883}
   client-id: spring-backend-${random.uuid}
   topic: ${MQTT_TOPIC:event}
   camera-status-topic: ${MQTT_CAMERA_STATUS_TOPIC:safety/cameras/status}
@@ -84,15 +88,14 @@ sms:
 
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    # 프론트엔드 S3 웹사이트 호스팅 주소 적용 완료
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://safety-web-dashboard-bucket.s3-website.ap-northeast-2.amazonaws.com}
   websocket:
-    allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173}
+    allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173,http://safety-web-dashboard-bucket.s3-website.ap-northeast-2.amazonaws.com}
   aes:
     secret-key: ${AES_SECRET_KEY}
     iv: ${AES_IV}
   fcm:
-    # FCM 푸시 알림 활성화 여부 (기본 false: mock 모드)
-    # 활성화하려면 firebase-admin SDK 의존성 추가 및 서비스 계정 키 설정 필요
     enabled: ${FCM_ENABLED:false}
     service-account-key: ${FCM_SERVICE_ACCOUNT_KEY_PATH:classpath:firebase-service-account.json}
 
@@ -122,5 +125,3 @@ vlm:
   python-executable: ${VLM_PYTHON_EXECUTABLE:python}
   process-script: ${VLM_PROCESS_SCRIPT:../strange_ai/scripts/process_vlm.py}
   gemini-api-key: ${GEMINI_API_KEY:}
-
-    
