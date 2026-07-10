@@ -82,15 +82,24 @@ bootRun {
 tasks.register('runAllTests', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.strange.safety.camera.service.TestRunner'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 tasks.register('runMockVlmRagTests', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.strange.safety.vlm.mock.MockVlmRagTestRunner'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 tasks.register('runMockVlmRagDemo', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.strange.safety.vlm.mock.MockVlmRagDemo'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 check.dependsOn runAllTests
