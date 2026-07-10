@@ -1,49 +1,37 @@
 package com.strange.safety.vlm.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.strange.safety.vlm.embedding.EmbeddingClient;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 
+/**
+ * Facade over {@link EmbeddingClient}. Direct SDK clients only — no LangChain.
+ */
 @Service
 public class EmbeddingService {
-    private static final int DIMENSION = 32;
-    private static final List<String> KEYWORDS = List.of(
-            "yellow", "blue", "floor", "helmet", "vest", "lying", "fall", "collapse",
-            "hallway", "corridor", "worker", "person", "door", "wall", "safety", "위험",
-            "노란", "파란", "바닥", "안전모", "조끼", "누움", "쓰러", "복도",
-            "작업자", "사람", "출입문", "벽", "낙상", "실신", "이탈", "폭행"
-    );
 
-    @Value("${vlm.mock-mode:${VLM_MOCK_MODE:true}}")
-    private boolean mockMode;
+    private final EmbeddingClient embeddingClient;
 
-    @Value("${vlm.gemini-api-key:${GEMINI_API_KEY:}}")
-    private String geminiApiKey;
+    public EmbeddingService(EmbeddingClient embeddingClient) {
+        this.embeddingClient = embeddingClient;
+    }
 
     public boolean canEmbed() {
-        return mockMode || (geminiApiKey != null && !geminiApiKey.isBlank());
+        return embeddingClient.available();
     }
 
     public String embeddingModelName() {
-        return mockMode ? "mock" : "gemini-text-embedding-004";
+        return embeddingClient.modelName();
+    }
+
+    public int dimension() {
+        return embeddingClient.dimension();
     }
 
     public double[] embed(String text) {
-        if (!mockMode) {
-            throw new IllegalStateException("Production embedding client is not configured in this MVP");
-        }
-        double[] vector = new double[DIMENSION];
-        String lower = text == null ? "" : text.toLowerCase(Locale.ROOT);
-        for (int index = 0; index < KEYWORDS.size(); index += 1) {
-            if (lower.contains(KEYWORDS.get(index))) {
-                vector[index] = 1.0d;
-            }
-        }
-        return vector;
+        return embeddingClient.embed(text);
     }
 
     public String encode(double[] vector) {

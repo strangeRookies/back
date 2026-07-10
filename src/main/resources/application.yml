@@ -122,5 +122,12 @@ vlm:
   python-executable: ${VLM_PYTHON_EXECUTABLE:python}
   process-script: ${VLM_PROCESS_SCRIPT:../strange_ai/scripts/process_vlm.py}
   gemini-api-key: ${GEMINI_API_KEY:}
+  # Embedding: mock | gemini (direct SDK/HTTP only — no LangChain)
+  embedding-provider: ${VLM_EMBEDDING_PROVIDER:mock}
+  embedding-worker-enabled: ${VLM_EMBEDDING_WORKER_ENABLED:false}
+  embedding-worker-delay-ms: ${VLM_EMBEDDING_WORKER_DELAY_MS:30000}
+  # pgvector cutover (requires db/pgvector_alert_event_descriptions.sql)
+  pgvector-write-enabled: ${VLM_PGVECTOR_WRITE_ENABLED:false}
+  pgvector-search-enabled: ${VLM_PGVECTOR_SEARCH_ENABLED:false}
 
     
