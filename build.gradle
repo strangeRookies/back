@@ -65,7 +65,8 @@ tasks.withType(JavaCompile) {
 
 tasks.named('test') {
     useJUnitPlatform()
-    enabled = false // Disabled due to Windows ClassNotFoundException issue with Korean paths
+    // Default off on some Windows paths; re-enable with: gradlew test -PenableTests=true
+    enabled = project.hasProperty('enableTests')
 }
 
 bootRun {
@@ -99,6 +100,15 @@ tasks.register('runSnapshotAssistTests', JavaExec) {
     dependsOn testClasses
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.strange.safety.vlm.snapshotassist.SnapshotAssistTestRunner'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.register('runVlmServiceTests', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.strange.safety.vlm.service.VlmServiceTestRunner'
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(21)
     }

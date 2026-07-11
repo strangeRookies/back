@@ -112,11 +112,15 @@ aws:
     region: ${AWS_S3_REGION:ap-northeast-2}
 
 vlm:
+  # Master switch — false: no scheduler claim, no Python process, no outbound Gemini/embedding jobs
+  enabled: ${VLM_ENABLED:false}
   mock-mode: ${VLM_MOCK_MODE:true}
+  process-existing-events: ${VLM_PROCESS_EXISTING_EVENTS:false}
+  daily-job-limit: ${VLM_DAILY_JOB_LIMIT:10}
+  max-retry: ${VLM_MAX_RETRY:1}   # retry budget (enqueue → job.maxRetries, Def A: 1 initial attempt + 1 retry = 2 total); do not use max-retries
   scheduler-delay-ms: ${VLM_SCHEDULER_DELAY_MS:15000}
   batch-size: ${VLM_BATCH_SIZE:2}
   timeout-seconds: ${VLM_TIMEOUT_SECONDS:120}
-  max-retries: ${VLM_MAX_RETRIES:3}
   prompt-version: ${VLM_PROMPT_VERSION:v1}
   model-name: ${VLM_MODEL_NAME:mock-vlm}
   python-executable: ${VLM_PYTHON_EXECUTABLE:python}

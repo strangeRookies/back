@@ -1,7 +1,32 @@
 # 스마트 안전관제 VLM 파이프라인
 
-> 범위: **골격 구현 + 계약 정리**. 실 AWS DB / S3 / GPU / Gemini 키 연동 검증은 미실시.  
-> 브랜치: `vlm-home` (ai / back / front)
+> 범위: **골격 구현 + 계약 정리 + draft hardening**. 실 AWS DB / S3 / GPU / Gemini 키 연동 검증은 미실시.
+> 기준 브랜치: `vlm-home` → 작업 브랜치: `vlm-home-draft-hardening` (ai / back / front)
+> 실제 Gemini·운영 S3·pgvector 통합: **`INTEGRATION_PENDING`** (Mock 기본, 예상 비용 0원)
+
+## Hardening 요약 (`vlm-home-draft-hardening`)
+
+1. **기존 vlm-home에 있던 것**: Job enqueue, Scheduler+ProcessBuilder, SourceSelector, Mock semantic search, snapshot-assist, Front SemanticEventSearchPanel, Mock/Gemini embedding scaffold.
+2. **이번 hardening**: 실제 clip→키프레임(≤6 JPEG) 추출, FINAL_ONLY=incident당 1회, PassThroughDeid 정직한 메타, `vlm.enabled` 기본 false, snapshot 비디오 키 거부, process timeout/로그 마스킹, Front 검색 feature flag.
+3. **키프레임 구조**: Presigned GET clip → temp mp4 → OpenCV sample → JPEG → Presigned PUT (placeholder 1-byte 제거).
+4. **Mock 시연**: `VLM_ENABLED=true` + `VLM_MOCK_MODE=true` + (Front) `VITE_VLM_ENABLED=true` / `VITE_VLM_MOCK_SEARCH=true`.
+5. **실시간 Alert vs VLM**: Alert 저장과 무관; Job FAILED만 VLM 테이블에 기록.
+6. **비식별화 연결점**: `PassThroughDeid` → 팀 어댑터 교체; passthrough 시 external provider 차단.
+7. **미검증**: 실 Gemini generateContent, 운영 S3 put/get, pgvector 실DB.
+8. **완료 vs pending**: 키프레임·정책·플래그·검색 UI 플래그 완료; Gemini live = INTEGRATION_PENDING.
+9. **비용**: Mock 기본 → 0원.
+10. **Sequence (발표용)**:
+
+```text
+AlertEvent saved
+  → (vlm.enabled?) enqueue AlertEventDescription PENDING
+  → Scheduler claims job
+  → ProcessBuilder process_vlm.py
+       download clip → extract ≤6 frames → upload JPEGs
+       MockVlmProvider frames+metadata (no full video)
+  → embed description (mock) → optional pgvector
+  → Front semantic search (flagged)
+```
 
 ## 결정 사항 (체크리스트)
 
@@ -76,12 +101,21 @@
 
 ```yaml
 vlm:
-  mock-mode: true          # 로컬 기본. 운영에서 false + 키 주입
+  enabled: false                 # Master: false → Scheduler bean 미로드, enqueue skip, 외부 VLM/embedding job 안 탐
+  mock-mode: true                # 로컬 기본. 운영에서 false + 키 주입
+  process-existing-events: false # 배치 백필 예약 플래그
+  daily-job-limit: 10
+  max-retry: 1                   # retry budget (A안: 최초 시도 1회 + 재시도 1회 = 총 2회 시도) → AlertEventDescription.maxRetries (not max-retries)
+  timeout-seconds: 120
   process-script: .../process_vlm.py
-  embedding-provider: mock # mock | gemini
-  embedding-dimension: 768 # pgvector 컬럼 기준
-  gemini-api-key: ${GEMINI_API_KEY:}
+  embedding-provider: mock       # mock | gemini
+  embedding-dimension: 768       # pgvector 컬럼 기준
+  gemini-api-key: ${GEMINI_API_KEY:}  # 비어 있으면 real Gemini disabled (INTEGRATION_PENDING)
 ```
+
+`VlmDescriptionEnqueueService` binds `@Value("${vlm.max-retry:1}")` and stores it on each job (Def A: 1 initial attempt + 1 retry = 2 total attempts).
+`VlmProcessingScheduler` is `@ConditionalOnProperty(name="vlm.enabled", havingValue="true")` (absent when disabled).
+
 
 ## 로컬 검증 (실인프라 없이)
 

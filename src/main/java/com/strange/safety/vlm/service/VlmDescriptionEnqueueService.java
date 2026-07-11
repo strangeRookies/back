@@ -20,11 +20,22 @@ public class VlmDescriptionEnqueueService {
     @Value("${vlm.model-name:mock-vlm}")
     private String vlmModelName;
 
-    @Value("${vlm.max-retries:3}")
-    private int maxRetries;
+    /** Effective retry budget stored on each job (objective: vlm.max-retry=1). */
+    @Value("${vlm.max-retry:1}")
+    private int maxRetry;
+
+    @Value("${vlm.enabled:false}")
+    private boolean vlmEnabled;
+
+    @Value("${vlm.process-existing-events:false}")
+    private boolean processExistingEvents;
 
     @Transactional
     public void enqueueIfMediaExists(AlertEvent event) {
+        if (!vlmEnabled) {
+            return;
+        }
+        // process-existing-events reserved for batch backfill; realtime enqueue still requires enabled=true
         sourceSelector.select(event).ifPresent(source -> {
             boolean exists = repository.existsBySourceAssetTypeAndSourceAssetKeyAndPromptVersionAndVlmModelName(
                     source.sourceType(), source.sourceKey(), promptVersion, vlmModelName);
@@ -35,7 +46,7 @@ public class VlmDescriptionEnqueueService {
                         .sourceAssetKey(source.sourceKey())
                         .promptVersion(promptVersion)
                         .vlmModelName(vlmModelName)
-                        .maxRetries(maxRetries)
+                        .maxRetries(maxRetry)
                         .build());
             }
         });

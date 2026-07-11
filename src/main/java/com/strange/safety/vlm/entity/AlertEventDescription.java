@@ -132,7 +132,7 @@ public class AlertEventDescription extends BaseEntity {
 
     public void markFailed(String errorMessage) {
         this.retryCount += 1;
-        this.status = this.retryCount >= this.maxRetries ? VlmJobStatus.FAILED : VlmJobStatus.PENDING;
+        this.status = this.retryCount > this.maxRetries ? VlmJobStatus.FAILED : VlmJobStatus.PENDING;
         this.lockedUntil = null;
         this.errorMessage = errorMessage;
     }

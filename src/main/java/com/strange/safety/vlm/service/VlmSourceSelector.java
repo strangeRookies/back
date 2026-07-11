@@ -1,16 +1,26 @@
 package com.strange.safety.vlm.service;
 
 import com.strange.safety.alert.entity.AlertEvent;
+import com.strange.safety.alert.entity.Snapshot;
 import com.strange.safety.vlm.entity.VlmSourceType;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Locale;
 import java.util.Optional;
 
+/**
+ * Selects media source for VLM: clip first, then valid <em>image</em> snapshot only.
+ * Rejects legacy rows where snapshotUrl holds a clip key/URL.
+ */
 public class VlmSourceSelector {
 
     public Optional<VlmSource> select(AlertEvent event) {
         Optional<String> clipPathKey = normalizeS3Key(event.getClipPath());
+        if (clipPathKey.isPresent() && !looksLikeVideo(clipPathKey.get(), null)) {
+            // clip path can be local; still prefer as CLIP type if non-empty
+            return Optional.of(new VlmSource(VlmSourceType.CLIP, clipPathKey.get()));
+        }
         if (clipPathKey.isPresent()) {
             return Optional.of(new VlmSource(VlmSourceType.CLIP, clipPathKey.get()));
         }
@@ -20,15 +30,39 @@ public class VlmSourceSelector {
             return Optional.of(new VlmSource(VlmSourceType.CLIP, clipUrlKey.get()));
         }
 
-        // Prefer first bound snapshot object key when present (legacy S3 path)
         if (event.getSnapshots() != null) {
-            return event.getSnapshots().stream()
-                    .map(s -> normalizeS3Key(s.getSnapshotUrl()))
-                    .flatMap(Optional::stream)
-                    .findFirst()
-                    .map(key -> new VlmSource(VlmSourceType.SNAPSHOT, key));
+            for (Snapshot snapshot : event.getSnapshots()) {
+                Optional<String> key = normalizeS3Key(snapshot.getSnapshotUrl());
+                if (key.isEmpty()) {
+                    continue;
+                }
+                if (looksLikeVideo(key.get(), snapshot.getSnapshotUrl())) {
+                    continue; // legacy: clip key stored in snapshotUrl
+                }
+                return Optional.of(new VlmSource(VlmSourceType.SNAPSHOT, key.get()));
+            }
         }
         return Optional.empty();
+    }
+
+    /**
+     * True when the candidate is a video asset (must not be treated as image snapshot).
+     */
+    public boolean looksLikeVideo(String objectKeyOrPath, String rawValue) {
+        String probe = ((objectKeyOrPath == null ? "" : objectKeyOrPath) + " "
+                + (rawValue == null ? "" : rawValue)).toLowerCase(Locale.ROOT);
+        if (probe.contains("/clips/") || probe.contains("\\clips\\")) {
+            return true;
+        }
+        if (probe.contains("content-type=video") || probe.contains("contenttype=video")
+                || probe.contains("video/mp4") || probe.contains("video/*")) {
+            return true;
+        }
+        return probe.contains(".mp4")
+                || probe.contains(".mov")
+                || probe.contains(".avi")
+                || probe.contains(".mkv")
+                || probe.contains(".webm");
     }
 
     public Optional<String> normalizeS3Key(String value) {
