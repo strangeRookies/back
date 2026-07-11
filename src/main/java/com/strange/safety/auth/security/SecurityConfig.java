@@ -69,7 +69,9 @@ public class SecurityConfig {
                                 "/api/auth/password-reset",
                                 "/api/emergency-jurisdictions/resolve",
                                 "/api/cameras/active",
-                                "/api/internal/ai-overlays/report"
+                                "/api/internal/ai-overlays/report",
+                                // Edge service token validated inside controller (not end-user JWT)
+                                "/api/internal/vlm/snapshot-assist/**"
                         ).permitAll()
 
                         // ADMIN 전용
