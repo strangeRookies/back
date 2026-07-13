@@ -63,6 +63,7 @@ class AsyncEventProcessorServiceTest {
                 .thenReturn(Optional.empty());
         when(corporateCameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any()))
                 .thenReturn(Optional.empty());
+        when(alertEventService.isSupportedEventType("faint")).thenReturn(true);
         when(alertEventService.isAlreadyNotified("evt-1")).thenReturn(false);
 
         service.processEvent(event);
@@ -93,6 +94,7 @@ class AsyncEventProcessorServiceTest {
                 .thenReturn(Optional.empty());
         when(corporateCameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any()))
                 .thenReturn(Optional.empty());
+        when(alertEventService.isSupportedEventType("faint")).thenReturn(true);
         when(alertEventService.isAlreadyNotified("evt-1")).thenReturn(true);
 
         service.processEvent(event);
@@ -100,6 +102,19 @@ class AsyncEventProcessorServiceTest {
         verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any());
         verify(fcmService, never()).sendAlertNotification(any());
         verify(alertEventService).createEvent(event);
+    }
+
+    @Test
+    void unsupportedRealtimeEventSkipsBroadcastFcmAndPersistence() {
+        SafetyEventDto event = event("realtime", null);
+        when(alertEventService.isSupportedEventType("faint")).thenReturn(false);
+
+        service.processEvent(event);
+
+        verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any());
+        verify(fcmService, never()).sendAlertNotification(any());
+        verify(alertEventService, never()).createEvent(any());
+        verify(cameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());
     }
 
     private SafetyEventDto event(String eventPhase, String clipUrl) {

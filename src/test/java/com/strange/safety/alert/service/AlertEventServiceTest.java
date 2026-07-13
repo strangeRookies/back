@@ -1,6 +1,7 @@
 package com.strange.safety.alert.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -14,6 +15,8 @@ import com.strange.safety.alert.repository.AlertEventRepository;
 import com.strange.safety.alert.repository.SnapshotRepository;
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.repository.CameraRepository;
+import com.strange.safety.common.exception.CustomException;
+import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.event.SafetyEventDto;
 import com.strange.safety.facility.entity.Facility;
 import com.strange.safety.facility.entity.FacilityType;
@@ -232,12 +235,40 @@ class AlertEventServiceTest {
         verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(savedEvent);
     }
 
+    @Test
+    void createEventMapsAiTypesToServiceScenarios() {
+        assertMappedScenario("faint", ScenarioType.COLLAPSE);
+        assertMappedScenario("FAINT_SUSPECTED", ScenarioType.SYNCOPE);
+        assertMappedScenario("FALL_UNRECOVERED", ScenarioType.SYNCOPE);
+        assertMappedScenario("fall", ScenarioType.FALL_BED);
+        assertMappedScenario("exit", ScenarioType.EXIT);
+        assertMappedScenario("hazard", ScenarioType.HAZARD_ZONE);
+    }
+
+    @Test
+    void createEventRejectsUnsupportedAiTypeBeforePersistence() {
+        SafetyEventDto event = safetyEvent("cam_01", "UNKNOWN_EVENT");
+
+        assertThatThrownBy(() -> alertEventService.createEvent(event))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.COMMON_INVALID_INPUT);
+
+        verify(cameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());
+        verify(alertEventRepository, never()).save(any());
+        verify(recentAlertCacheStore, never()).add(any(), any());
+    }
+
     private SafetyEventDto safetyEvent(String cameraLoginId) {
+        return safetyEvent(cameraLoginId, "SYNCOPE");
+    }
+
+    private SafetyEventDto safetyEvent(String cameraLoginId, String type) {
         return new SafetyEventDto(
                 null,
                 null,
                 "frame-1",
-                "SYNCOPE",
+                type,
                 null,
                 cameraLoginId,
                 "test-event-id",
@@ -258,6 +289,22 @@ class AlertEventServiceTest {
                 null,
                 null
         );
+    }
+
+    private void assertMappedScenario(String type, ScenarioType expectedScenarioType) {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L, expectedScenarioType);
+        SafetyEventDto event = safetyEvent("cam_01", type);
+
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
+        when(scenarioRepository.findByScenarioType(expectedScenarioType)).thenReturn(Optional.of(scenario));
+        when(alertEventRepository.save(any(AlertEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getScenarioType()).isEqualTo(expectedScenarioType.name());
     }
 
     private SafetyEventDto evidenceEvent(String cameraLoginId) {
@@ -309,8 +356,12 @@ class AlertEventServiceTest {
     }
 
     private Scenario scenario(Long id) {
+        return scenario(id, ScenarioType.SYNCOPE);
+    }
+
+    private Scenario scenario(Long id, ScenarioType scenarioType) {
         Scenario scenario = Scenario.builder()
-                .scenarioType(ScenarioType.SYNCOPE)
+                .scenarioType(scenarioType)
                 .description("syncope")
                 .build();
         ReflectionTestUtils.setField(scenario, "id", id);

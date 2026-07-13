@@ -42,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -343,6 +344,8 @@ public class AlertEventService {
             return attachClipToExisting(existingEvent, dto);
         }
 
+        ScenarioType scenarioType = mapToScenarioType(dto.type());
+
         String cameraIdVal = firstNonBlank(dto.cameraLoginId(), dto.cameraId(), "cam_01");
 
         // Convert "cam1", "cam2" or "CCTV-01" into DB format "cam_01"
@@ -364,8 +367,6 @@ public class AlertEventService {
                         return new CustomException(ErrorCode.CAMERA_NOT_FOUND);
                     });
         }
-
-        ScenarioType scenarioType = mapToScenarioType(dto.type());
 
         Scenario scenario = scenarioRepository.findByScenarioType(scenarioType)
                 .orElseThrow(() -> {
@@ -451,6 +452,15 @@ public class AlertEventService {
         return eventId != null && !eventId.isBlank() && alertEventRepository.existsByEventId(eventId);
     }
 
+    public boolean isSupportedEventType(String type) {
+        try {
+            mapToScenarioType(type);
+            return true;
+        } catch (CustomException ex) {
+            return false;
+        }
+    }
+
     private AlertEventResponse toResponseWithFirstSnapshot(AlertEvent event) {
         String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                 s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
@@ -525,27 +535,17 @@ public class AlertEventService {
     }
 
     private ScenarioType mapToScenarioType(String type) {
-        if (type == null)
-            return ScenarioType.SYNCOPE;
-        String upper = type.toUpperCase();
-        if (upper.contains("FALL"))
-            return ScenarioType.FALL_BED;
-        if (upper.contains("COLLAPSE"))
-            return ScenarioType.COLLAPSE;
-        if (upper.contains("FAINT") || upper.contains("SYNCOPE"))
-            return ScenarioType.SYNCOPE;
-        if (upper.contains("EXIT"))
-            return ScenarioType.EXIT;
-        if (upper.contains("ASSAULT") || upper.contains("VIOLENCE") || upper.contains("FIGHT"))
-            return ScenarioType.ASSAULT;
-        if (upper.contains("HAZARD"))
-            return ScenarioType.HAZARD_ZONE;
-
-        try {
-            return ScenarioType.valueOf(upper);
-        } catch (IllegalArgumentException e) {
-            return ScenarioType.SYNCOPE;
-        }
+        String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
+        return switch (normalizedType) {
+            case "FAINT" -> ScenarioType.COLLAPSE;
+            case "FAINT_SUSPECTED", "FALL_UNRECOVERED", "SYNCOPE" -> ScenarioType.SYNCOPE;
+            case "FALL", "FALL_BED" -> ScenarioType.FALL_BED;
+            case "COLLAPSE" -> ScenarioType.COLLAPSE;
+            case "EXIT" -> ScenarioType.EXIT;
+            case "HAZARD", "HAZARD_ZONE" -> ScenarioType.HAZARD_ZONE;
+            case "ASSAULT", "VIOLENCE", "FIGHT" -> ScenarioType.ASSAULT;
+            default -> throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        };
     }
 
     private AlertSeverity mapToAlertSeverity(String severity) {

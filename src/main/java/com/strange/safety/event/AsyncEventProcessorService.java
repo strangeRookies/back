@@ -30,6 +30,11 @@ public class AsyncEventProcessorService {
             return;
         }
 
+        if (!alertEventService.isSupportedEventType(event.type())) {
+            log.warn("Skipping unsupported AI safety event type: eventId={}, type={}", event.eventId(), event.type());
+            return;
+        }
+
         Long targetId = null;
         boolean isCorporate = false;
         try {
