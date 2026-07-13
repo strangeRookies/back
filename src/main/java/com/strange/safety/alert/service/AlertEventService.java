@@ -203,12 +203,20 @@ public class AlertEventService {
 
     public List<AlertEventResponse> getRecent(Long userId, Long facilityId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        String contextKey;
 
         if (user.getRole() == Role.CORPORATE) {
             CompanyProfile profile = companyProfileRepository.findById(facilityId).orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
             if (!profile.getUser().getId().equals(userId)) throw new CustomException(ErrorCode.FACILITY_ACCESS_DENIED);
+            contextKey = "COMP_" + profile.getId();
         } else {
             facilityService.getFacilityWithOwnerCheck(userId, facilityId);
+            contextKey = "FAC_" + facilityId;
+        }
+
+        List<AlertEventResponse> cachedEvents = recentAlertCacheStore.findRecent(contextKey);
+        if (!cachedEvents.isEmpty()) {
+            return cachedEvents;
         }
 
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
