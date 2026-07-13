@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import com.strange.safety.scenario.entity.ScenarioType;
 
 @Service
 public class AlertBroadcastService {
@@ -16,7 +17,7 @@ public class AlertBroadcastService {
         this.messagingTemplate = messagingTemplate;
     }
 
-    public void broadcast(Long targetId, boolean isCorporate, SafetyEventDto event) {
+    public void broadcast(Long targetId, boolean isCorporate, SafetyEventDto event, ScenarioType scenarioType, String displayMessage) {
         if (targetId == null) {
             log.warn("TargetId is null. Skipping broadcast for camera: {}", event.cameraId());
             return;
@@ -24,6 +25,7 @@ public class AlertBroadcastService {
         String prefix = isCorporate ? "/topic/company/" : "/topic/facility/";
         String topic = prefix + targetId + "/alerts";
         SafetyEventDto publishedEvent = event.withPublishedAtMs(System.currentTimeMillis());
+        SafetyAlertBroadcastPayload payload = SafetyAlertBroadcastPayload.of(publishedEvent, scenarioType, displayMessage);
         log.info("Broadcasting safety event to {}: type={}, cameraId={}, severity={}",
                 topic, publishedEvent.type(), publishedEvent.cameraId(), publishedEvent.severity());
         log.info("[ai-alert-latency] STOMP safety event publishing destination={} cameraId={} cameraLoginId={} eventId={} frameId={} eventPhase={} realtimeEvent={} evidenceEvent={} type={} severity={} trackId={} capturedAtMs={} processedAtMs={} mqttPublishStartedAtMs={} mqttPublishedAtMs={} mqttReceivedAtMs={} stompPublishedAtMs={} processedToMqttMs={} mqttToBackendMs={} backendToStompMs={} processedToBackendMs={} clipPath={} clipUrl={}",
@@ -50,7 +52,7 @@ public class AlertBroadcastService {
                 elapsed(publishedEvent.processedAtMs(), publishedEvent.mqttReceivedAtMs()),
                 publishedEvent.clipPath(),
                 publishedEvent.clipUrl());
-        messagingTemplate.convertAndSend(topic, publishedEvent);
+        messagingTemplate.convertAndSend(topic, payload);
     }
 
     private Long elapsed(Long startAtMs, Long endAtMs) {

@@ -10,6 +10,7 @@ import com.strange.safety.alert.service.AlertEventService;
 import com.strange.safety.camera.repository.CameraRepository;
 import com.strange.safety.camera.service.CameraStatusService;
 import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
+import com.strange.safety.scenario.entity.ScenarioType;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,11 +65,13 @@ class AsyncEventProcessorServiceTest {
         when(corporateCameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any()))
                 .thenReturn(Optional.empty());
         when(alertEventService.isSupportedEventType("faint")).thenReturn(true);
+        when(alertEventService.resolveScenarioType("faint")).thenReturn(ScenarioType.COLLAPSE);
+        when(alertEventService.getDisplayMessage(ScenarioType.COLLAPSE)).thenReturn("쓰러짐 감지");
         when(alertEventService.isAlreadyNotified("evt-1")).thenReturn(false);
 
         service.processEvent(event);
 
-        verify(alertBroadcastService).broadcast(null, false, event);
+        verify(alertBroadcastService).broadcast(null, false, event, ScenarioType.COLLAPSE, "쓰러짐 감지");
         verify(fcmService).sendAlertNotification(event);
         verify(alertEventService).createEvent(event);
     }
@@ -79,7 +82,7 @@ class AsyncEventProcessorServiceTest {
 
         service.processEvent(event);
 
-        verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any());
+        verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any(), any(), any());
         verify(fcmService, never()).sendAlertNotification(any());
         verify(alertEventService, never()).isAlreadyNotified(any());
         verify(cameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());
@@ -95,11 +98,13 @@ class AsyncEventProcessorServiceTest {
         when(corporateCameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any()))
                 .thenReturn(Optional.empty());
         when(alertEventService.isSupportedEventType("faint")).thenReturn(true);
+        when(alertEventService.resolveScenarioType("faint")).thenReturn(ScenarioType.COLLAPSE);
+        when(alertEventService.getDisplayMessage(ScenarioType.COLLAPSE)).thenReturn("쓰러짐 감지");
         when(alertEventService.isAlreadyNotified("evt-1")).thenReturn(true);
 
         service.processEvent(event);
 
-        verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any());
+        verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any(), any(), any());
         verify(fcmService, never()).sendAlertNotification(any());
         verify(alertEventService).createEvent(event);
     }
@@ -111,7 +116,7 @@ class AsyncEventProcessorServiceTest {
 
         service.processEvent(event);
 
-        verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any());
+        verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any(), any(), any());
         verify(fcmService, never()).sendAlertNotification(any());
         verify(alertEventService, never()).createEvent(any());
         verify(cameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());

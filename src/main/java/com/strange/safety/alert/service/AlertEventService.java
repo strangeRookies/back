@@ -344,7 +344,7 @@ public class AlertEventService {
             return attachClipToExisting(existingEvent, dto);
         }
 
-        ScenarioType scenarioType = mapToScenarioType(dto.type());
+        ScenarioType scenarioType = resolveScenarioType(dto.type());
 
         String cameraIdVal = firstNonBlank(dto.cameraLoginId(), dto.cameraId(), "cam_01");
 
@@ -378,8 +378,7 @@ public class AlertEventService {
         AlertSeverity severity = mapToAlertSeverity(dto.severity());
 
         Instant timestampVal = dto.resolvedTimestamp() != null ? dto.resolvedTimestamp() : Instant.now();
-        String messageVal = dto.message() != null ? dto.message()
-                : (dto.type() != null ? dto.type() + " detected" : "AI safety event detected");
+        String messageVal = getDisplayMessage(scenarioType);
         Float confidenceScore = dto.confidence() != null ? dto.confidence() : 0.85f;
         String boundingBoxData = serializeBoundingBox(dto);
 
@@ -454,11 +453,37 @@ public class AlertEventService {
 
     public boolean isSupportedEventType(String type) {
         try {
-            mapToScenarioType(type);
+            resolveScenarioType(type);
             return true;
         } catch (CustomException ex) {
             return false;
         }
+    }
+
+    public ScenarioType resolveScenarioType(String type) {
+        String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
+        return switch (normalizedType) {
+            case "FAINT" -> ScenarioType.COLLAPSE;
+            case "FAINT_SUSPECTED", "FALL_UNRECOVERED", "SYNCOPE" -> ScenarioType.SYNCOPE;
+            case "FALL", "FALL_BED" -> ScenarioType.FALL_BED;
+            case "COLLAPSE" -> ScenarioType.COLLAPSE;
+            case "EXIT" -> ScenarioType.EXIT;
+            case "HAZARD", "HAZARD_ZONE" -> ScenarioType.HAZARD_ZONE;
+            case "ASSAULT", "VIOLENCE", "FIGHT" -> ScenarioType.ASSAULT;
+            default -> throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        };
+    }
+
+    public String getDisplayMessage(ScenarioType scenarioType) {
+        return switch (scenarioType) {
+            case COLLAPSE -> "쓰러짐 감지";
+            case SYNCOPE -> "실신(미회복) 감지";
+            case FALL_BED -> "낙상 감지";
+            case EXIT -> "이탈 감지";
+            case HAZARD_ZONE -> "위험구역 진입";
+            case ASSAULT -> "폭행 감지";
+            default -> "안전 이상 감지";
+        };
     }
 
     private AlertEventResponse toResponseWithFirstSnapshot(AlertEvent event) {
@@ -532,20 +557,6 @@ public class AlertEventService {
     }
 
     private record SafetyEventDetectionData(List<Number> bbox, String trackId) {
-    }
-
-    private ScenarioType mapToScenarioType(String type) {
-        String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
-        return switch (normalizedType) {
-            case "FAINT" -> ScenarioType.COLLAPSE;
-            case "FAINT_SUSPECTED", "FALL_UNRECOVERED", "SYNCOPE" -> ScenarioType.SYNCOPE;
-            case "FALL", "FALL_BED" -> ScenarioType.FALL_BED;
-            case "COLLAPSE" -> ScenarioType.COLLAPSE;
-            case "EXIT" -> ScenarioType.EXIT;
-            case "HAZARD", "HAZARD_ZONE" -> ScenarioType.HAZARD_ZONE;
-            case "ASSAULT", "VIOLENCE", "FIGHT" -> ScenarioType.ASSAULT;
-            default -> throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
-        };
     }
 
     private AlertSeverity mapToAlertSeverity(String severity) {

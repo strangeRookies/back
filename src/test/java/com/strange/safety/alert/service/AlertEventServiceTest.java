@@ -246,6 +246,15 @@ class AlertEventServiceTest {
     }
 
     @Test
+    void displayMessagesMatchServiceScenarios() {
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.COLLAPSE)).isEqualTo("쓰러짐 감지");
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.SYNCOPE)).isEqualTo("실신(미회복) 감지");
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.FALL_BED)).isEqualTo("낙상 감지");
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.EXIT)).isEqualTo("이탈 감지");
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.HAZARD_ZONE)).isEqualTo("위험구역 진입");
+    }
+
+    @Test
     void createEventRejectsUnsupportedAiTypeBeforePersistence() {
         SafetyEventDto event = safetyEvent("cam_01", "UNKNOWN_EVENT");
 
