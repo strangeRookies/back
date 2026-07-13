@@ -273,6 +273,12 @@ public class AlertEventService {
                 .build();
         snapshotRepository.save(snapshot);
         log.info("[Snapshot] Saved snapshot for alertEventId={}, eventId={}, S3Key={}", event.getId(), eventId, objectKey);
+        // Side-channel VLM enqueue must never break snapshot bind or primary alert path
+        try {
+            vlmDescriptionEnqueueService.enqueueIfMediaExists(event);
+        } catch (Exception ex) {
+            log.warn("[Snapshot] VLM enqueue skipped after snapshot upload eventId={}: {}", eventId, ex.getMessage());
+        }
     }
 
     private AlertEvent getEventWithOwnerCheck(Long userId, Long alertEventId) {
