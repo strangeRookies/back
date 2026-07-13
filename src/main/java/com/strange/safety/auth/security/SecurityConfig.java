@@ -106,7 +106,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/inquiries/*/answer").hasRole("ADMIN")
 
                         .anyRequest().authenticated())
-                .addFilterBefore(new VlmServiceTokenFilter(vlmServiceToken), JwtAuthenticationFilter.class)
+                .addFilterBefore(new VlmServiceTokenFilter(vlmServiceToken), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
