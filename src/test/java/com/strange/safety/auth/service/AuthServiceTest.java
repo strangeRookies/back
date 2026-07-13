@@ -72,7 +72,7 @@ class AuthServiceTest {
     @Test
     void loginIssuesTokens() {
         User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
-        when(userRepository.findByEmailAndStatus("test@example.com", UserStatus.ACTIVE)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
         when(jwtTokenProvider.createAccessToken(user)).thenReturn("access-token");
         when(jwtTokenProvider.createRefreshToken()).thenReturn(REFRESH_TOKEN);
         when(jwtTokenProvider.getAccessTokenExpirationMs()).thenReturn(1800000L);
@@ -91,7 +91,7 @@ class AuthServiceTest {
     @Test
     void loginFailsWithWrongPassword() {
         User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
-        when(userRepository.findByEmailAndStatus("test@example.com", UserStatus.ACTIVE)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.login(
                 new LoginRequest("test@example.com", "wrong-password", Role.INDIVIDUAL)))
@@ -104,7 +104,7 @@ class AuthServiceTest {
     @Test
     void loginFailsWhenAccountTypeDoesNotMatchStoredRole() {
         User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
-        when(userRepository.findByEmailAndStatus("test@example.com", UserStatus.ACTIVE)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.login(
                 new LoginRequest("test@example.com", RAW_PASSWORD, Role.CORPORATE)))
@@ -116,15 +116,15 @@ class AuthServiceTest {
 
     @Test
     void loginFailsWhenUserIsNotActive() {
-        when(userRepository.findByEmailAndStatus("test@example.com", UserStatus.ACTIVE))
-                .thenReturn(Optional.empty());
+        User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
+        ReflectionTestUtils.setField(user, "status", UserStatus.SUSPENDED);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.login(
                 new LoginRequest("test@example.com", RAW_PASSWORD, Role.INDIVIDUAL)))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.AUTH_INVALID_CREDENTIALS);
-        verify(loginAttemptStore).recordFailure(any(String.class), any(Duration.class));
+                .isEqualTo(ErrorCode.AUTH_ACCOUNT_SUSPENDED);
     }
 
     @Test
@@ -136,13 +136,13 @@ class AuthServiceTest {
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.AUTH_LOGIN_LOCKED);
-        verify(userRepository, never()).findByEmailAndStatus(any(String.class), any(UserStatus.class));
+        verify(userRepository, never()).findByEmail(any(String.class));
     }
 
     @Test
     void loginLocksEmailOnFifthFailure() {
         User user = user("test@example.com", passwordEncoder.encode(RAW_PASSWORD));
-        when(userRepository.findByEmailAndStatus("test@example.com", UserStatus.ACTIVE)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
         when(loginAttemptStore.recordFailure(any(String.class), any(Duration.class))).thenReturn(5L);
 
         assertThatThrownBy(() -> authService.login(

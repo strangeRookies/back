@@ -37,6 +37,9 @@ public class AuthService {
 
     public TokenIssueResult login(LoginRequest request) {
         String email = normalizeEmail(request.email());
+        if (loginAttemptStore.isLocked(email, MAX_LOGIN_FAILURES)) {
+            throw new CustomException(ErrorCode.AUTH_LOGIN_LOCKED);
+        }
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> invalidCredentials(email));
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())
