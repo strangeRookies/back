@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 
@@ -32,6 +33,9 @@ public class SecurityConfig {
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final CorsProperties corsProperties;
+
+    @Value("${vlm.snapshot-assist.service-token:}")
+    private String vlmServiceToken;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -69,7 +73,9 @@ public class SecurityConfig {
                                 "/api/auth/password-reset",
                                 "/api/emergency-jurisdictions/resolve",
                                 "/api/cameras/active",
-                                "/api/internal/ai-overlays/report"
+                                "/api/internal/ai-overlays/report",
+                                // Edge service token validated inside controller (not end-user JWT)
+                                "/api/internal/vlm/snapshot-assist/**"
                         ).permitAll()
 
                         // ADMIN 전용
@@ -100,6 +106,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/inquiries/*/answer").hasRole("ADMIN")
 
                         .anyRequest().authenticated())
+                .addFilterBefore(new VlmServiceTokenFilter(vlmServiceToken), JwtAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
