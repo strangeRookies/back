@@ -1,6 +1,7 @@
 package com.strange.safety.camera.entity;
 
 import jakarta.persistence.*;
+import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,6 +12,12 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
+/**
+ * AI 서버가 MQTT로 보고한 카메라 연결 상태 변경 이력을 저장하는 엔티티.
+ * 23.md CAMERA_STATUS_LOGS 테이블 스펙에 대응한다.
+ *
+ * 상태가 변경될 때만 기록된다 (23.md Section 8: "상태가 변경되었을 때만 MQTT로 발행").
+ */
 @Entity
 @Table(name = "camera_status_logs",
         indexes = {
@@ -28,8 +35,12 @@ public class CameraStatusLog {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "camera_id", nullable = false)
+    @JoinColumn(name = "camera_id")
     private Camera camera;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "corporate_camera_id")
+    private CorporateCamera corporateCamera;
 
     /** AI 서버가 보고한 Edge 디바이스 ID */
     @Column(name = "edge_device_id", length = 100)
@@ -62,11 +73,12 @@ public class CameraStatusLog {
     private LocalDateTime createdAt;
 
     @Builder
-    private CameraStatusLog(Camera camera, String edgeDeviceId,
+    private CameraStatusLog(Camera camera, CorporateCamera corporateCamera, String edgeDeviceId,
                             CameraConnectionStatus previousStatus,
                             CameraConnectionStatus currentStatus,
                             String reason, Instant detectedAt) {
         this.camera = camera;
+        this.corporateCamera = corporateCamera;
         this.edgeDeviceId = edgeDeviceId;
         this.previousStatus = previousStatus;
         this.currentStatus = currentStatus;
