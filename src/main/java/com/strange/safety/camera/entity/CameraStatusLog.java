@@ -1,5 +1,6 @@
 package com.strange.safety.camera.entity;
 
+import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -28,8 +29,12 @@ public class CameraStatusLog {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "camera_id", nullable = false)
+    @JoinColumn(name = "camera_id")
     private Camera camera;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "corporate_camera_id")
+    private CorporateCamera corporateCamera;
 
     /** AI 서버가 보고한 Edge 디바이스 ID */
     @Column(name = "edge_device_id", length = 100)
@@ -62,11 +67,12 @@ public class CameraStatusLog {
     private LocalDateTime createdAt;
 
     @Builder
-    private CameraStatusLog(Camera camera, String edgeDeviceId,
+    private CameraStatusLog(Camera camera, CorporateCamera corporateCamera, String edgeDeviceId,
                             CameraConnectionStatus previousStatus,
                             CameraConnectionStatus currentStatus,
                             String reason, Instant detectedAt) {
         this.camera = camera;
+        this.corporateCamera = corporateCamera;
         this.edgeDeviceId = edgeDeviceId;
         this.previousStatus = previousStatus;
         this.currentStatus = currentStatus;
