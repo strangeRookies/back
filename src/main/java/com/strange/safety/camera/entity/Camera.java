@@ -105,6 +105,11 @@ public class Camera extends BaseEntity {
         if (assignedVideoPath != null) this.assignedVideoPath = assignedVideoPath;
     }
 
+    /** SIMULATED_RTSP 영상 할당을 명시적으로 해제한다 (AI-side stable pool mapping 허용). */
+    public void clearAssignedVideoPath() {
+        this.assignedVideoPath = null;
+    }
+
     /**
      * AI 서버로부터 수신한 MQTT 카메라 상태 이벤트로 실시간 연결 상태를 갱신한다.
      *
