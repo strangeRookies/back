@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strange.safety.alert.entity.AlertEvent;
 import com.strange.safety.alert.service.S3Service;
+import com.strange.safety.vlm.embedding.PgVectorProjectionWriter;
 import com.strange.safety.vlm.entity.AlertEventDescription;
 import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,9 +25,11 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class VlmProcessingScheduler {
     private final AlertEventDescriptionRepository repository;
     private final EmbeddingService embeddingService;
+    private final PgVectorProjectionWriter pgVectorProjectionWriter;
     private final S3Service s3Service;
     private final ObjectMapper objectMapper;
 
@@ -35,7 +39,7 @@ public class VlmProcessingScheduler {
     @Value("${vlm.python-executable:${VLM_PYTHON_EXECUTABLE:python}}")
     private String pythonExecutable;
 
-    @Value("${vlm.process-script:${VLM_PROCESS_SCRIPT:../strange_ai/scripts/process_vlm.py}}")
+    @Value("${vlm.process-script:${VLM_PROCESS_SCRIPT:}}")
     private String processScript;
 
     @Value("${vlm.batch-size:2}")
@@ -44,9 +48,21 @@ public class VlmProcessingScheduler {
     @Value("${vlm.timeout-seconds:120}")
     private long timeoutSeconds;
 
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        if (processScript == null || processScript.isBlank()) {
+            log.info("[VLM-Scheduler] VLM processing script is empty. VLM Background Scheduler remains INACTIVE.");
+        } else {
+            log.info("[VLM-Scheduler] VLM background scheduler initialized with script: {}", processScript);
+        }
+    }
+
     @Scheduled(fixedDelayString = "${vlm.scheduler-delay-ms:15000}")
     @Transactional
     public void processPendingJobs() {
+        if (processScript == null || processScript.isBlank()) {
+            return;
+        }
         LocalDateTime now = LocalDateTime.now();
         List<AlertEventDescription> jobs = repository.findLockableJobs(now, PageRequest.of(0, batchSize));
         for (AlertEventDescription job : jobs) {
@@ -85,14 +101,16 @@ public class VlmProcessingScheduler {
                 "korean_search_keywords":["바닥","쓰러짐","안전모","조끼","복도"],
                 "detailed_description_ko":"작업자 또는 사람이 감시 구역 바닥 근처에 있는 안전 이벤트로 보입니다."}
                 """;
+        double[] embedding = embeddingService.embed(description);
         job.markSuccess(
                 vlmJson,
                 description,
-                embeddingService.encode(embeddingService.embed(description)),
+                embeddingService.encode(embedding),
                 "",
                 embeddingService.embeddingModelName(),
                 true
         );
+        pgVectorProjectionWriter.projectIfEnabled(job.getId(), embedding);
     }
 
     private void markProcessSuccess(AlertEventDescription job) throws IOException, InterruptedException {
@@ -122,14 +140,16 @@ public class VlmProcessingScheduler {
         }
         JsonNode json = objectMapper.readTree(stdout);
         String description = json.path("detailed_description_ko").asText(json.toString());
+        double[] embedding = embeddingService.embed(description);
         job.markSuccess(
                 json.toString(),
                 description,
-                embeddingService.encode(embeddingService.embed(description)),
+                embeddingService.encode(embedding),
                 String.join(",", keyframeKeys),
                 embeddingService.embeddingModelName(),
                 false
         );
+        pgVectorProjectionWriter.projectIfEnabled(job.getId(), embedding);
     }
 
     private List<String> buildKeyframeKeys(AlertEventDescription job) {

@@ -1,6 +1,7 @@
 package com.strange.safety.alert.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -14,6 +15,8 @@ import com.strange.safety.alert.repository.AlertEventRepository;
 import com.strange.safety.alert.repository.SnapshotRepository;
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.repository.CameraRepository;
+import com.strange.safety.common.exception.CustomException;
+import com.strange.safety.common.exception.ErrorCode;
 import com.strange.safety.event.SafetyEventDto;
 import com.strange.safety.facility.entity.Facility;
 import com.strange.safety.facility.entity.FacilityType;
@@ -186,10 +189,95 @@ class AlertEventServiceTest {
         verify(vlmDescriptionEnqueueService, never()).enqueueIfMediaExists(any(AlertEvent.class));
     }
 
+    @Test
+    void createEventAttachesEvidenceClipToExistingEvent() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent existingEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = evidenceEvent("cam_01");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
+        when(snapshotRepository.findByAlertEvent_Id(40L)).thenReturn(List.of());
+        when(s3Service.generatePresignedUrl("clips/test.mp4")).thenReturn("https://signed.example.com/clips/test.mp4");
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getAlertEventId()).isEqualTo(40L);
+        assertThat(existingEvent.getClipUrl()).isEqualTo("clips/test.mp4");
+        assertThat(existingEvent.getClipPath()).isEqualTo("clips/test.mp4");
+        verify(alertEventRepository, never()).save(any(AlertEvent.class));
+        verify(snapshotRepository).save(any());
+        verify(recentAlertCacheStore, never()).add(any(), any());
+        verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
+    }
+
+    @Test
+    void createEventStoresEvidenceFirstEventWithoutRecentAlertCache() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent savedEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = evidenceEvent("cam_01");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.empty());
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
+        when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
+        when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getAlertEventId()).isEqualTo(40L);
+        verify(alertEventRepository).save(any(AlertEvent.class));
+        verify(snapshotRepository).save(any());
+        verify(recentAlertCacheStore, never()).add(any(), any());
+        verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(savedEvent);
+    }
+
+    @Test
+    void createEventMapsAiTypesToServiceScenarios() {
+        assertMappedScenario("faint", ScenarioType.COLLAPSE);
+        assertMappedScenario("FAINT_SUSPECTED", ScenarioType.SYNCOPE);
+        assertMappedScenario("FALL_UNRECOVERED", ScenarioType.SYNCOPE);
+        assertMappedScenario("fall", ScenarioType.FALL_BED);
+        assertMappedScenario("exit", ScenarioType.EXIT);
+        assertMappedScenario("hazard", ScenarioType.HAZARD_ZONE);
+    }
+
+    @Test
+    void displayMessagesMatchServiceScenarios() {
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.COLLAPSE)).isEqualTo("쓰러짐 감지");
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.SYNCOPE)).isEqualTo("실신(미회복) 감지");
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.FALL_BED)).isEqualTo("낙상 감지");
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.EXIT)).isEqualTo("이탈 감지");
+        assertThat(alertEventService.getDisplayMessage(ScenarioType.HAZARD_ZONE)).isEqualTo("위험구역 진입");
+    }
+
+    @Test
+    void createEventRejectsUnsupportedAiTypeBeforePersistence() {
+        SafetyEventDto event = safetyEvent("cam_01", "UNKNOWN_EVENT");
+
+        assertThatThrownBy(() -> alertEventService.createEvent(event))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.COMMON_INVALID_INPUT);
+
+        verify(cameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());
+        verify(alertEventRepository, never()).save(any());
+        verify(recentAlertCacheStore, never()).add(any(), any());
+    }
+
     private SafetyEventDto safetyEvent(String cameraLoginId) {
+        return safetyEvent(cameraLoginId, "SYNCOPE");
+    }
+
+    private SafetyEventDto safetyEvent(String cameraLoginId, String type) {
         return new SafetyEventDto(
                 null,
-                "SYNCOPE",
+                null,
+                "frame-1",
+                type,
                 null,
                 cameraLoginId,
                 "test-event-id",
@@ -209,6 +297,50 @@ class AlertEventServiceTest {
                 null,
                 null,
                 null
+        );
+    }
+
+    private void assertMappedScenario(String type, ScenarioType expectedScenarioType) {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L, expectedScenarioType);
+        SafetyEventDto event = safetyEvent("cam_01", type);
+
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
+        when(scenarioRepository.findByScenarioType(expectedScenarioType)).thenReturn(Optional.of(scenario));
+        when(alertEventRepository.save(any(AlertEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getScenarioType()).isEqualTo(expectedScenarioType.name());
+    }
+
+    private SafetyEventDto evidenceEvent(String cameraLoginId) {
+        return new SafetyEventDto(
+                "event",
+                "evidence",
+                "frame-1",
+                "SYNCOPE",
+                null,
+                cameraLoginId,
+                "test-event-id",
+                Instant.parse("2026-06-19T00:00:00Z").toString(),
+                "CRITICAL",
+                "AI safety event evidence",
+                null,
+                0.9f,
+                null,
+                null,
+                "track-1",
+                "clips/test.mp4",
+                "clips/test.mp4",
+                1783410059000L,
+                1783410062400L,
+                1783410062500L,
+                1783410062500L,
+                null,
+                1783410062600L
         );
     }
 
@@ -233,8 +365,12 @@ class AlertEventServiceTest {
     }
 
     private Scenario scenario(Long id) {
+        return scenario(id, ScenarioType.SYNCOPE);
+    }
+
+    private Scenario scenario(Long id, ScenarioType scenarioType) {
         Scenario scenario = Scenario.builder()
-                .scenarioType(ScenarioType.SYNCOPE)
+                .scenarioType(scenarioType)
                 .description("syncope")
                 .build();
         ReflectionTestUtils.setField(scenario, "id", id);
