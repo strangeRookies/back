@@ -2,9 +2,7 @@ package com.strange.safety.event;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.strange.safety.camera.overlay.OverlayMessage;
 import com.strange.safety.camera.overlay.OverlayRelayService;
-import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -21,39 +19,28 @@ public class MqttSafetyEventSubscriber {
     private static final Logger log = LoggerFactory.getLogger(MqttSafetyEventSubscriber.class);
 
     private static final String CAMERA_STATUS_TOPIC = "safety/cameras/status";
-    private static final String OVERLAY_MESSAGE_TYPE = "overlay";
 
     private final ObjectMapper objectMapper;
     private final AsyncEventProcessorService asyncEventProcessorService;
     private final OverlayRelayService overlayRelayService;
-    private final String overlayTopic;
 
     public MqttSafetyEventSubscriber(
             ObjectMapper objectMapper,
             AsyncEventProcessorService asyncEventProcessorService,
-            OverlayRelayService overlayRelayService,
-            @Value("${mqtt.overlay-topic:camera}") String overlayTopic
+            OverlayRelayService overlayRelayService
     ) {
         this.objectMapper = objectMapper;
         this.asyncEventProcessorService = asyncEventProcessorService;
         this.overlayRelayService = overlayRelayService;
-        this.overlayTopic = overlayTopic;
     }
 
-    @ServiceActivator(inputChannel = "mqttInputChannel")
+    @ServiceActivator(inputChannel = "mqttEventInputChannel")
     public void messageArrived(Message<?> message) {
         long rawMqttReceivedAtMs = System.currentTimeMillis();
         String topic = String.valueOf(message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC));
-        if (!overlayTopic.equals(topic)) {
-            log.info("[ai-alert-latency] MQTT raw received topic={} rawMqttReceivedAtMs={} thread={}",
-                    topic, rawMqttReceivedAtMs, Thread.currentThread().getName());
-        }
+        log.info("[ai-alert-latency] MQTT raw received topic={} rawMqttReceivedAtMs={} thread={}",
+                topic, rawMqttReceivedAtMs, Thread.currentThread().getName());
         String payload = payloadAsString(message.getPayload());
-
-        if (overlayTopic.equals(topic)) {
-            handleOverlayMessage(payload);
-            return;
-        }
 
         log.info("Received MQTT message from topic {}: {}", topic, payload);
 
@@ -123,24 +110,6 @@ public class MqttSafetyEventSubscriber {
         } catch (Exception e) {
             log.error("[ai-alert-raw] Failed to parse/process MQTT safety event topic={} rawMqttReceivedAtMs={} payloadExcerpt={} error={}",
                     topic, rawMqttReceivedAtMs, abbreviate(payload), e.getMessage(), e);
-        }
-    }
-
-    private void handleOverlayMessage(String payload) {
-        try {
-            OverlayMessage message = objectMapper.readValue(payload, OverlayMessage.class);
-            if (!OVERLAY_MESSAGE_TYPE.equals(message.messageType()) && !"frame_sync".equals(message.messageType())) {
-                log.debug("Ignoring non-overlay MQTT message on overlay topic: messageType={}", message.messageType());
-                return;
-            }
-            int eventCount = message.events() == null ? 0 : message.events().size();
-            log.debug("MQTT overlay received topic={} cameraLoginId={} events={}",
-                    overlayTopic, message.resolvedCameraLoginId(), eventCount);
-            overlayRelayService.accept(message);
-        } catch (JsonProcessingException ex) {
-            log.warn("Failed to parse MQTT overlay JSON: error={}", ex.getOriginalMessage());
-        } catch (RuntimeException ex) {
-            log.error("Failed to process MQTT overlay: error={}", ex.getMessage(), ex);
         }
     }
 

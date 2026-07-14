@@ -1,7 +1,7 @@
 package com.strange.safety.camera.entity;
 
-import jakarta.persistence.*;
 import com.strange.safety.corporatecamera.entity.CorporateCamera;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,12 +12,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
-/**
- * AI 서버가 MQTT로 보고한 카메라 연결 상태 변경 이력을 저장하는 엔티티.
- * 23.md CAMERA_STATUS_LOGS 테이블 스펙에 대응한다.
- *
- * 상태가 변경될 때만 기록된다 (23.md Section 8: "상태가 변경되었을 때만 MQTT로 발행").
- */
 @Entity
 @Table(name = "camera_status_logs",
         indexes = {

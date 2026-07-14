@@ -16,7 +16,7 @@ public record SnapshotAssistProperties(
             retentionDays = 7;
         }
         if (storageRoot == null || storageRoot.isBlank()) {
-            storageRoot = "/tmp/vlm-snapshot-assist";
+            storageRoot = "data/vlm-snapshot-assist";
         }
         if (serviceToken == null) {
             serviceToken = "";

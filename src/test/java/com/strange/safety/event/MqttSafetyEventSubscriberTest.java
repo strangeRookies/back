@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.strange.safety.camera.overlay.MqttOverlaySubscriber;
 import com.strange.safety.camera.overlay.OverlayMessage;
 import com.strange.safety.camera.overlay.OverlayRelayService;
 import org.junit.jupiter.api.Test;
@@ -70,9 +71,8 @@ class MqttSafetyEventSubscriberTest {
 
     @Test
     void routesCamelCaseOverlayMessageWithoutInvokingSafetyEventFlow() {
-        MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
+        MqttOverlaySubscriber subscriber = new MqttOverlaySubscriber(
                 new ObjectMapper(),
-                asyncEventProcessorService,
                 overlayRelayService,
                 "camera");
         String payload = """
@@ -115,9 +115,8 @@ class MqttSafetyEventSubscriberTest {
 
     @Test
     void routesOverlayMessageWithTrackAliasesAndDisplayFields() {
-        MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
+        MqttOverlaySubscriber subscriber = new MqttOverlaySubscriber(
                 new ObjectMapper(),
-                asyncEventProcessorService,
                 overlayRelayService,
                 "camera");
         String payload = """
@@ -161,9 +160,8 @@ class MqttSafetyEventSubscriberTest {
 
     @Test
     void ignoresNonOverlayMessageOnOverlayTopicWithoutInvokingSafetyEventFlow() {
-        MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
+        MqttOverlaySubscriber subscriber = new MqttOverlaySubscriber(
                 new ObjectMapper(),
-                asyncEventProcessorService,
                 overlayRelayService,
                 "camera");
         String payload = """
@@ -187,8 +185,7 @@ class MqttSafetyEventSubscriberTest {
         MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
                 new ObjectMapper(),
                 asyncEventProcessorService,
-                overlayRelayService,
-                "camera");
+                overlayRelayService);
         String payload = """
                 {
                   "cameraLoginId": "cam_05",
@@ -230,8 +227,7 @@ class MqttSafetyEventSubscriberTest {
         MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
                 new ObjectMapper(),
                 asyncEventProcessorService,
-                overlayRelayService,
-                "camera");
+                overlayRelayService);
         String payload = """
                 {
                   "messageType": "event",
@@ -266,8 +262,7 @@ class MqttSafetyEventSubscriberTest {
         MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
                 new ObjectMapper(),
                 asyncEventProcessorService,
-                overlayRelayService,
-                "camera");
+                overlayRelayService);
         String payload = """
                 {
                   "messageType": "event",
@@ -295,8 +290,7 @@ class MqttSafetyEventSubscriberTest {
         MqttSafetyEventSubscriber subscriber = new MqttSafetyEventSubscriber(
                 new ObjectMapper(),
                 asyncEventProcessorService,
-                overlayRelayService,
-                "camera");
+                overlayRelayService);
         String payload = """
                 {
                   "messageType": "event",
