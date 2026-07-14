@@ -139,5 +139,3 @@ vlm:
   # pgvector cutover (requires db/pgvector_alert_event_descriptions.sql)
   pgvector-write-enabled: ${VLM_PGVECTOR_WRITE_ENABLED:false}
   pgvector-search-enabled: ${VLM_PGVECTOR_SEARCH_ENABLED:false}
-
-    

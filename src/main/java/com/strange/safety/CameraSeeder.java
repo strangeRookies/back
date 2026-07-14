@@ -1,9 +1,9 @@
 package com.strange.safety;
 
 import com.strange.safety.camera.entity.Camera;
-import com.strange.safety.camera.entity.CameraStatus;
 import com.strange.safety.camera.entity.CameraConnectionStatus;
 import com.strange.safety.camera.repository.CameraRepository;
+import com.strange.safety.camera.service.VirtualCameraPoolService;
 import com.strange.safety.facility.entity.Facility;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +19,7 @@ import java.util.Optional;
 public class CameraSeeder implements CommandLineRunner {
 
     private final CameraRepository cameraRepository;
+    private final VirtualCameraPoolService virtualCameraPoolService;
 
     @Override
     public void run(String... args) throws Exception {
@@ -42,6 +43,7 @@ public class CameraSeeder implements CommandLineRunner {
             Optional<Camera> camOpt = cameraRepository.findFirstByCameraLoginIdOrderByIdDesc(camId);
             if (camOpt.isEmpty()) {
                 log.info("Seeding camera: {}", camId);
+                String assignedVideoPath = virtualCameraPoolService.assignVideo();
                 Camera camera = Camera.builder()
                         .facility(facility)
                         .cameraLoginId(camId)
@@ -50,11 +52,15 @@ public class CameraSeeder implements CommandLineRunner {
                         .rtspUrl("rtsp://localhost:8554/" + camId)
                         .locationDescription("Auto-seeded camera " + camId)
                         .aiEnabled(true)
-                        .assignedVideoPath("video_pool/dummy.mp4")
+                        .assignedVideoPath(assignedVideoPath)
                         .build();
                 camera.updateConnectionStatus(CameraConnectionStatus.CONNECTED, Instant.now());
                 cameraRepository.save(camera);
-                log.info("Successfully seeded camera: {}", camId);
+                log.info(
+                        "Successfully seeded camera: {} assignedVideoPath={}",
+                        camId,
+                        assignedVideoPath
+                );
             } else {
                 log.info("Camera {} already exists.", camId);
                 Camera camera = camOpt.get();
@@ -65,6 +71,13 @@ public class CameraSeeder implements CommandLineRunner {
                     cameraRepository.save(camera);
                 }
             }
+        }
+
+        // Seeded/legacy cameras often share video_pool/dummy.mp4. Rebalance or clear so
+        // different cameraLoginIds do not all force the same simulated content.
+        int rebalanced = virtualCameraPoolService.rebalanceDuplicateAssignments();
+        if (rebalanced > 0) {
+            log.info("CameraSeeder rebalanced {} camera video assignment(s)", rebalanced);
         }
     }
 }
