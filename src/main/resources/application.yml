@@ -122,6 +122,15 @@ vlm:
   python-executable: ${VLM_PYTHON_EXECUTABLE:python}
   process-script: ${VLM_PROCESS_SCRIPT:}
   gemini-api-key: ${GEMINI_API_KEY:}
+  query-embedding-model: ${VLM_QUERY_EMBEDDING_MODEL:text-embedding-004}
+  # Apply db/operations/enable_vlm_pgvector.sql after Hibernate has created the base tables,
+  # then enable this flag. It remains false for safe fresh-database startup.
+  pgvector:
+    enabled: ${VLM_PGVECTOR_ENABLED:false}
+  max-stdout-bytes: ${VLM_MAX_STDOUT_BYTES:1048576}
+  capture-zone-id: ${VLM_CAPTURE_ZONE_ID:UTC}
+  clip-start-sec: ${VLM_CLIP_START_SEC:}
+  clip-end-sec: ${VLM_CLIP_END_SEC:}
   # Snapshot-only VLM assist (does not mutate primary alerts). Local 7-day files for MVP.
   snapshot-assist:
     enabled: ${VLM_SNAPSHOT_ASSIST_ENABLED:false}
@@ -139,3 +148,4 @@ vlm:
   # pgvector cutover (requires db/pgvector_alert_event_descriptions.sql)
   pgvector-write-enabled: ${VLM_PGVECTOR_WRITE_ENABLED:false}
   pgvector-search-enabled: ${VLM_PGVECTOR_SEARCH_ENABLED:false}
+

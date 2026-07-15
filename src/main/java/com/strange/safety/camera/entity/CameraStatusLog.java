@@ -1,4 +1,5 @@
 package com.strange.safety.camera.entity;
+import com.strange.safety.corporatecamera.entity.CorporateCamera;
 
 import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import jakarta.persistence.*;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 @Table(name = "camera_status_logs",
         indexes = {
                 @Index(name = "idx_csl_camera_id", columnList = "camera_id"),
+                @Index(name = "idx_csl_corporate_camera_id", columnList = "corporate_camera_id"),
                 @Index(name = "idx_csl_detected_at", columnList = "detected_at"),
         })
 @Getter
@@ -31,6 +33,9 @@ public class CameraStatusLog {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "camera_id")
     private Camera camera;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "corporate_camera_id")
+    private CorporateCamera corporateCamera;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "corporate_camera_id")
@@ -71,6 +76,9 @@ public class CameraStatusLog {
                             CameraConnectionStatus previousStatus,
                             CameraConnectionStatus currentStatus,
                             String reason, Instant detectedAt) {
+        if ((camera == null) == (corporateCamera == null)) {
+            throw new IllegalArgumentException("Exactly one camera source is required");
+        }
         this.camera = camera;
         this.corporateCamera = corporateCamera;
         this.edgeDeviceId = edgeDeviceId;
