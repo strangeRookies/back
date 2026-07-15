@@ -126,7 +126,7 @@ vlm:
   snapshot-assist:
     enabled: ${VLM_SNAPSHOT_ASSIST_ENABLED:false}
     service-token: ${VLM_SNAPSHOT_ASSIST_SERVICE_TOKEN:${AI_SERVICE_TOKEN:}}
-    storage-root: ${VLM_SNAPSHOT_ASSIST_STORAGE_ROOT:data/vlm-snapshot-assist}
+    storage-root: ${VLM_SNAPSHOT_ASSIST_STORAGE_ROOT:/tmp/vlm-snapshot-assist}
     retention-days: ${VLM_SNAPSHOT_ASSIST_RETENTION_DAYS:7}
     # Offline tests may set true; production should use real Gemini with env key only
     mock-analyze: ${VLM_SNAPSHOT_ASSIST_MOCK_ANALYZE:false}
