@@ -68,7 +68,7 @@ public class VirtualCameraPoolService {
                 relativePath,
                 minCount,
                 poolFiles.size()
-        );
+            );
         return relativePath;
     }
 

@@ -42,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -203,12 +204,20 @@ public class AlertEventService {
 
     public List<AlertEventResponse> getRecent(Long userId, Long facilityId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        String contextKey;
 
         if (user.getRole() == Role.CORPORATE) {
             CompanyProfile profile = companyProfileRepository.findById(facilityId).orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
             if (!profile.getUser().getId().equals(userId)) throw new CustomException(ErrorCode.FACILITY_ACCESS_DENIED);
+            contextKey = "COMP_" + profile.getId();
         } else {
             facilityService.getFacilityWithOwnerCheck(userId, facilityId);
+            contextKey = "FAC_" + facilityId;
+        }
+
+        List<AlertEventResponse> cachedEvents = recentAlertCacheStore.findRecent(contextKey);
+        if (!cachedEvents.isEmpty()) {
+            return cachedEvents;
         }
 
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
@@ -265,6 +274,12 @@ public class AlertEventService {
                 .build();
         snapshotRepository.save(snapshot);
         log.info("[Snapshot] Saved snapshot for alertEventId={}, eventId={}, S3Key={}", event.getId(), eventId, objectKey);
+        // Side-channel VLM enqueue must never break snapshot bind or primary alert path
+        try {
+            vlmDescriptionEnqueueService.enqueueIfMediaExists(event);
+        } catch (Exception ex) {
+            log.warn("[Snapshot] VLM enqueue skipped after snapshot upload eventId={}: {}", eventId, ex.getMessage());
+        }
     }
 
     private AlertEvent getEventWithOwnerCheck(Long userId, Long alertEventId) {
@@ -329,6 +344,8 @@ public class AlertEventService {
             return attachClipToExisting(existingEvent, dto);
         }
 
+        ScenarioType scenarioType = resolveScenarioType(dto.type());
+
         String cameraIdVal = firstNonBlank(dto.cameraLoginId(), dto.cameraId(), "cam_01");
 
         // Convert "cam1", "cam2" or "CCTV-01" into DB format "cam_01"
@@ -351,8 +368,6 @@ public class AlertEventService {
                     });
         }
 
-        ScenarioType scenarioType = mapToScenarioType(dto.type());
-
         Scenario scenario = scenarioRepository.findByScenarioType(scenarioType)
                 .orElseThrow(() -> {
                     log.error("Failed to map MQTT safety event type: rawType={}, scenarioType={}",
@@ -363,8 +378,7 @@ public class AlertEventService {
         AlertSeverity severity = mapToAlertSeverity(dto.severity());
 
         Instant timestampVal = dto.resolvedTimestamp() != null ? dto.resolvedTimestamp() : Instant.now();
-        String messageVal = dto.message() != null ? dto.message()
-                : (dto.type() != null ? dto.type() + " detected" : "AI safety event detected");
+        String messageVal = getDisplayMessage(scenarioType);
         Float confidenceScore = dto.confidence() != null ? dto.confidence() : 0.85f;
         String boundingBoxData = serializeBoundingBox(dto);
 
@@ -437,6 +451,41 @@ public class AlertEventService {
         return eventId != null && !eventId.isBlank() && alertEventRepository.existsByEventId(eventId);
     }
 
+    public boolean isSupportedEventType(String type) {
+        try {
+            resolveScenarioType(type);
+            return true;
+        } catch (CustomException ex) {
+            return false;
+        }
+    }
+
+    public ScenarioType resolveScenarioType(String type) {
+        String normalizedType = type == null ? "" : type.trim().toUpperCase(Locale.ROOT);
+        return switch (normalizedType) {
+            case "FAINT" -> ScenarioType.COLLAPSE;
+            case "FAINT_SUSPECTED", "FALL_UNRECOVERED", "SYNCOPE" -> ScenarioType.SYNCOPE;
+            case "FALL", "FALL_BED" -> ScenarioType.FALL_BED;
+            case "COLLAPSE" -> ScenarioType.COLLAPSE;
+            case "EXIT" -> ScenarioType.EXIT;
+            case "HAZARD", "HAZARD_ZONE" -> ScenarioType.HAZARD_ZONE;
+            case "ASSAULT", "VIOLENCE", "FIGHT" -> ScenarioType.ASSAULT;
+            default -> throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        };
+    }
+
+    public String getDisplayMessage(ScenarioType scenarioType) {
+        return switch (scenarioType) {
+            case COLLAPSE -> "쓰러짐 감지";
+            case SYNCOPE -> "실신(미회복) 감지";
+            case FALL_BED -> "낙상 감지";
+            case EXIT -> "이탈 감지";
+            case HAZARD_ZONE -> "위험구역 진입";
+            case ASSAULT -> "폭행 감지";
+            default -> "안전 이상 감지";
+        };
+    }
+
     private AlertEventResponse toResponseWithFirstSnapshot(AlertEvent event) {
         String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                 s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
@@ -481,7 +530,24 @@ public class AlertEventService {
             vlmDescriptionEnqueueService.enqueueIfMediaExists(existing);
         }
 
-        return AlertEventResponse.from(existing, snapshotUrl);
+        AlertEventResponse response = AlertEventResponse.from(existing, snapshotUrl);
+
+        // "이벤트 알림" 탭이 조회하는 최근 알림 캐시(Redis)는 1차(클립 없음) 발행 시점에만 채워지고
+        // 갱신되지 않아서, 클립이 나중에 붙어도 캐시가 계속 옛 상태를 돌려주는 문제가 있었음.
+        // 클립이 실제로 붙는 이 시점에 캐시에도 최신 응답을 반영한다.
+        if (snapshotUrl != null) {
+            String contextKey = existing.getCamera() != null
+                    ? "FAC_" + existing.getCamera().getFacility().getId()
+                    : "COMP_" + existing.getCorporateCamera().getCompanyProfile().getId();
+            try {
+                recentAlertCacheStore.add(contextKey, response);
+            } catch (RuntimeException ex) {
+                log.warn("Failed to refresh recent alert cache after clip attach: alertEventId={}, contextKey={}, error={}",
+                        existing.getId(), contextKey, ex.getMessage());
+            }
+        }
+
+        return response;
     }
 
     private String firstNonBlank(String... values) {
@@ -508,30 +574,6 @@ public class AlertEventService {
     }
 
     private record SafetyEventDetectionData(List<Number> bbox, String trackId) {
-    }
-
-    private ScenarioType mapToScenarioType(String type) {
-        if (type == null)
-            return ScenarioType.SYNCOPE;
-        String upper = type.toUpperCase();
-        if (upper.contains("FALL"))
-            return ScenarioType.FALL_BED;
-        if (upper.contains("COLLAPSE"))
-            return ScenarioType.COLLAPSE;
-        if (upper.contains("FAINT") || upper.contains("SYNCOPE"))
-            return ScenarioType.SYNCOPE;
-        if (upper.contains("EXIT"))
-            return ScenarioType.EXIT;
-        if (upper.contains("ASSAULT") || upper.contains("VIOLENCE") || upper.contains("FIGHT"))
-            return ScenarioType.ASSAULT;
-        if (upper.contains("HAZARD"))
-            return ScenarioType.HAZARD_ZONE;
-
-        try {
-            return ScenarioType.valueOf(upper);
-        } catch (IllegalArgumentException e) {
-            return ScenarioType.SYNCOPE;
-        }
     }
 
     private AlertSeverity mapToAlertSeverity(String severity) {

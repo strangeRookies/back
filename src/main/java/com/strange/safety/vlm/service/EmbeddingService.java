@@ -19,6 +19,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
+/**
+ * Facade for embedding operations. Direct SDK clients only — no LangChain.
+ */
 @Service
 public class EmbeddingService {
     private static final int DIMENSION = VlmIndexPayloadParser.EMBEDDING_DIMENSION;
@@ -35,11 +38,11 @@ public class EmbeddingService {
     @Value("${vlm.mock-mode:${VLM_MOCK_MODE:true}}")
     private boolean mockMode;
 
-    @Value("${vlm.gemini-api-key:${GEMINI_API_KEY:}}")
-    private String geminiApiKey;
-
     @Value("${vlm.query-embedding-model:${VLM_QUERY_EMBEDDING_MODEL:text-embedding-004}}")
     private String queryEmbeddingModel;
+
+    @Value("${vlm.gemini-api-key:${GEMINI_API_KEY:}}")
+    private String geminiApiKey;
 
     public EmbeddingService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -47,11 +50,15 @@ public class EmbeddingService {
     }
 
     public boolean canEmbed() {
-        return mockMode || (geminiApiKey != null && !geminiApiKey.isBlank());
+        return geminiApiKey != null && !geminiApiKey.isBlank();
     }
 
     public String embeddingModelName() {
         return mockMode ? "mock-vlm-index-768" : "gemini-" + queryEmbeddingModel;
+    }
+
+    public int dimension() {
+        return DIMENSION;
     }
 
     public double[] embed(String text) {

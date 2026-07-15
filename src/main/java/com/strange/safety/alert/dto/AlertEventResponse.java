@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class AlertEventResponse {
 
     private Long alertEventId;
+    private String eventId;
     private Long cameraId;
     private Long scenarioId;
     private String scenarioType;
@@ -36,6 +37,7 @@ public class AlertEventResponse {
     public static AlertEventResponse from(AlertEvent event, String snapshotUrl) {
         return AlertEventResponse.builder()
                 .alertEventId(event.getId())
+                .eventId(event.getEventId())
                 .cameraId(event.getCamera() != null ? event.getCamera().getId() : (event.getCorporateCamera() != null ? event.getCorporateCamera().getId() : null))
                 .cameraLoginId(event.getCamera() != null ? event.getCamera().getCameraLoginId() : (event.getCorporateCamera() != null ? event.getCorporateCamera().getCameraLoginId() : null))
                 .scenarioId(event.getScenario().getId())

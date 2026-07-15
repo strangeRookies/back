@@ -1,6 +1,7 @@
 package com.strange.safety.camera.entity;
 import com.strange.safety.corporatecamera.entity.CorporateCamera;
 
+import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -32,6 +33,10 @@ public class CameraStatusLog {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "camera_id")
     private Camera camera;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "corporate_camera_id")
+    private CorporateCamera corporateCamera;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "corporate_camera_id")
     private CorporateCamera corporateCamera;

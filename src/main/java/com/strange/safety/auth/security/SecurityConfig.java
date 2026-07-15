@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 
@@ -33,11 +34,14 @@ public class SecurityConfig {
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final CorsProperties corsProperties;
 
+    @Value("${vlm.snapshot-assist.service-token:}")
+    private String vlmServiceToken;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 // 1. CORS 설정 활성화 추가 (csrf 바로 위에 추가)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) 
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
@@ -69,7 +73,9 @@ public class SecurityConfig {
                                 "/api/auth/password-reset",
                                 "/api/emergency-jurisdictions/resolve",
                                 "/api/cameras/active",
-                                "/api/internal/ai-overlays/report"
+                                "/api/internal/ai-overlays/report",
+                                // Edge service token validated inside controller (not end-user JWT)
+                                "/api/internal/vlm/snapshot-assist/**"
                         ).permitAll()
 
                         // ADMIN 전용
@@ -100,6 +106,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/inquiries/*/answer").hasRole("ADMIN")
 
                         .anyRequest().authenticated())
+                .addFilterBefore(new VlmServiceTokenFilter(vlmServiceToken), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

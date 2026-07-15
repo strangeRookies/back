@@ -1,6 +1,7 @@
 package com.strange.safety.event;
 
 import com.strange.safety.alert.service.AlertEventService;
+import com.strange.safety.scenario.entity.ScenarioType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,14 @@ public class AsyncEventProcessorService {
             return;
         }
 
+        if (!alertEventService.isSupportedEventType(event.type())) {
+            log.warn("Skipping unsupported AI safety event type: eventId={}, type={}", event.eventId(), event.type());
+            return;
+        }
+
+        ScenarioType scenarioType = alertEventService.resolveScenarioType(event.type());
+        String displayMessage = alertEventService.getDisplayMessage(scenarioType);
+
         Long targetId = null;
         boolean isCorporate = false;
         try {
@@ -53,7 +62,7 @@ public class AsyncEventProcessorService {
                 log.info("[MQTT Async] eventId={} already has an alert row; skipping duplicate broadcast/FCM (clip re-publish).",
                         event.eventId());
             } else {
-                alertBroadcastService.broadcast(targetId, isCorporate, event);
+                alertBroadcastService.broadcast(targetId, isCorporate, event, scenarioType, displayMessage);
                 fcmService.sendAlertNotification(event);
             }
         } catch (RuntimeException ex) {

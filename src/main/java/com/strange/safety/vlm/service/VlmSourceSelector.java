@@ -16,7 +16,19 @@ public class VlmSourceSelector {
         }
 
         Optional<String> clipUrlKey = normalizeS3Key(event.getClipUrl());
-        return clipUrlKey.map(key -> new VlmSource(VlmSourceType.CLIP, key));
+        if (clipUrlKey.isPresent()) {
+            return Optional.of(new VlmSource(VlmSourceType.CLIP, clipUrlKey.get()));
+        }
+
+        // Prefer first bound snapshot object key when present (legacy S3 path)
+        if (event.getSnapshots() != null) {
+            return event.getSnapshots().stream()
+                    .map(s -> normalizeS3Key(s.getSnapshotUrl()))
+                    .flatMap(Optional::stream)
+                    .findFirst()
+                    .map(key -> new VlmSource(VlmSourceType.SNAPSHOT, key));
+        }
+        return Optional.empty();
     }
 
     public Optional<String> normalizeS3Key(String value) {

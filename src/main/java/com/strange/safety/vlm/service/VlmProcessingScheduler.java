@@ -10,6 +10,7 @@ import com.strange.safety.vlm.entity.AlertEventDescription;
 import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
 import com.strange.safety.vlm.repository.PgVectorSearchRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -34,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class VlmProcessingScheduler {
     private static final int KEYFRAME_COUNT = 8;
 
@@ -52,7 +54,7 @@ public class VlmProcessingScheduler {
     @Value("${vlm.python-executable:${VLM_PYTHON_EXECUTABLE:python}}")
     private String pythonExecutable;
 
-    @Value("${vlm.process-script:${VLM_PROCESS_SCRIPT:../strange_ai/scripts/process_vlm.py}}")
+    @Value("${vlm.process-script:${VLM_PROCESS_SCRIPT:}}")
     private String processScript;
 
     @Value("${vlm.batch-size:2}")
@@ -76,6 +78,9 @@ public class VlmProcessingScheduler {
     @Scheduled(fixedDelayString = "${vlm.scheduler-delay-ms:15000}")
     @Transactional
     public void processPendingJobs() {
+        if (processScript == null || processScript.isBlank()) {
+            return;
+        }
         LocalDateTime now = LocalDateTime.now();
         List<AlertEventDescription> jobs = repository.findLockableJobs(now, PageRequest.of(0, batchSize));
         for (AlertEventDescription job : jobs) {

@@ -64,29 +64,50 @@ public class MqttConfig {
     }
 
     @Bean
-    public MessageProducer inbound() {
-        log.info("Configuring MQTT inbound adapter: brokerUrl={}, clientId={}, topics=[{}, {}, {}], qos=[1, 1, 0], automaticReconnect=true",
+    public MessageProducer mqttEventInbound() {
+        log.info("Configuring MQTT event inbound adapter: brokerUrl={}, clientId={}, topics=[{}, {}], qos=[1, 1], automaticReconnect=true",
                 brokerUrl,
-                clientId + "-integration",
+                clientId + "-event",
                 safetyEventsTopic,
-                cameraStatusTopic,
-                overlayTopic);
+                cameraStatusTopic);
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
-                clientId + "-integration",
+                clientId + "-event",
                 mqttClientFactory(),
                 safetyEventsTopic,
-                cameraStatusTopic,
-                overlayTopic);
+                cameraStatusTopic);
 
-        adapter.setCompletionTimeout(5000); // kafka!!
+        adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
-        adapter.setQos(1, 1, 0);
-        adapter.setOutputChannel(mqttInputChannel());
+        adapter.setQos(1, 1);
+        adapter.setOutputChannel(mqttEventInputChannel());
         return adapter;
     }
 
     @Bean
-    public MessageChannel mqttInputChannel() {
+    public MessageProducer mqttOverlayInbound() {
+        log.info("Configuring MQTT overlay inbound adapter: brokerUrl={}, clientId={}, topic={}, qos=0, automaticReconnect=true",
+                brokerUrl,
+                clientId + "-overlay",
+                overlayTopic);
+        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
+                clientId + "-overlay",
+                mqttClientFactory(),
+                overlayTopic);
+
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(0);
+        adapter.setOutputChannel(mqttOverlayInputChannel());
+        return adapter;
+    }
+
+    @Bean
+    public MessageChannel mqttEventInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageChannel mqttOverlayInputChannel() {
         return new DirectChannel();
     }
 }

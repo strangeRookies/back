@@ -120,7 +120,7 @@ vlm:
   prompt-version: ${VLM_PROMPT_VERSION:v1}
   model-name: ${VLM_MODEL_NAME:mock-vlm}
   python-executable: ${VLM_PYTHON_EXECUTABLE:python}
-  process-script: ${VLM_PROCESS_SCRIPT:../strange_ai/scripts/process_vlm.py}
+  process-script: ${VLM_PROCESS_SCRIPT:}
   gemini-api-key: ${GEMINI_API_KEY:}
   query-embedding-model: ${VLM_QUERY_EMBEDDING_MODEL:text-embedding-004}
   # Apply db/operations/enable_vlm_pgvector.sql after Hibernate has created the base tables,
@@ -131,5 +131,21 @@ vlm:
   capture-zone-id: ${VLM_CAPTURE_ZONE_ID:UTC}
   clip-start-sec: ${VLM_CLIP_START_SEC:}
   clip-end-sec: ${VLM_CLIP_END_SEC:}
+  # Snapshot-only VLM assist (does not mutate primary alerts). Local 7-day files for MVP.
+  snapshot-assist:
+    enabled: ${VLM_SNAPSHOT_ASSIST_ENABLED:false}
+    service-token: ${VLM_SNAPSHOT_ASSIST_SERVICE_TOKEN:${AI_SERVICE_TOKEN:}}
+    storage-root: ${VLM_SNAPSHOT_ASSIST_STORAGE_ROOT:/tmp/vlm-snapshot-assist}
+    retention-days: ${VLM_SNAPSHOT_ASSIST_RETENTION_DAYS:7}
+    # Offline tests may set true; production should use real Gemini with env key only
+    mock-analyze: ${VLM_SNAPSHOT_ASSIST_MOCK_ANALYZE:false}
+    gemini-api-key: ${GEMINI_API_KEY:}
+    cleanup-cron: ${VLM_SNAPSHOT_ASSIST_CLEANUP_CRON:0 15 3 * * *}
+  # Embedding: mock | gemini (direct SDK/HTTP only — no LangChain)
+  embedding-provider: ${VLM_EMBEDDING_PROVIDER:mock}
+  embedding-worker-enabled: ${VLM_EMBEDDING_WORKER_ENABLED:false}
+  embedding-worker-delay-ms: ${VLM_EMBEDDING_WORKER_DELAY_MS:30000}
+  # pgvector cutover (requires db/pgvector_alert_event_descriptions.sql)
+  pgvector-write-enabled: ${VLM_PGVECTOR_WRITE_ENABLED:false}
+  pgvector-search-enabled: ${VLM_PGVECTOR_SEARCH_ENABLED:false}
 
-    
