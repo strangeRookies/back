@@ -140,6 +140,7 @@ class AsyncEventProcessorServiceTest {
                 null,
                 "track-1",
                 null,
+                null,
                 clipUrl,
                 1783410059000L,
                 1783410062400L,

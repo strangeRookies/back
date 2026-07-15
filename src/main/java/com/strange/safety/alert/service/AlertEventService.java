@@ -273,6 +273,7 @@ public class AlertEventService {
                 .fileSizeBytes(size)
                 .build();
         snapshotRepository.save(snapshot);
+        event.getSnapshots().add(snapshot);
         log.info("[Snapshot] Saved snapshot for alertEventId={}, eventId={}, S3Key={}", event.getId(), eventId, objectKey);
         // Side-channel VLM enqueue must never break snapshot bind or primary alert path
         try {
@@ -391,6 +392,7 @@ public class AlertEventService {
                 .keypointData(messageVal)
                 .boundingBoxData(boundingBoxData)
                 .clipUrl(dto.clipUrl())
+                .clipObjectKey(dto.clipObjectKey())
                 .clipPath(dto.clipPath())
                 .faintProb(dto.faintProb())
                 .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneOffset.UTC))
@@ -398,9 +400,9 @@ public class AlertEventService {
                 .build();
 
         AlertEvent saved = alertEventRepository.save(event);
-        vlmDescriptionEnqueueService.enqueueIfMediaExists(saved);
+        enqueueVlmSideChannel(saved, "alert create");
         
-        String s3Key = dto.clipUrl();
+        String s3Key = firstNonBlank(dto.clipObjectKey(), dto.clipUrl());
         if (s3Key != null && s3Key.contains(".amazonaws.com/")) {
             s3Key = s3Key.substring(s3Key.indexOf(".amazonaws.com/") + 15);
         }
@@ -501,15 +503,17 @@ public class AlertEventService {
     @Transactional
     protected AlertEventResponse attachClipToExisting(AlertEvent existing, SafetyEventDto dto) {
         String clipUrl = dto.clipUrl();
-        if (clipUrl == null || clipUrl.isBlank()) {
+        String clipObjectKey = dto.clipObjectKey();
+        if ((clipUrl == null || clipUrl.isBlank())
+                && (clipObjectKey == null || clipObjectKey.isBlank())) {
             log.info("Skipped duplicate MQTT safety alert event: alertEventId={}, eventId={}",
                     existing.getId(), dto.eventId());
             return toResponseWithFirstSnapshot(existing);
         }
 
-        existing.attachClip(clipUrl, dto.clipPath());
+        existing.attachClip(clipUrl, clipObjectKey, dto.clipPath());
 
-        String s3Key = clipUrl;
+        String s3Key = firstNonBlank(clipObjectKey, clipUrl);
         if (s3Key.contains(".amazonaws.com/")) {
             s3Key = s3Key.substring(s3Key.indexOf(".amazonaws.com/") + 15);
         }
@@ -527,7 +531,7 @@ public class AlertEventService {
                         existing.getId(), dto.eventId(), s3Key);
             }
             snapshotUrl = s3Service.generatePresignedUrl(s3Key);
-            vlmDescriptionEnqueueService.enqueueIfMediaExists(existing);
+            enqueueVlmSideChannel(existing, "clip attach");
         }
 
         AlertEventResponse response = AlertEventResponse.from(existing, snapshotUrl);
@@ -550,6 +554,14 @@ public class AlertEventService {
         return response;
     }
 
+    private void enqueueVlmSideChannel(AlertEvent event, String operation) {
+        try {
+            vlmDescriptionEnqueueService.enqueueIfMediaExists(event);
+        } catch (Exception ex) {
+            log.warn("VLM enqueue failed without affecting primary {} flow: eventId={}, error={}",
+                    operation, event.getEventId(), ex.getMessage());
+        }
+    }
     private String firstNonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {
