@@ -530,7 +530,24 @@ public class AlertEventService {
             vlmDescriptionEnqueueService.enqueueIfMediaExists(existing);
         }
 
-        return AlertEventResponse.from(existing, snapshotUrl);
+        AlertEventResponse response = AlertEventResponse.from(existing, snapshotUrl);
+
+        // "이벤트 알림" 탭이 조회하는 최근 알림 캐시(Redis)는 1차(클립 없음) 발행 시점에만 채워지고
+        // 갱신되지 않아서, 클립이 나중에 붙어도 캐시가 계속 옛 상태를 돌려주는 문제가 있었음.
+        // 클립이 실제로 붙는 이 시점에 캐시에도 최신 응답을 반영한다.
+        if (snapshotUrl != null) {
+            String contextKey = existing.getCamera() != null
+                    ? "FAC_" + existing.getCamera().getFacility().getId()
+                    : "COMP_" + existing.getCorporateCamera().getCompanyProfile().getId();
+            try {
+                recentAlertCacheStore.add(contextKey, response);
+            } catch (RuntimeException ex) {
+                log.warn("Failed to refresh recent alert cache after clip attach: alertEventId={}, contextKey={}, error={}",
+                        existing.getId(), contextKey, ex.getMessage());
+            }
+        }
+
+        return response;
     }
 
     private String firstNonBlank(String... values) {

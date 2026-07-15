@@ -5,6 +5,7 @@ import com.strange.safety.common.entity.BaseEntity;
 import com.strange.safety.scenario.entity.Scenario;
 import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import com.strange.safety.user.entity.User;
+import com.strange.safety.vlm.entity.AlertEventDescription;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -39,6 +40,9 @@ public class AlertEvent extends BaseEntity {
 
     @OneToMany(mappedBy = "alertEvent", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Snapshot> snapshots = new ArrayList<>();
+
+    @OneToMany(mappedBy = "alertEvent", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AlertEventDescription> descriptions = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "scenario_id", nullable = false)
