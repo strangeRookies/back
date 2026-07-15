@@ -38,7 +38,7 @@ public class EmbeddingService {
     @Value("${vlm.gemini-api-key:${GEMINI_API_KEY:}}")
     private String geminiApiKey;
 
-    @Value("${vlm.query-embedding-model:${VLM_QUERY_EMBEDDING_MODEL:gemini-embedding-001}}")
+    @Value("${vlm.query-embedding-model:${VLM_QUERY_EMBEDDING_MODEL:text-embedding-004}}")
     private String queryEmbeddingModel;
 
     public EmbeddingService(ObjectMapper objectMapper) {
@@ -51,7 +51,7 @@ public class EmbeddingService {
     }
 
     public String embeddingModelName() {
-        return mockMode ? "mock-vlm-index-768" : queryEmbeddingModel;
+        return mockMode ? "mock-vlm-index-768" : "gemini-" + queryEmbeddingModel;
     }
 
     public double[] embed(String text) {

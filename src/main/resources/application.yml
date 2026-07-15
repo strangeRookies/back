@@ -8,10 +8,6 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD}
     driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
-  flyway:
-    enabled: ${VLM_PGVECTOR_ENABLED:false}
-    baseline-on-migrate: true
-    locations: classpath:db/migration/{vendor}
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
@@ -126,7 +122,9 @@ vlm:
   python-executable: ${VLM_PYTHON_EXECUTABLE:python}
   process-script: ${VLM_PROCESS_SCRIPT:../strange_ai/scripts/process_vlm.py}
   gemini-api-key: ${GEMINI_API_KEY:}
-  query-embedding-model: ${VLM_QUERY_EMBEDDING_MODEL:gemini-embedding-001}
+  query-embedding-model: ${VLM_QUERY_EMBEDDING_MODEL:text-embedding-004}
+  # Apply db/operations/enable_vlm_pgvector.sql after Hibernate has created the base tables,
+  # then enable this flag. It remains false for safe fresh-database startup.
   pgvector:
     enabled: ${VLM_PGVECTOR_ENABLED:false}
   max-stdout-bytes: ${VLM_MAX_STDOUT_BYTES:1048576}

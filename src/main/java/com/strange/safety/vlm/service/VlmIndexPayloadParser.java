@@ -9,6 +9,7 @@ import com.strange.safety.vlm.dto.VlmIndexPayload;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -61,7 +62,7 @@ public class VlmIndexPayloadParser {
         JsonNode peopleCount = result.get("people_count");
         require(peopleCount.isIntegralNumber() && peopleCount.canConvertToInt() && peopleCount.intValue() >= 0,
                 "VLM people_count must be a nonnegative integer");
-        validateNestedKeywords(result.get("korean_search_keywords"));
+        List<String> vlmKeywords = validateNestedKeywords(result.get("korean_search_keywords"));
         require(validText(result, "detailed_description_ko", MAX_DOCUMENT_LENGTH),
                 "VLM detailed_description_ko is invalid");
         require(result.path("frame_count").isIntegralNumber() && result.path("frame_count").intValue() == 8,
@@ -92,6 +93,8 @@ public class VlmIndexPayloadParser {
             require(value != null && Double.isFinite(value), "Embedding values must be finite");
         }
         validateKeywords(search.keywords());
+        require(search.keywords().equals(vlmKeywords),
+                "Search keywords must exactly match VLM korean_search_keywords");
         return payload;
     }
 
@@ -105,16 +108,19 @@ public class VlmIndexPayloadParser {
         }
     }
 
-    private void validateNestedKeywords(JsonNode keywords) {
+    private List<String> validateNestedKeywords(JsonNode keywords) {
         require(keywords != null && keywords.isArray() && !keywords.isEmpty(),
                 "VLM korean_search_keywords must be a nonempty array");
         Set<String> unique = new HashSet<>();
+        List<String> values = new ArrayList<>(keywords.size());
         for (JsonNode keyword : keywords) {
             require(keyword.isTextual() && !keyword.textValue().isBlank()
                             && keyword.textValue().length() <= MAX_KEYWORD_LENGTH,
                     "VLM korean_search_keyword is invalid");
             require(unique.add(keyword.textValue()), "VLM korean_search_keywords must be unique");
+            values.add(keyword.textValue());
         }
+        return List.copyOf(values);
     }
 
     private boolean validText(JsonNode node, String field, int maxLength) {

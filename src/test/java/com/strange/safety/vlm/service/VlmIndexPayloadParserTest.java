@@ -130,6 +130,16 @@ class VlmIndexPayloadParserTest {
         assertThrows(IllegalArgumentException.class,
                 () -> parser.parseAndValidate(json(duplicateVlmKeywords), expected(false)));
 
+        ObjectNode reorderedSearchKeywords = validPayload();
+        reorderedSearchKeywords.withObject("/search").putArray("keywords").add("worker").add("fall");
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parseAndValidate(json(reorderedSearchKeywords), expected(false)));
+
+        ObjectNode differentSearchKeyword = validPayload();
+        differentSearchKeyword.withObject("/search").putArray("keywords").add("fall").add("corridor");
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parseAndValidate(json(differentSearchKeyword), expected(false)));
+
         ObjectNode realWithMockModel = validPayload();
         realWithMockModel.withObject("/search").put("embedding_model", "mock-vlm-index-768");
         assertThrows(IllegalArgumentException.class,
@@ -160,7 +170,7 @@ class VlmIndexPayloadParserTest {
         ObjectNode search = root.putObject("search");
         search.put("document", "A worker fell in a monitored corridor");
         search.putArray("keywords").add("fall").add("worker");
-        search.put("embedding_model", "gemini-embedding-001");
+        search.put("embedding_model", "gemini-text-embedding-004");
         search.put("embedding_dimension", 768);
         ArrayNode embedding = search.putArray("embedding");
         for (int index = 0; index < 768; index += 1) {

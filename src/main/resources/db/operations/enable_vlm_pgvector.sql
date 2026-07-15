@@ -1,3 +1,5 @@
+-- Run explicitly against PostgreSQL after Hibernate has created alert_event_descriptions.
+-- Set VLM_PGVECTOR_ENABLED=true only after this script completes successfully.
 CREATE EXTENSION IF NOT EXISTS vector;
 
 ALTER TABLE alert_event_descriptions
