@@ -126,7 +126,7 @@ vlm:
   python-executable: ${VLM_PYTHON_EXECUTABLE:python}
   process-script: ${VLM_PROCESS_SCRIPT:../strange_ai/scripts/process_vlm.py}
   gemini-api-key: ${GEMINI_API_KEY:}
-  query-embedding-model: ${VLM_QUERY_EMBEDDING_MODEL:text-embedding-004}
+  query-embedding-model: ${VLM_QUERY_EMBEDDING_MODEL:gemini-embedding-001}
   pgvector:
     enabled: ${VLM_PGVECTOR_ENABLED:false}
   max-stdout-bytes: ${VLM_MAX_STDOUT_BYTES:1048576}

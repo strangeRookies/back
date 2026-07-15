@@ -205,12 +205,16 @@ public class VlmProcessingScheduler {
 
     private VlmIndexPayload mockPayload(RequestContext context) throws IOException {
         ObjectNode result = objectMapper.createObjectNode();
+        result.put("schema_version", "vlm-result-v1");
         result.put("incident_id", context.incidentId());
-        result.put("camera_login_id", context.cameraLoginId());
+        result.put("visual_event_type", "person_lying_on_floor");
+        result.put("people_count", 1);
+        ArrayNode resultKeywords = result.putArray("korean_search_keywords");
+        List.of("작업자", "쓰러짐", "바닥", "안전모", "복도").forEach(resultKeywords::add);
+        result.put("detailed_description_ko", "작업자 또는 사람이 감시 구역 바닥 근처에 있는 안전 이벤트로 보입니다.");
         result.put("frame_count", KEYFRAME_COUNT);
         result.put("provider", "mock");
         result.put("is_mock", true);
-        result.put("detailed_description_ko", "작업자 또는 사람이 감시 구역 바닥 근처에 있는 안전 이벤트로 보입니다.");
         ObjectNode root = objectMapper.createObjectNode();
         root.put("schema_version", VlmIndexPayloadParser.SCHEMA_VERSION);
         root.put("incident_id", context.incidentId());

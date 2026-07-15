@@ -53,7 +53,7 @@ class VlmIndexPayloadParserTest {
     }
 
     @Test
-    void rejectsEnvelopeVlmCameraAndProviderMismatches() throws Exception {
+    void rejectsEnvelopeVlmIdCameraAndProviderMismatches() throws Exception {
         ObjectNode envelopeMismatch = validPayload();
         envelopeMismatch.put("incident_id", "other");
         assertThrows(IllegalArgumentException.class,
@@ -65,7 +65,7 @@ class VlmIndexPayloadParserTest {
                 () -> parser.parseAndValidate(json(vlmMismatch), expected(false)));
 
         ObjectNode cameraMismatch = validPayload();
-        cameraMismatch.withObject("/vlm_result").put("camera_login_id", "other");
+        cameraMismatch.put("camera_login_id", "other");
         assertThrows(IllegalArgumentException.class,
                 () -> parser.parseAndValidate(json(cameraMismatch), expected(false)));
 
@@ -87,6 +87,11 @@ class VlmIndexPayloadParserTest {
         assertThrows(Exception.class,
                 () -> parser.parseAndValidate(json(unknownField), expected(false)));
 
+        ObjectNode nestedUnknownField = validPayload();
+        nestedUnknownField.withObject("/vlm_result").put("unexpected", true);
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parseAndValidate(json(nestedUnknownField), expected(false)));
+
         ObjectNode wrongFrames = validPayload();
         wrongFrames.withObject("/vlm_result").put("frame_count", 7);
         assertThrows(IllegalArgumentException.class,
@@ -103,23 +108,59 @@ class VlmIndexPayloadParserTest {
                 () -> parser.parseAndValidate(json(duplicateKeywords), expected(false)));
     }
 
+    @Test
+    void rejectsInvalidExactVlmFieldsAndEmbeddingProviderMode() throws Exception {
+        ObjectNode missingField = validPayload();
+        missingField.withObject("/vlm_result").remove("visual_event_type");
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parseAndValidate(json(missingField), expected(false)));
+
+        ObjectNode wrongNestedSchema = validPayload();
+        wrongNestedSchema.withObject("/vlm_result").put("schema_version", "vlm-result-v2");
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parseAndValidate(json(wrongNestedSchema), expected(false)));
+
+        ObjectNode negativePeople = validPayload();
+        negativePeople.withObject("/vlm_result").put("people_count", -1);
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parseAndValidate(json(negativePeople), expected(false)));
+
+        ObjectNode duplicateVlmKeywords = validPayload();
+        duplicateVlmKeywords.withObject("/vlm_result").withArray("korean_search_keywords").add("fall");
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parseAndValidate(json(duplicateVlmKeywords), expected(false)));
+
+        ObjectNode realWithMockModel = validPayload();
+        realWithMockModel.withObject("/search").put("embedding_model", "mock-vlm-index-768");
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parseAndValidate(json(realWithMockModel), expected(false)));
+
+        ObjectNode mockWithRealModel = validPayload();
+        mockWithRealModel.withObject("/vlm_result").put("provider", "mock").put("is_mock", true);
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parseAndValidate(json(mockWithRealModel), expected(true)));
+    }
+
     private ObjectNode validPayload() {
         ObjectNode root = mapper.createObjectNode();
         root.put("schema_version", VlmIndexPayloadParser.SCHEMA_VERSION);
         root.put("incident_id", INCIDENT_ID);
         root.put("camera_login_id", CAMERA_ID);
         root.put("captured_at", CAPTURED_AT.toString());
-        root.putObject("vlm_result")
-                .put("incident_id", INCIDENT_ID)
-                .put("camera_login_id", CAMERA_ID)
-                .put("frame_count", 8)
-                .put("provider", "gemini")
-                .put("is_mock", false)
-                .put("detail", "full provider result is preserved");
+        ObjectNode result = root.putObject("vlm_result");
+        result.put("schema_version", "vlm-result-v1");
+        result.put("incident_id", INCIDENT_ID);
+        result.put("visual_event_type", "person_lying_on_floor");
+        result.put("people_count", 1);
+        result.putArray("korean_search_keywords").add("fall").add("worker");
+        result.put("detailed_description_ko", "작업자가 감시 구역 바닥에 쓰러져 있습니다.");
+        result.put("frame_count", 8);
+        result.put("provider", "gemini");
+        result.put("is_mock", false);
         ObjectNode search = root.putObject("search");
         search.put("document", "A worker fell in a monitored corridor");
         search.putArray("keywords").add("fall").add("worker");
-        search.put("embedding_model", "text-embedding-model");
+        search.put("embedding_model", "gemini-embedding-001");
         search.put("embedding_dimension", 768);
         ArrayNode embedding = search.putArray("embedding");
         for (int index = 0; index < 768; index += 1) {

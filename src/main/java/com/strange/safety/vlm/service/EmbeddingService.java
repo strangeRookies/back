@@ -38,7 +38,7 @@ public class EmbeddingService {
     @Value("${vlm.gemini-api-key:${GEMINI_API_KEY:}}")
     private String geminiApiKey;
 
-    @Value("${vlm.query-embedding-model:${VLM_QUERY_EMBEDDING_MODEL:text-embedding-004}}")
+    @Value("${vlm.query-embedding-model:${VLM_QUERY_EMBEDDING_MODEL:gemini-embedding-001}}")
     private String queryEmbeddingModel;
 
     public EmbeddingService(ObjectMapper objectMapper) {
