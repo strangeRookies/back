@@ -1,7 +1,5 @@
 package com.strange.safety.camera.entity;
 import com.strange.safety.corporatecamera.entity.CorporateCamera;
-
-import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -35,10 +33,7 @@ public class CameraStatusLog {
     private Camera camera;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "corporate_camera_id")
-    private CorporateCamera corporateCamera;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "corporate_camera_id")
     private CorporateCamera corporateCamera;
 
     /** AI 서버가 보고한 Edge 디바이스 ID */
