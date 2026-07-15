@@ -1,43 +1,56 @@
 package com.strange.safety.vlm.service;
 
 import com.strange.safety.alert.entity.AlertEvent;
-import com.strange.safety.vlm.entity.AlertEventDescription;
-import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
+import com.strange.safety.vlm.entity.VlmSourceType;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
 public class VlmDescriptionEnqueueService {
-    private final AlertEventDescriptionRepository repository;
-    private final VlmSourceSelector sourceSelector = new VlmSourceSelector();
+    private static final Logger log = LoggerFactory.getLogger(VlmDescriptionEnqueueService.class);
 
-    @Value("${vlm.prompt-version:v1}")
-    private String promptVersion;
+    private final VlmSourceSelector sourceSelector;
+    private final VlmDescriptionJobWriter jobWriter;
 
-    @Value("${vlm.model-name:mock-vlm}")
-    private String vlmModelName;
-
-    @Value("${vlm.max-retries:3}")
-    private int maxRetries;
-
-    @Transactional
     public void enqueueIfMediaExists(AlertEvent event) {
+        if (event == null || event.getEventId() == null || event.getEventId().isBlank()) {
+            return;
+        }
+
         sourceSelector.select(event).ifPresent(source -> {
-            boolean exists = repository.existsBySourceAssetTypeAndSourceAssetKeyAndPromptVersionAndVlmModelName(
-                    source.sourceType(), source.sourceKey(), promptVersion, vlmModelName);
-            if (!exists) {
-                repository.save(AlertEventDescription.builder()
-                        .alertEvent(event)
-                        .sourceAssetType(source.sourceType())
-                        .sourceAssetKey(source.sourceKey())
-                        .promptVersion(promptVersion)
-                        .vlmModelName(vlmModelName)
-                        .maxRetries(maxRetries)
-                        .build());
+            String sourceKey = source.sourceKey();
+            if (sourceKey == null || sourceKey.isBlank()) {
+                return;
             }
+            if (source.sourceType() == VlmSourceType.CLIP && !sourceKey.startsWith("clips/")) {
+                return;
+            }
+
+            if (TransactionSynchronizationManager.isActualTransactionActive()
+                    && TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        dispatch(event, source);
+                    }
+                });
+                return;
+            }
+            dispatch(event, source);
         });
+    }
+
+    private void dispatch(AlertEvent event, VlmSourceSelector.VlmSource source) {
+        try {
+            jobWriter.enqueue(event, source);
+        } catch (RuntimeException ex) {
+            log.warn("VLM enqueue failed after primary transaction isolation: eventId={}, sourceKey={}, error={}",
+                    event.getEventId(), source.sourceKey(), ex.getMessage());
+        }
     }
 }

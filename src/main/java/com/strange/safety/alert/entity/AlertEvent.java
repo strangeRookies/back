@@ -68,6 +68,9 @@ public class AlertEvent extends BaseEntity {
     @Column(name = "clip_url", length = 512)
     private String clipUrl;
 
+    @Column(name = "clip_object_key", length = 512)
+    private String clipObjectKey;
+
     @Column(name = "clip_path", length = 512)
     private String clipPath;
 
@@ -90,7 +93,7 @@ public class AlertEvent extends BaseEntity {
     @Builder
     private AlertEvent(Camera camera, CorporateCamera corporateCamera, Scenario scenario, Float confidenceScore,
                        AlertSeverity severity, String keypointData,
-                       String boundingBoxData, String clipUrl, String clipPath,
+                       String boundingBoxData, String clipUrl, String clipObjectKey, String clipPath,
                        Double faintProb, LocalDateTime detectedAt, String eventId) {
         this.camera = camera;
         this.corporateCamera = corporateCamera;
@@ -101,6 +104,7 @@ public class AlertEvent extends BaseEntity {
         this.keypointData = keypointData;
         this.boundingBoxData = boundingBoxData;
         this.clipUrl = clipUrl;
+        this.clipObjectKey = clipObjectKey;
         this.clipPath = clipPath;
         this.faintProb = faintProb;
         this.detectedAt = detectedAt;
@@ -114,8 +118,9 @@ public class AlertEvent extends BaseEntity {
         this.resolvedAt = LocalDateTime.now();
     }
 
-    public void attachClip(String clipUrl, String clipPath) {
+    public void attachClip(String clipUrl, String clipObjectKey, String clipPath) {
         this.clipUrl = clipUrl;
+        this.clipObjectKey = clipObjectKey;
         this.clipPath = clipPath;
     }
 }
