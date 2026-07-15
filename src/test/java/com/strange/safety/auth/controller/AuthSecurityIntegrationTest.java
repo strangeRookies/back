@@ -126,7 +126,7 @@ class AuthSecurityIntegrationTest {
     void forbiddenEndpointReturnsAccessDeniedCode() throws Exception {
         String accessToken = jwtTokenProvider.createAccessToken(activeUser);
 
-        mockMvc.perform(get("/api/scenarios")
+        mockMvc.perform(get("/api/inquiries")
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
