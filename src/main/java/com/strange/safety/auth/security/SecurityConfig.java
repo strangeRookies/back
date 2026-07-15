@@ -51,8 +51,9 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers(
+                                new AntPathRequestMatcher("/ws/**"),
+                                new AntPathRequestMatcher("/ws"),
                                 new AntPathRequestMatcher("/actuator/**"),
                                 new AntPathRequestMatcher("/health/**"),
                                 new AntPathRequestMatcher("/api/health/**"),
