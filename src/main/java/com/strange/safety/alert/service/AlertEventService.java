@@ -68,6 +68,7 @@ public class AlertEventService {
     private final S3Service s3Service;
     private final VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
     private final AlertEventDescriptionRepository alertEventDescriptionRepository;
+    private final AlertEventIdempotencyLock eventIdempotencyLock;
 
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
@@ -358,6 +359,7 @@ public class AlertEventService {
 
     @Transactional
     public AlertEventResponse createEvent(SafetyEventDto dto) {
+        eventIdempotencyLock.acquire(dto.eventId());
         AlertEvent existingEvent = findExistingEvent(dto.eventId());
         if (existingEvent != null) {
             return attachClipToExisting(existingEvent, dto);

@@ -32,7 +32,7 @@ public class SnapshotAssistAnalyzer {
         this.geminiClient = geminiClient;
     }
 
-    @Async
+    @Async("eventProcessingExecutor")
     public void analyzeAsync(String eventId) {
         try {
             analyzeNow(eventId);

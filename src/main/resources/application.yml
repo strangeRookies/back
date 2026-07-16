@@ -122,7 +122,7 @@ vlm:
   python-executable: ${VLM_PYTHON_EXECUTABLE:python}
   process-script: ${VLM_PROCESS_SCRIPT:}
   gemini-api-key: ${GEMINI_API_KEY:}
-  query-embedding-model: ${VLM_QUERY_EMBEDDING_MODEL:text-embedding-004}
+  query-embedding-model: ${VLM_QUERY_EMBEDDING_MODEL:gemini-embedding-001}
   # Apply db/operations/enable_vlm_pgvector.sql after Hibernate has created the base tables,
   # then enable this flag. It remains false for safe fresh-database startup.
   pgvector:
@@ -140,7 +140,7 @@ vlm:
     mock-analyze: ${VLM_SNAPSHOT_ASSIST_MOCK_ANALYZE:false}
     force-mock: ${VLM_FORCE_MOCK:false}
     gemini-api-key: ${GEMINI_API_KEY:}
-    gemini-model: ${GEMINI_VLM_MODEL:gemini-2.0-flash}
+    gemini-model: ${GEMINI_VLM_MODEL:gemini-2.5-flash}
     cleanup-cron: ${VLM_SNAPSHOT_ASSIST_CLEANUP_CRON:0 15 3 * * *}
   ai-worker:
     base-url: ${AI_VLM_WORKER_BASE_URL:http://localhost:8091}

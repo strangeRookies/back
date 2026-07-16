@@ -90,10 +90,10 @@ public class AiVlmWorkerClient {
             HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();
             if (status == 408 || status == 429 || status >= 500) {
-                throw new AiVlmWorkerException("ai_worker_transient_http_" + status, true);
+                throw new AiVlmWorkerException(workerFailureCode(status, response.body(), true), true);
             }
             if (status < 200 || status >= 300) {
-                throw new AiVlmWorkerException("ai_worker_http_" + status, false);
+                throw new AiVlmWorkerException(workerFailureCode(status, response.body(), false), false);
             }
             JsonNode root = objectMapper.readTree(response.body());
             if (root.has("error")) {
@@ -118,6 +118,25 @@ public class AiVlmWorkerClient {
             log.warn("[AiVlmWorker] request failed jobId={}: {}", jobId, ex.getMessage());
             throw new AiVlmWorkerException("ai_worker_request_failed", false);
         }
+    }
+
+    private String workerFailureCode(int status, String responseBody, boolean transientFailure) {
+        String prefix = transientFailure ? "ai_worker_transient_http_" : "ai_worker_http_";
+        String message = "";
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            message = root.path("message").asText("");
+        } catch (Exception ignored) {
+            // Keep the status-only failure code when the worker did not return JSON.
+        }
+        message = message
+                .replaceAll("https?://\\S+", "[url]")
+                .replaceAll("[\\r\\n\\t]+", " ")
+                .trim();
+        if (message.length() > 160) {
+            message = message.substring(0, 160);
+        }
+        return prefix + status + (message.isBlank() ? "" : ":" + message);
     }
 
     public static final class AiVlmWorkerException extends Exception {

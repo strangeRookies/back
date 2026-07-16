@@ -24,7 +24,7 @@ import java.util.Map;
 @ConditionalOnProperty(name = "vlm.embedding-provider", havingValue = "gemini")
 public class GeminiEmbeddingClient implements EmbeddingClient {
 
-    private static final String MODEL = "text-embedding-004";
+    private static final String MODEL = "gemini-embedding-001";
     private static final int DIMENSION = 768;
 
     private final String apiKey;
@@ -62,7 +62,8 @@ public class GeminiEmbeddingClient implements EmbeddingClient {
         try {
             String body = objectMapper.writeValueAsString(Map.of(
                     "model", "models/" + MODEL,
-                    "content", Map.of("parts", List.of(Map.of("text", text == null ? "" : text)))
+                    "content", Map.of("parts", List.of(Map.of("text", text == null ? "" : text))),
+                    "outputDimensionality", DIMENSION
             ));
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(
