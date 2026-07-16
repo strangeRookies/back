@@ -113,6 +113,15 @@ tasks.register('runSnapshotAssistTests', JavaExec) {
     }
 }
 
+tasks.register('runAlertEventServiceTests', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.strange.safety.alert.service.AlertEventServiceTestRunner'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
 tasks.register('runMockVlmRagDemo', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.strange.safety.vlm.mock.MockVlmRagDemo'
