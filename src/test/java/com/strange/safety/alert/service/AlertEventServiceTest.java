@@ -77,6 +77,9 @@ class AlertEventServiceTest {
     @Mock
     private AlertEventDescriptionRepository alertEventDescriptionRepository;
 
+    @Mock
+    private AlertEventIdempotencyLock eventIdempotencyLock;
+
     private AlertEventService alertEventService;
 
     @BeforeEach
@@ -94,7 +97,8 @@ class AlertEventServiceTest {
                 recentAlertCacheStore,
                 s3Service,
                 vlmDescriptionEnqueueService,
-                alertEventDescriptionRepository
+                alertEventDescriptionRepository,
+                eventIdempotencyLock
         );
     }
 
@@ -115,6 +119,7 @@ class AlertEventServiceTest {
 
         assertThat(response.getAlertEventId()).isEqualTo(40L);
         verify(recentAlertCacheStore).add("FAC_10", response);
+        verify(eventIdempotencyLock).acquire(event.eventId());
     }
 
     @Test
