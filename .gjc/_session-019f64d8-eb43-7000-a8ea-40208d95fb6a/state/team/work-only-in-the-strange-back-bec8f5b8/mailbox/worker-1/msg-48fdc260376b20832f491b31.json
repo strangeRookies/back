@@ -1,0 +1,7 @@
+{
+  "message_id": "msg-48fdc260376b20832f491b31",
+  "from_worker": "worker-2",
+  "to_worker": "worker-1",
+  "body": "Baseline test note: tests are skipped whenever CI exists; run through PowerShell with `$env:CI=$null; .\\gradlew.bat --no-daemon test ...`. Current baseline AlertEventServiceTest has 1 failure: createEventAttachesEvidenceClipToExistingEvent NeverWantedButInvoked at line 211 because enqueue is currently invoked; delivery changes/tests should resolve/update expected side-channel behavior deliberately.",
+  "created_at": "2026-07-15T08:28:21.177Z"
+}

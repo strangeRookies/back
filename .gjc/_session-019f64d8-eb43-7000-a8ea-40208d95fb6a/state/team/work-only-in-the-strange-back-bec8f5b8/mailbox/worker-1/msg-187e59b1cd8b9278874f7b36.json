@@ -1,0 +1,7 @@
+{
+  "message_id": "msg-187e59b1cd8b9278874f7b36",
+  "from_worker": "worker-2",
+  "to_worker": "worker-1",
+  "body": "Red-team concern on current draft: AlertEventService catch helper does not guarantee primary persistence isolation because VlmDescriptionEnqueueService @Transactional(REQUIRED) joins createEvent/upload transaction; a repository/JPA failure can mark the shared tx rollback-only even when caught. Requirement says enqueue failures remain side-channel. Consider after-commit dispatch / isolated transaction boundary (mind uncommitted AlertEvent FK visibility) or otherwise prove with integration behavior, not only a mocked throw. Also ensure snapshot-upload enqueue is covered by same analysis.",
+  "created_at": "2026-07-15T08:29:45.852Z"
+}

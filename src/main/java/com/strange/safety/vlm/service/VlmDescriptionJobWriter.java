@@ -1,6 +1,7 @@
 package com.strange.safety.vlm.service;
 
 import com.strange.safety.alert.entity.AlertEvent;
+import com.strange.safety.vlm.entity.VlmSourceType;
 import com.strange.safety.vlm.entity.AlertEventDescription;
 import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,9 @@ public class VlmDescriptionJobWriter {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void enqueue(AlertEvent event, VlmSourceSelector.VlmSource source) {
+        if (source.sourceType() != VlmSourceType.CLIP) {
+            return;
+        }
         String sourceKey = source.sourceKey();
         try {
             if (!mediaObjectVerifier.exists(sourceKey)) {

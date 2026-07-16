@@ -1,0 +1,17 @@
+{
+  "id": "ntf-952e5cb2392f959e6894d8b8",
+  "kind": "mailbox_message",
+  "team_name": "work-only-in-the-strange-back-bec8f5b8",
+  "recipient": "worker-1",
+  "source": {
+    "type": "message",
+    "id": "msg-b32651889263df7b9e7caeae"
+  },
+  "delivery_state": "acknowledged",
+  "created_at": "2026-07-15T08:32:52.262Z",
+  "updated_at": "2026-07-15T08:49:04.921Z",
+  "replay_count": 3,
+  "pane_attempt_result": "queued",
+  "pane_attempt_reason": "tmux_delivery_recorded_without_injection",
+  "pane_attempt_at": "2026-07-15T08:36:11.035Z"
+}

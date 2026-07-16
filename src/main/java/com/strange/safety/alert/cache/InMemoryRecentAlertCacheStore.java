@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("test")
+@Profile({"test", "local-h2"})
 public class InMemoryRecentAlertCacheStore implements RecentAlertCacheStore {
 
     private static final Duration RECENT_WINDOW = Duration.ofMinutes(10);

@@ -1,0 +1,8 @@
+{
+  "message_id": "msg-4e851412bca078235b8fa4a3",
+  "from_worker": "leader-fixed",
+  "to_worker": "worker-1",
+  "body": "BLOCKER still present in current VlmDescriptionEnqueueService: line 31 remains plain @Transactional (REQUIRED). A repository DataAccessException can mark the caller transaction rollback-only before AlertEventService catches it. Change enqueue boundary to propagation REQUIRES_NEW (with correct import) or an equivalent isolated transaction design, and add/adjust regression evidence. Also task transition API requires field to=completed, not status=completed, and completion_evidence must be supplied on that same transition call. Do not mark complete until this is fixed and focused tests rerun.",
+  "created_at": "2026-07-15T08:35:07.670Z",
+  "delivered_at": "2026-07-15T08:39:27.102Z"
+}

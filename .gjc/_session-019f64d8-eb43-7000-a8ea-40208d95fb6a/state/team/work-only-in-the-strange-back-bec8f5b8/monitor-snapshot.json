@@ -1,0 +1,19 @@
+{
+  "integration_by_worker": {
+    "worker-1": {
+      "last_leader_head": "3c82226e62a05bb32c7163883689ed71cc4490b6",
+      "last_seen_head": "169778d9658fd385c16eb614169c37f617dd152c",
+      "last_integrated_head": "169778d9658fd385c16eb614169c37f617dd152c",
+      "status": "integrated",
+      "updated_at": "2026-07-15T08:49:04.431Z"
+    },
+    "worker-2": {
+      "last_leader_head": "3c82226e62a05bb32c7163883689ed71cc4490b6",
+      "last_seen_head": "762e4ff414bb0cffdcceeb8c01a7a99d85d323fa",
+      "last_integrated_head": "762e4ff414bb0cffdcceeb8c01a7a99d85d323fa",
+      "status": "idle",
+      "updated_at": "2026-07-15T08:49:04.655Z"
+    }
+  },
+  "updated_at": "2026-07-15T08:49:04.808Z"
+}

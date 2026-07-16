@@ -11,7 +11,7 @@ class VlmSourceSelectorTest {
     private final VlmSourceSelector selector = new VlmSourceSelector();
 
     @Test
-    void prefersClipObjectKeyThenS3HttpClipUrlThenSnapshotKey() {
+    void prefersClipObjectKeyThenS3HttpClipUrl() {
         AlertEvent event = event("clips/from-object-key.mp4",
                 "https://media-bucket.s3.ap-northeast-2.amazonaws.com/clips/from-url.mp4",
                 "C:\\local\\clip.mp4");
@@ -27,10 +27,9 @@ class VlmSourceSelectorTest {
         assertThat(selector.select(urlEvent)).contains(
                 new VlmSourceSelector.VlmSource(VlmSourceType.CLIP, "clips/from-url.mp4"));
 
-        AlertEvent snapshotEvent = event(null, "https://cdn.example.com/clips/not-s3.mp4", "clips/ignored.mp4");
-        snapshotEvent.getSnapshots().add(snapshot(snapshotEvent, "snapshots/frame.jpg"));
-        assertThat(selector.select(snapshotEvent)).contains(
-                new VlmSourceSelector.VlmSource(VlmSourceType.SNAPSHOT, "snapshots/frame.jpg"));
+        AlertEvent snapshotOnly = event(null, "https://cdn.example.com/clips/not-s3.mp4", "clips/ignored.mp4");
+        snapshotOnly.getSnapshots().add(snapshot(snapshotOnly, "snapshots/frame.jpg"));
+        assertThat(selector.select(snapshotOnly)).isEmpty();
     }
 
     @Test

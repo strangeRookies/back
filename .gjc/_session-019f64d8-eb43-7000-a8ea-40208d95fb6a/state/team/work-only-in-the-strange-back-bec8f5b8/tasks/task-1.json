@@ -1,0 +1,52 @@
+{
+  "id": "task-1",
+  "subject": "Lane A — Delivery",
+  "description": "Lane A — Delivery\n\nImplement the VLM media-source contract and focused unit/regression tests. Required behavior: clip_object_key first; otherwise extract only an S3 HTTP clip_url object key; then snapshot S3 key; never select clip_path; reject Windows absolute, Unix absolute, and file:// inputs; enqueue requires eventId and source key; CLIP requires clips/ prefix; dedupe by source type/key + prompt version + model; introduce injectable MediaObjectVerifier with a test stub and production HEAD Object implementation boundary. Review all enqueue call sites so failures cannot break primary alert/WebSocket/FCM flow. Run focused tests and report changed files and commands. Coordinate conflicts through team mailbox; do not touch files outside strange_back.",
+  "title": "Lane A — Delivery",
+  "objective": "Lane A — Delivery\n\nImplement the VLM media-source contract and focused unit/regression tests. Required behavior: clip_object_key first; otherwise extract only an S3 HTTP clip_url object key; then snapshot S3 key; never select clip_path; reject Windows absolute, Unix absolute, and file:// inputs; enqueue requires eventId and source key; CLIP requires clips/ prefix; dedupe by source type/key + prompt version + model; introduce injectable MediaObjectVerifier with a test stub and production HEAD Object implementation boundary. Review all enqueue call sites so failures cannot break primary alert/WebSocket/FCM flow. Run focused tests and report changed files and commands. Coordinate conflicts through team mailbox; do not touch files outside strange_back.",
+  "status": "completed",
+  "owner": "worker-1",
+  "lane": "lane-a",
+  "required_role": "executor",
+  "version": 6,
+  "created_at": "2026-07-15T08:18:45.583Z",
+  "updated_at": "2026-07-15T08:35:01.513Z",
+  "assignee": "worker-1",
+  "completed_at": "2026-07-15T08:35:01.513Z",
+  "completion_evidence": {
+    "summary": "Implemented the VLM media-source contract, verifier boundary, schema propagation, side-channel isolation, and focused regressions.",
+    "items": [
+      {
+        "kind": "command",
+        "status": "passed",
+        "summary": "Focused VLM, alert, and event regressions passed.",
+        "command": "cmd.exe /d /c set CI=& gradlew.bat test --tests <six focused classes>",
+        "output": "BUILD SUCCESSFUL; 33 tests passed."
+      },
+      {
+        "kind": "inspection",
+        "status": "verified",
+        "summary": "Product source and test diff has no whitespace errors.",
+        "location": "src/main and src/test"
+      }
+    ],
+    "recorded_by": "worker-1",
+    "recorded_at": "2026-07-15T08:35:01.513Z",
+    "files": [
+      "src/main/java/com/strange/safety/alert/entity/AlertEvent.java",
+      "src/main/java/com/strange/safety/alert/service/AlertEventService.java",
+      "src/main/java/com/strange/safety/event/SafetyEventDto.java",
+      "src/main/java/com/strange/safety/vlm/service/MediaObjectVerifier.java",
+      "src/main/java/com/strange/safety/vlm/service/S3MediaObjectVerifier.java",
+      "src/main/java/com/strange/safety/vlm/service/VlmDescriptionEnqueueService.java",
+      "src/main/java/com/strange/safety/vlm/service/VlmSourceSelector.java",
+      "src/test/java/com/strange/safety/alert/service/AlertEventServiceTest.java",
+      "src/test/java/com/strange/safety/event/AlertBroadcastServiceTest.java",
+      "src/test/java/com/strange/safety/event/AsyncEventProcessorServiceTest.java",
+      "src/test/java/com/strange/safety/event/MqttSafetyEventSubscriberTest.java",
+      "src/test/java/com/strange/safety/vlm/service/VlmDescriptionEnqueueServiceTest.java",
+      "src/test/java/com/strange/safety/vlm/service/VlmSourceSelectorTest.java"
+    ],
+    "notes": "Full 177-test suite ran with one unrelated AuthSecurityIntegrationTest forbidden-status assertion failure."
+  }
+}

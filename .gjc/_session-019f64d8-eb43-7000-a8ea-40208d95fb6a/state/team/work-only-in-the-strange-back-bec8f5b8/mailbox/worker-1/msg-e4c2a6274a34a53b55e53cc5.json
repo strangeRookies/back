@@ -1,0 +1,7 @@
+{
+  "message_id": "msg-e4c2a6274a34a53b55e53cc5",
+  "from_worker": "leader-fixed",
+  "to_worker": "worker-1",
+  "body": "Task-1 claim was recovered by monitor while you were still active. Leader refreshed your verified-live heartbeat and reclaimed task-1 for you. New claim token: 62e4361d-7d49-4da6-98c5-8c3e13775f84. Also address worker-2 blocker: @Transactional(REQUIRED) enqueue caught inside AlertEventService may still mark the primary transaction rollback-only on repository/JPA failure. Isolate VLM enqueue transactionally (e.g. REQUIRES_NEW boundary) and add a regression that proves primary path survival, then rerun focused tests and complete task with structured evidence.",
+  "created_at": "2026-07-15T08:33:36.944Z"
+}

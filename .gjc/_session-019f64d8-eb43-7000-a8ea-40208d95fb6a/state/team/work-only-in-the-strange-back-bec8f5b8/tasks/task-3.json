@@ -1,0 +1,46 @@
+{
+  "id": "task-3",
+  "subject": "Isolate VLM enqueue transaction",
+  "description": "Fix verification blocker: plain @Transactional(REQUIRED) on VlmDescriptionEnqueueService can mark the caller transaction rollback-only when repository/JPA enqueue fails even if AlertEventService catches the exception. Use an isolated transaction boundary such as REQUIRES_NEW, add/adjust regression coverage proving the primary alert path survives enqueue persistence failure, rerun focused tests and git diff --check, and record structured completion evidence.",
+  "title": "Isolate VLM enqueue transaction",
+  "objective": "Fix verification blocker: plain @Transactional(REQUIRED) on VlmDescriptionEnqueueService can mark the caller transaction rollback-only when repository/JPA enqueue fails even if AlertEventService catches the exception. Use an isolated transaction boundary such as REQUIRES_NEW, add/adjust regression coverage proving the primary alert path survives enqueue persistence failure, rerun focused tests and git diff --check, and record structured completion evidence.",
+  "status": "completed",
+  "owner": "worker-1",
+  "lane": "delivery-fix",
+  "required_role": "executor",
+  "depends_on": [
+    "task-1"
+  ],
+  "version": 3,
+  "created_at": "2026-07-15T08:36:03.559Z",
+  "updated_at": "2026-07-15T08:39:54.397Z",
+  "assignee": "worker-1",
+  "completed_at": "2026-07-15T08:39:54.397Z",
+  "completion_evidence": {
+    "summary": "Resolved rollback-only coupling by deferring VLM dispatch until primary commit and executing job persistence through a REQUIRES_NEW writer boundary.",
+    "items": [
+      {
+        "kind": "command",
+        "status": "passed",
+        "summary": "Seven focused VLM, alert, and event test classes passed.",
+        "command": "cmd.exe /d /c set CI=& gradlew.bat test --tests VlmSourceSelectorTest --tests VlmDescriptionEnqueueServiceTest --tests VlmDescriptionJobWriterTest --tests AlertEventServiceTest --tests AlertBroadcastServiceTest --tests AsyncEventProcessorServiceTest --tests MqttSafetyEventSubscriberTest",
+        "output": "BUILD SUCCESSFUL in 15s."
+      },
+      {
+        "kind": "inspection",
+        "status": "verified",
+        "summary": "Diff whitespace validation passed.",
+        "location": "src/main and src/test"
+      }
+    ],
+    "recorded_by": "worker-1",
+    "recorded_at": "2026-07-15T08:39:54.397Z",
+    "files": [
+      "src/main/java/com/strange/safety/alert/service/AlertEventService.java",
+      "src/main/java/com/strange/safety/vlm/service/VlmDescriptionEnqueueService.java",
+      "src/main/java/com/strange/safety/vlm/service/VlmDescriptionJobWriter.java",
+      "src/test/java/com/strange/safety/vlm/service/VlmDescriptionEnqueueServiceTest.java",
+      "src/test/java/com/strange/safety/vlm/service/VlmDescriptionJobWriterTest.java"
+    ]
+  }
+}

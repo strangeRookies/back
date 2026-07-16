@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("test")
+@Profile({"test", "local-h2"})
 public class InMemorySmsVerificationStore implements SmsVerificationStore {
 
     private final Map<String, Entry<String>> verifiedTokens = new ConcurrentHashMap<>();

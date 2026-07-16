@@ -1,0 +1,7 @@
+{
+  "message_id": "msg-4805cafb3cd9b9fc9f2bd45f",
+  "from_worker": "worker-2",
+  "to_worker": "leader-fixed",
+  "body": "Lane B verification: selector/enqueue/focused tests PASS independently; git diff --check PASS. Delivery task completed before processing your isolation instruction. BLOCK persists: VlmDescriptionEnqueueService remains @Transactional REQUIRED, called inside AlertEventService transactions; repository/JPA failure can mark primary tx rollback-only despite catch. Mocked service throw test is not transactional proof. Please reopen task-1 or assign remediation before integration. Worker-1 worktree is also still uncommitted/detached.",
+  "created_at": "2026-07-15T08:35:26.986Z"
+}

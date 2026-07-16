@@ -1,0 +1,109 @@
+{
+  "messages": [
+    {
+      "message_id": "msg-497686e183bc0fb6c5ada5e6",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:21:52.867Z"
+    },
+    {
+      "message_id": "msg-fb035a683ef48782541072ae",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:22:06.263Z"
+    },
+    {
+      "message_id": "msg-5479519636625c58057c1d55",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:22:16.520Z"
+    },
+    {
+      "message_id": "msg-502ecb4c51b2084c106dbbc4",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:22:21.999Z"
+    },
+    {
+      "message_id": "msg-86da5c4b4100059781124722",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:22:30.921Z"
+    },
+    {
+      "message_id": "msg-092c8f3e509ba13881bccef8",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:22:50.487Z"
+    },
+    {
+      "message_id": "msg-385767fbe839dae492c0ae3e",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:23:11.766Z"
+    },
+    {
+      "message_id": "msg-43c664f36e1c4c90dadae31f",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:23:26.327Z"
+    },
+    {
+      "message_id": "msg-4a7d4212b1d303f745566231",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:23:55.579Z"
+    },
+    {
+      "message_id": "msg-967e2e01f101e1e3b33e53bb",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:24:18.418Z"
+    },
+    {
+      "message_id": "msg-4805cafb3cd9b9fc9f2bd45f",
+      "from_worker": "worker-2",
+      "to_worker": "leader-fixed",
+      "body": "Lane B verification: selector/enqueue/focused tests PASS independently; git diff --check PASS. Delivery task completed before processing your isolation instruction. BLOCK persists: VlmDescriptionEnqueueService remains @Transactional REQUIRED, called inside AlertEventService transactions; repository/JPA failure can mark primary tx rollback-only despite catch. Mocked service throw test is not transactional proof. Please reopen task-1 or assign remediation before integration. Worker-1 worktree is also still uncommitted/detached.",
+      "created_at": "2026-07-15T08:35:26.986Z"
+    },
+    {
+      "message_id": "msg-7057363e020cdf147acd84ba",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:37:44.845Z"
+    },
+    {
+      "message_id": "msg-9f3addcf3a57b7fda8e3dea0",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:38:40.845Z"
+    },
+    {
+      "message_id": "msg-d55eb23d4a452ef08a346a93",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATION REQUESTED: worker-1 has eligible git changes at 762e4ff414bb.",
+      "created_at": "2026-07-15T08:47:47.740Z"
+    },
+    {
+      "message_id": "msg-85e9efc1bdd72c0669cbc19a",
+      "from_worker": "worker-1",
+      "to_worker": "leader-fixed",
+      "body": "INTEGRATED: merged worker-1 169778d9658f into leader.",
+      "created_at": "2026-07-15T08:49:04.437Z"
+    }
+  ]
+}
