@@ -15,10 +15,14 @@ public class OverlayBroadcastService {
     private final SimpMessagingTemplate messagingTemplate;
 
     public void broadcast(OverlayMessage message, Long targetId, boolean corporate) {
-        String destination = corporate
-                ? "/topic/company/" + targetId + "/camera-overlays"
-                : "/topic/facility/" + targetId + "/camera-overlays";
-        messagingTemplate.convertAndSend(destination, message);
-        log.debug("Overlay STOMP published destination={}", destination);
+        messagingTemplate.convertAndSend("/topic/cctv/telemetry", message);
+        messagingTemplate.convertAndSend("/topic/camera-overlays", message);
+        if (targetId != null) {
+            String destination = corporate
+                    ? "/topic/company/" + targetId + "/camera-overlays"
+                    : "/topic/facility/" + targetId + "/camera-overlays";
+            messagingTemplate.convertAndSend(destination, message);
+            log.debug("Overlay STOMP published destination={}", destination);
+        }
     }
 }

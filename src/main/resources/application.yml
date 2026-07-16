@@ -84,9 +84,9 @@ sms:
 
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://safety-web-dashboard-bucket.s3-website.ap-northeast-2.amazonaws.com}
   websocket:
-    allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173}
+    allowed-origin-patterns: ${WEBSOCKET_ALLOWED_ORIGIN_PATTERNS:http://localhost:3000,http://localhost:5173,http://safety-web-dashboard-bucket.s3-website.ap-northeast-2.amazonaws.com,*.*.amazonaws.com,*}
   aes:
     secret-key: ${AES_SECRET_KEY}
     iv: ${AES_IV}
