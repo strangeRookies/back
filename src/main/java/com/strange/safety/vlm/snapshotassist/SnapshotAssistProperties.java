@@ -27,7 +27,7 @@ public record SnapshotAssistProperties(
             geminiApiKey = "";
         }
         if (geminiModel == null || geminiModel.isBlank()) {
-            geminiModel = "gemini-2.0-flash";
+            geminiModel = "gemini-2.5-flash";
         }
     }
 

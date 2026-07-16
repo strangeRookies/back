@@ -311,7 +311,9 @@ public class VlmProcessingScheduler {
         });
     }
     private String safeFailure(Exception ex) {
-        if (ex instanceof IllegalStateException || ex instanceof IllegalArgumentException) {
+        if (ex instanceof AiVlmWorkerClient.AiVlmWorkerException
+                || ex instanceof IllegalStateException
+                || ex instanceof IllegalArgumentException) {
             return ex.getMessage();
         }
         if (ex.getMessage() != null && (ex.getMessage().startsWith("VLM process timed out")
