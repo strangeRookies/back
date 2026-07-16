@@ -27,7 +27,7 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
               and (d.status = 'PENDING'
                 or (d.status = 'PROCESSING' and d.locked_until < :now))
               and d.retry_count < d.max_retries
-            order by d.id asc
+            order by d.alert_event_description_id asc
             limit :limit
             for update skip locked
             """, nativeQuery = true)
@@ -54,7 +54,6 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             join fetch e.scenario s
             left join fetch e.snapshots
             where d.status = :status
-              and d.descriptionEmbedding is not null
               and f.id = :facilityId
               and (:dateFrom is null or e.detectedAt >= :dateFrom)
               and (:dateTo is null or e.detectedAt <= :dateTo)
@@ -78,7 +77,6 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             join fetch e.scenario s
             left join fetch e.snapshots
             where d.status = :status
-              and d.descriptionEmbedding is not null
               and p.id = :companyProfileId
               and (:dateFrom is null or e.detectedAt >= :dateFrom)
               and (:dateTo is null or e.detectedAt <= :dateTo)
@@ -94,5 +92,8 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             @Param("excludeMock") boolean excludeMock
     );
 
-    Optional<AlertEventDescription> findFirstByAlertEvent_Id(Long alertEventId);
+    Optional<AlertEventDescription> findFirstByAlertEvent_IdAndStatusOrderByCreatedAtDesc(
+            Long alertEventId,
+            VlmJobStatus status
+    );
 }

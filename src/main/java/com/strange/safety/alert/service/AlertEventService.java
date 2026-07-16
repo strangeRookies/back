@@ -156,8 +156,8 @@ public class AlertEventService {
                             .build();
                 })
                 .collect(Collectors.toList());
-        String vlmDescription = alertEventDescriptionRepository.findFirstByAlertEvent_Id(alertEventId)
-                .filter(row -> row.getStatus() == VlmJobStatus.SUCCESS)
+        String vlmDescription = alertEventDescriptionRepository
+                .findFirstByAlertEvent_IdAndStatusOrderByCreatedAtDesc(alertEventId, VlmJobStatus.SUCCESS)
                 .map(AlertEventDescription::getVlmDescription)
                 .orElse(null);
         return AlertEventDetailResponse.from(event, snapshots, vlmDescription);

@@ -9,7 +9,9 @@ public record SnapshotAssistProperties(
         String storageRoot,
         int retentionDays,
         boolean mockAnalyze,
-        String geminiApiKey
+        boolean forceMock,
+        String geminiApiKey,
+        String geminiModel
 ) {
     public SnapshotAssistProperties {
         if (retentionDays <= 0) {
@@ -24,5 +26,20 @@ public record SnapshotAssistProperties(
         if (geminiApiKey == null) {
             geminiApiKey = "";
         }
+        if (geminiModel == null || geminiModel.isBlank()) {
+            geminiModel = "gemini-2.0-flash";
+        }
+    }
+
+    /** Effective when explicitly enabled or GEMINI_API_KEY present (unless force mock). */
+    public boolean effectivelyEnabled() {
+        if (forceMock && mockAnalyze) {
+            return enabled;
+        }
+        if (enabled) {
+            return true;
+        }
+        String key = geminiApiKey == null ? "" : geminiApiKey.trim();
+        return !key.isEmpty() && !forceMock;
     }
 }

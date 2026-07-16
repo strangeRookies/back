@@ -27,6 +27,7 @@ import com.strange.safety.scenario.repository.ScenarioRepository;
 import com.strange.safety.user.repository.UserRepository;
 import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
 import com.strange.safety.vlm.service.VlmDescriptionEnqueueService;
+import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;

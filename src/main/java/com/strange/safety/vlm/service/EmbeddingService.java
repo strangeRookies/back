@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
+import jakarta.annotation.PostConstruct;
 /**
  * Facade for embedding operations. Direct SDK clients only — no LangChain.
  */
@@ -43,10 +44,18 @@ public class EmbeddingService {
 
     @Value("${vlm.gemini-api-key:${GEMINI_API_KEY:}}")
     private String geminiApiKey;
+    @Value("${vlm.snapshot-assist.force-mock:${VLM_FORCE_MOCK:false}}")
+    private boolean forceMock;
+
 
     public EmbeddingService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    }
+
+    @PostConstruct
+    void applyEmbeddingProviderFromEnv() {
+        mockMode = forceMock || geminiApiKey == null || geminiApiKey.isBlank();
     }
 
     public boolean canEmbed() {
