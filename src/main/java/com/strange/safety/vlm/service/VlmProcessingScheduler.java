@@ -9,6 +9,7 @@ import com.strange.safety.vlm.dto.VlmIndexPayload;
 import com.strange.safety.vlm.entity.VlmSourceType;
 import com.strange.safety.vlm.entity.AlertEventDescription;
 import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
+import com.strange.safety.vlm.client.AiVlmWorkerClient;
 import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,7 @@ public class VlmProcessingScheduler {
     private final VlmClipJobClaimService clipJobClaimService;
     private final VlmClipJobCompletionService clipJobCompletionService;
 
+    private final AiVlmWorkerClient aiVlmWorkerClient;
     @Value("${vlm.mock-mode:${VLM_MOCK_MODE:true}}")
     private boolean mockMode;
     @Value("${vlm.python-executable:${VLM_PYTHON_EXECUTABLE:python}}")
@@ -74,7 +76,7 @@ public class VlmProcessingScheduler {
 
     @Scheduled(fixedDelayString = "${vlm.scheduler-delay-ms:15000}")
     public void processPendingJobs() {
-        if (processScript == null || processScript.isBlank()) {
+        if (!aiVlmWorkerClient.isConfigured() && (processScript == null || processScript.isBlank())) {
             return;
         }
         LocalDateTime now = LocalDateTime.now();
@@ -95,7 +97,14 @@ public class VlmProcessingScheduler {
                 return;
             }
             RequestContext context = requestContext(job);
-            VlmIndexPayload payload = mockMode ? mockPayload(context) : invokeProcess(job, context);
+            VlmIndexPayload payload;
+            if (mockMode) {
+                payload = mockPayload(context);
+            } else if (aiVlmWorkerClient.isConfigured()) {
+                payload = invokeAiWorker(job, context);
+            } else {
+                payload = invokeProcess(job, context);
+            }
             clipJobCompletionService.markSuccess(jobId, payload);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
@@ -141,6 +150,26 @@ public class VlmProcessingScheduler {
         } catch (RuntimeException | IOException ex) {
             throw new IOException("VLM process returned an invalid index payload", ex);
         }
+
+    private VlmIndexPayload invokeAiWorker(AlertEventDescription job, RequestContext context)
+            throws AiVlmWorkerClient.AiVlmWorkerException {
+        String inputUrl = s3Service.generatePresignedUrl(job.getSourceAssetKey());
+        AlertEvent event = job.getAlertEvent();
+        String scenario = event.getScenario() != null
+                ? event.getScenario().getScenarioType().name()
+                : "UNKNOWN";
+        String severity = event.getSeverity() != null ? event.getSeverity().name() : "WARNING";
+        return aiVlmWorkerClient.processClipJob(
+                job.getId(),
+                context.incidentId(),
+                context.cameraLoginId(),
+                inputUrl,
+                scenario,
+                severity,
+                context.capturedAt().toString(),
+                context.clipStartSec(),
+                context.clipEndSec()
+        );
     }
 
     private RequestContext requestContext(AlertEventDescription job) {

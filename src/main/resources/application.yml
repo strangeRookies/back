@@ -137,10 +137,15 @@ vlm:
     service-token: ${VLM_SNAPSHOT_ASSIST_SERVICE_TOKEN:${AI_SERVICE_TOKEN:}}
     storage-root: ${VLM_SNAPSHOT_ASSIST_STORAGE_ROOT:/tmp/vlm-snapshot-assist}
     retention-days: ${VLM_SNAPSHOT_ASSIST_RETENTION_DAYS:7}
-    # Offline tests may set true; production should use real Gemini with env key only
     mock-analyze: ${VLM_SNAPSHOT_ASSIST_MOCK_ANALYZE:false}
+    force-mock: ${VLM_FORCE_MOCK:false}
     gemini-api-key: ${GEMINI_API_KEY:}
+    gemini-model: ${GEMINI_VLM_MODEL:gemini-2.0-flash}
     cleanup-cron: ${VLM_SNAPSHOT_ASSIST_CLEANUP_CRON:0 15 3 * * *}
+  ai-worker:
+    base-url: ${AI_VLM_WORKER_BASE_URL:}
+    service-token: ${AI_SERVICE_TOKEN:}
+    timeout-seconds: ${AI_VLM_WORKER_TIMEOUT_SECONDS:180}
   # Embedding: mock | gemini (direct SDK/HTTP only — no LangChain)
   embedding-provider: ${VLM_EMBEDDING_PROVIDER:mock}
   embedding-worker-enabled: ${VLM_EMBEDDING_WORKER_ENABLED:false}
