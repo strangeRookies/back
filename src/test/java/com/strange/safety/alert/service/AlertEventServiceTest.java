@@ -25,6 +25,7 @@ import com.strange.safety.scenario.entity.Scenario;
 import com.strange.safety.scenario.entity.ScenarioType;
 import com.strange.safety.scenario.repository.ScenarioRepository;
 import com.strange.safety.user.repository.UserRepository;
+import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
 import com.strange.safety.vlm.service.VlmDescriptionEnqueueService;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -73,6 +74,9 @@ class AlertEventServiceTest {
     @Mock
     private VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
 
+    @Mock
+    private AlertEventDescriptionRepository alertEventDescriptionRepository;
+
     private AlertEventService alertEventService;
 
     @BeforeEach
@@ -89,7 +93,8 @@ class AlertEventServiceTest {
                 new ObjectMapper(),
                 recentAlertCacheStore,
                 s3Service,
-                vlmDescriptionEnqueueService
+                vlmDescriptionEnqueueService,
+                alertEventDescriptionRepository
         );
     }
 
