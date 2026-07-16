@@ -42,7 +42,7 @@ public class GeminiSnapshotAssistClient {
         if (jpegBytes == null || jpegBytes.length < 100) {
             throw new GeminiSnapshotAssistException("invalid_jpeg", false);
         }
-        String effectiveModel = (model == null || model.isBlank()) ? "gemini-2.0-flash" : model.trim();
+        String effectiveModel = (model == null || model.isBlank()) ? "gemini-2.5-flash" : model.trim();
         try {
             String b64 = java.util.Base64.getEncoder().encodeToString(jpegBytes);
             Map<String, Object> payload = buildRequestPayload(b64, context);
