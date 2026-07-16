@@ -11,6 +11,7 @@ import com.strange.safety.vlm.entity.AlertEventDescription;
 import com.strange.safety.vlm.entity.VlmJobStatus;
 import com.strange.safety.vlm.entity.VlmSourceType;
 import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
+import com.strange.safety.vlm.client.AiVlmWorkerClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -45,7 +46,8 @@ class VlmProcessingSchedulerTest {
                 mapper,
                 new VlmIndexPayloadParser(mapper),
                 mock(VlmClipJobClaimService.class),
-                clipJobCompletionService);
+                clipJobCompletionService,
+                mock(AiVlmWorkerClient.class));
         ReflectionTestUtils.setField(scheduler, "mockMode", true);
         ReflectionTestUtils.setField(scheduler, "captureZoneId", "Asia/Seoul");
         ReflectionTestUtils.setField(scheduler, "configuredClipStartSec", "");
