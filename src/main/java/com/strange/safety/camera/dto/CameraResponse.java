@@ -36,6 +36,9 @@ public class CameraResponse {
     private String overlayUrl;
     private String overlayStreamType;
     private boolean overlayRenderedInStream;
+    
+    @com.fasterxml.jackson.annotation.JsonProperty("isCorporate")
+    private boolean isCorporate;
 
     @Getter
     @Builder
@@ -82,8 +85,8 @@ public class CameraResponse {
                                 .polygonPoints(roi.getPolygonPoints())
                                 .build())
                         .toList())
-                .overlayRenderedInStream(false);
-        applyOverlay(builder, overlay);
+                .overlayRenderedInStream(false)
+                .isCorporate(false);        applyOverlay(builder, overlay);
         return builder.build();
     }
 
@@ -94,6 +97,8 @@ public class CameraResponse {
     public static CameraResponse fromCorporate(
             com.strange.safety.corporatecamera.entity.CorporateCamera camera,
             AiOverlayResponse overlay) {
+        List<RoiConfig> activeRois = camera.getRoiConfigs() != null ?
+                camera.getRoiConfigs().stream().filter(RoiConfig::isActive).toList() : List.of();
         CameraResponseBuilder builder = CameraResponse.builder()
                 .cameraId(camera.getId())
                 .facilityId(camera.getCompanyProfile().getId())
@@ -109,8 +114,16 @@ public class CameraResponse {
                 .assignedVideoPath(camera.getAssignedVideoPath())
                 .connectionStatus(camera.getConnectionStatus())
                 .lastConnectionReportAt(camera.getLastConnectionReportAt())
-                .roiConfigs(List.of())
-                .overlayRenderedInStream(false);
+                .roiConfigs(activeRois.stream()
+                        .map(roi -> RoiConfigEntry.builder()
+                                .roiConfigId(roi.getId())
+                                .scenarioId(roi.getScenario().getId())
+                                .scenarioType(roi.getScenario().getScenarioType().name())
+                                .polygonPoints(roi.getPolygonPoints())
+                                .build())
+                        .toList())
+                .overlayRenderedInStream(false)
+                .isCorporate(true);
         applyOverlay(builder, overlay);
         return builder.build();
     }

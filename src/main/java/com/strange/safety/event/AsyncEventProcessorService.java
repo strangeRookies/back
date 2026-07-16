@@ -76,6 +76,14 @@ public class AsyncEventProcessorService {
     private void persistEvent(SafetyEventDto event) {
         try {
             alertEventService.createEvent(event);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            log.info("Duplicate event_id detected for eventId={}, retrying to attach clip instead.", event.eventId());
+            try {
+                alertEventService.createEvent(event);
+            } catch (RuntimeException ex2) {
+                log.error("Failed to retry persisting safety event: cameraId={}, type={}, error={}",
+                        event.cameraId(), event.type(), ex2.getMessage(), ex2);
+            }
         } catch (RuntimeException ex) {
             log.error("Failed to persist safety event asynchronously: cameraId={}, type={}, eventPhase={}, error={}",
                     event.cameraId(), event.type(), event.eventPhase(), ex.getMessage(), ex);

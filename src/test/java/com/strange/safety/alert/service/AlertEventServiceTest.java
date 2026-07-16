@@ -73,6 +73,9 @@ class AlertEventServiceTest {
     @Mock
     private VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
 
+    @Mock
+    private com.strange.safety.vlm.repository.AlertEventDescriptionRepository alertEventDescriptionRepository;
+
     private AlertEventService alertEventService;
 
     @BeforeEach
@@ -89,7 +92,8 @@ class AlertEventServiceTest {
                 new ObjectMapper(),
                 recentAlertCacheStore,
                 s3Service,
-                vlmDescriptionEnqueueService
+                vlmDescriptionEnqueueService,
+                alertEventDescriptionRepository
         );
     }
 
