@@ -171,18 +171,29 @@ public class VlmProcessingScheduler {
             throw new IllegalStateException("VLM capture zone ID is invalid");
         }
         OffsetDateTime capturedAt = event.getDetectedAt().atZone(zoneId).toOffsetDateTime();
-        double clipStartSec = configuredBound(configuredClipStartSec, "VLM_CLIP_START_SEC");
-        double clipEndSec = configuredBound(configuredClipEndSec, "VLM_CLIP_END_SEC");
-        if (clipStartSec < 0 || clipEndSec <= clipStartSec) {
+        double clipStartSec = configuredClipStartSec(configuredClipStartSec);
+        Double clipEndSec = configuredClipEndSec(configuredClipEndSec);
+        if (clipStartSec < 0 || (clipEndSec != null && clipEndSec <= clipStartSec)) {
             throw new IllegalStateException("Configured VLM clip bounds are invalid");
         }
         return new RequestContext(incidentId, cameraLoginId, capturedAt, clipStartSec, clipEndSec);
     }
 
-    private double configuredBound(String configured, String name) {
+    private double configuredClipStartSec(String configured) {
         if (configured == null || configured.isBlank()) {
-            throw new IllegalStateException(name + " must be explicitly configured from the clip source contract");
+            return 0.0;
         }
+        return parseFiniteBound(configured, "VLM_CLIP_START_SEC");
+    }
+
+    private Double configuredClipEndSec(String configured) {
+        if (configured == null || configured.isBlank()) {
+            return null;
+        }
+        return parseFiniteBound(configured, "VLM_CLIP_END_SEC");
+    }
+
+    private double parseFiniteBound(String configured, String name) {
         try {
             double value = Double.parseDouble(configured);
             if (!Double.isFinite(value)) {
@@ -201,7 +212,9 @@ public class VlmProcessingScheduler {
         metadata.put("camera_login_id", context.cameraLoginId());
         metadata.put("captured_at", context.capturedAt().toString());
         metadata.put("clip_start_sec", context.clipStartSec());
-        metadata.put("clip_end_sec", context.clipEndSec());
+        if (context.clipEndSec() != null) {
+            metadata.put("clip_end_sec", context.clipEndSec());
+        }
         metadata.put("event_type", "safety_event");
         metadata.put("severity", event.getSeverity().name());
         metadata.put("scenario_type", event.getScenario().getScenarioType().name());
@@ -287,7 +300,7 @@ public class VlmProcessingScheduler {
     }
 
     private record RequestContext(String incidentId, String cameraLoginId, OffsetDateTime capturedAt,
-                                  double clipStartSec, double clipEndSec) {
+                                  double clipStartSec, Double clipEndSec) {
         VlmIndexPayloadParser.Expected expected(boolean mock) {
             return new VlmIndexPayloadParser.Expected(incidentId, cameraLoginId, capturedAt, mock);
         }

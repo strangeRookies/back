@@ -66,6 +66,7 @@ tasks.withType(JavaCompile) {
 tasks.named('test') {
     useJUnitPlatform()
     enabled = !System.getenv().containsKey("CI")
+    maxParallelForks = 1
 }
 
 bootRun {
@@ -95,6 +96,15 @@ tasks.register('runMockVlmRagTests', JavaExec) {
     }
 }
 
+
+tasks.register('runVlmProcessingSchedulerTests', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.strange.safety.vlm.service.VlmProcessingSchedulerTestRunner'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
 tasks.register('runSnapshotAssistTests', JavaExec) {
     dependsOn testClasses
     classpath = sourceSets.test.runtimeClasspath
