@@ -171,6 +171,28 @@ class AlertEventServiceTest {
     }
 
     @Test
+    void createEventKeepsPrimaryPersistenceWhenVlmEnqueueFails() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent savedEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEvent("cam_01");
+
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
+        when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
+        when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
+        org.mockito.Mockito.doThrow(new RuntimeException("VLM unavailable"))
+                .when(vlmDescriptionEnqueueService).enqueueIfMediaExists(savedEvent);
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getAlertEventId()).isEqualTo(40L);
+        verify(alertEventRepository).save(any(AlertEvent.class));
+        verify(recentAlertCacheStore).add("FAC_10", response);
+    }
+
+    @Test
     void createEventReturnsExistingEventWhenEventIdWasAlreadyPersisted() {
         Facility facility = facility(10L);
         Camera camera = camera(20L, facility);
@@ -200,15 +222,18 @@ class AlertEventServiceTest {
         when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
         when(snapshotRepository.findByAlertEvent_Id(40L)).thenReturn(List.of());
         when(s3Service.generatePresignedUrl("clips/test.mp4")).thenReturn("https://signed.example.com/clips/test.mp4");
+        org.mockito.Mockito.doThrow(new RuntimeException("VLM unavailable"))
+                .when(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
 
         AlertEventResponse response = alertEventService.createEvent(event);
 
         assertThat(response.getAlertEventId()).isEqualTo(40L);
         assertThat(existingEvent.getClipUrl()).isEqualTo("clips/test.mp4");
+        assertThat(existingEvent.getClipObjectKey()).isEqualTo("clips/test.mp4");
         assertThat(existingEvent.getClipPath()).isEqualTo("clips/test.mp4");
         verify(alertEventRepository, never()).save(any(AlertEvent.class));
         verify(snapshotRepository).save(any());
-        verify(recentAlertCacheStore, never()).add(any(), any());
+        verify(recentAlertCacheStore).add("FAC_10", response);
         verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
     }
 
@@ -296,6 +321,7 @@ class AlertEventServiceTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
     }
@@ -333,6 +359,7 @@ class AlertEventServiceTest {
                 null,
                 null,
                 "track-1",
+                "clips/test.mp4",
                 "clips/test.mp4",
                 "clips/test.mp4",
                 1783410059000L,

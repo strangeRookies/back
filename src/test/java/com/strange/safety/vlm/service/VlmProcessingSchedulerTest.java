@@ -19,7 +19,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -40,8 +43,48 @@ class VlmProcessingSchedulerTest {
                 mock(S3Service.class), mapper, new VlmIndexPayloadParser(mapper), pgVectorRepository);
         ReflectionTestUtils.setField(scheduler, "mockMode", true);
         ReflectionTestUtils.setField(scheduler, "captureZoneId", "Asia/Seoul");
-        ReflectionTestUtils.setField(scheduler, "configuredClipStartSec", "0.5");
+        ReflectionTestUtils.setField(scheduler, "configuredClipStartSec", "");
         ReflectionTestUtils.setField(scheduler, "configuredClipEndSec", "8.5");
+    }
+
+    @Test
+    void metadataOmitsClipEndWhenNotConfigured() throws Exception {
+        ReflectionTestUtils.setField(scheduler, "configuredClipEndSec", "");
+        AlertEventDescription job = job(1);
+        Object metadata = ReflectionTestUtils.invokeMethod(
+                scheduler,
+                "metadataJson",
+                job,
+                ReflectionTestUtils.invokeMethod(scheduler, "requestContext", job));
+        assertFalse(((String) metadata).contains("clip_end_sec"));
+    }
+
+    @Test
+    void metadataIncludesClipStartWhenStartDefaultsToZero() throws Exception {
+        ReflectionTestUtils.setField(scheduler, "configuredClipEndSec", "");
+        AlertEventDescription job = job(1);
+        String metadata = (String) ReflectionTestUtils.invokeMethod(
+                scheduler,
+                "metadataJson",
+                job,
+                ReflectionTestUtils.invokeMethod(scheduler, "requestContext", job));
+        assertFalse(metadata.contains("clip_end_sec"));
+        assertTrue(metadata.contains("\"clip_start_sec\":0.0"));
+    }
+
+    @Test
+    void rejectsInvalidClipBoundsWhenEndConfigured() {
+        ReflectionTestUtils.setField(scheduler, "configuredClipStartSec", "2.0");
+        ReflectionTestUtils.setField(scheduler, "configuredClipEndSec", "1.0");
+        AlertEventDescription job = job(1);
+        Exception thrown = assertThrows(Exception.class,
+                () -> ReflectionTestUtils.invokeMethod(scheduler, "requestContext", job));
+        Throwable cause = thrown;
+        while (cause.getCause() != null && !(cause instanceof IllegalStateException)) {
+            cause = cause.getCause();
+        }
+        assertInstanceOf(IllegalStateException.class, cause);
+        assertEquals("Configured VLM clip bounds are invalid", cause.getMessage());
     }
 
     @Test

@@ -104,6 +104,10 @@ public record SafetyEventDto(
         @JsonAlias({"clip_path", "clipPath"})
         String clipPath,
 
+        @JsonProperty("clip_object_key")
+        @JsonAlias({"clip_object_key", "clipObjectKey"})
+        String clipObjectKey,
+
         @JsonProperty("clip_url")
         @JsonAlias({"clip_url", "clipUrl"})
         String clipUrl,
@@ -185,7 +189,7 @@ public record SafetyEventDto(
         if (eventPhase != null && "realtime".equalsIgnoreCase(eventPhase.trim())) {
             return false;
         }
-        return hasText(clipUrl) || hasText(clipPath);
+        return hasText(clipObjectKey) || hasText(clipUrl) || hasText(clipPath);
     }
 
     @JsonProperty("realtimeEvent")
@@ -220,6 +224,7 @@ public record SafetyEventDto(
                 bbox,
                 trackId,
                 clipPath,
+                clipObjectKey,
                 clipUrl,
                 capturedAtMs,
                 processedAtMs,
