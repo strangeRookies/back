@@ -6,16 +6,15 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.strange.safety.alert.entity.AlertEvent;
 import com.strange.safety.alert.service.S3Service;
 import com.strange.safety.vlm.dto.VlmIndexPayload;
+import com.strange.safety.vlm.entity.VlmSourceType;
 import com.strange.safety.vlm.entity.AlertEventDescription;
 import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
-import com.strange.safety.vlm.repository.PgVectorSearchRepository;
 import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,20 +36,18 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @Slf4j
 public class VlmProcessingScheduler {
+
     private static final int KEYFRAME_COUNT = 8;
 
     private final AlertEventDescriptionRepository repository;
     private final S3Service s3Service;
     private final ObjectMapper objectMapper;
     private final VlmIndexPayloadParser payloadParser;
-    private final PgVectorSearchRepository pgVectorRepository;
+    private final VlmClipJobClaimService clipJobClaimService;
+    private final VlmClipJobCompletionService clipJobCompletionService;
 
     @Value("${vlm.mock-mode:${VLM_MOCK_MODE:true}}")
     private boolean mockMode;
-
-    @Value("${vlm.pgvector.enabled:${VLM_PGVECTOR_ENABLED:false}}")
-    private boolean pgVectorEnabled;
-
     @Value("${vlm.python-executable:${VLM_PYTHON_EXECUTABLE:python}}")
     private String pythonExecutable;
 
@@ -76,43 +73,49 @@ public class VlmProcessingScheduler {
     private String configuredClipEndSec;
 
     @Scheduled(fixedDelayString = "${vlm.scheduler-delay-ms:15000}")
-    @Transactional
     public void processPendingJobs() {
         if (processScript == null || processScript.isBlank()) {
             return;
         }
         LocalDateTime now = LocalDateTime.now();
-        List<AlertEventDescription> jobs = repository.findLockableJobs(now, PageRequest.of(0, batchSize));
-        for (AlertEventDescription job : jobs) {
-            job.markProcessing(now.plusSeconds(timeoutSeconds + 30));
-            process(job);
+        List<Long> jobIds = clipJobClaimService.claimClipJobIds(now, batchSize);
+        for (Long jobId : jobIds) {
+            processClaimedJob(jobId);
         }
     }
 
-    private void process(AlertEventDescription job) {
+    private void processClaimedJob(long jobId) {
+        AlertEventDescription job = repository.findById(jobId).orElse(null);
+        if (job == null) {
+            return;
+        }
         try {
+            if (job.getSourceAssetType() != VlmSourceType.CLIP) {
+                clipJobCompletionService.markFailed(jobId, "VLM queue accepts CLIP sources only");
+                return;
+            }
             RequestContext context = requestContext(job);
             VlmIndexPayload payload = mockMode ? mockPayload(context) : invokeProcess(job, context);
-            applySuccess(job, payload);
+            clipJobCompletionService.markSuccess(jobId, payload);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            job.markFailed("VLM process was interrupted");
+            clipJobCompletionService.markFailed(jobId, "VLM process was interrupted");
         } catch (Exception ex) {
-            job.markFailed(safeFailure(ex));
+            try {
+                clipJobCompletionService.markFailed(jobId, safeFailure(ex));
+            } catch (RuntimeException persistEx) {
+                log.error("Failed to persist VLM failure for jobId={}: {}", jobId, persistEx.getMessage());
+            }
         }
     }
 
     private VlmIndexPayload invokeProcess(AlertEventDescription job, RequestContext context)
             throws IOException, InterruptedException, ExecutionException {
         String inputUrl = s3Service.generatePresignedUrl(job.getSourceAssetKey());
-        List<String> outputUrls = buildKeyframeKeys(job).stream()
-                .map(key -> s3Service.generatePresignedPutUrl(key, "image/jpeg", Duration.ofMinutes(15)))
-                .toList();
         List<String> command = List.of(
                 pythonExecutable,
                 processScript,
                 "--input-url", inputUrl,
-                "--output-urls", String.join(",", outputUrls),
                 "--metadata", metadataJson(job, context),
                 "--output-mode", "index"
         );
@@ -138,21 +141,6 @@ public class VlmProcessingScheduler {
         } catch (RuntimeException | IOException ex) {
             throw new IOException("VLM process returned an invalid index payload", ex);
         }
-    }
-
-    private void applySuccess(AlertEventDescription job, VlmIndexPayload payload) throws IOException {
-        String encodedEmbedding = encode(payload.search().embedding());
-        if (pgVectorEnabled) {
-            pgVectorRepository.project(job.getId(), encodedEmbedding);
-        }
-        job.markSuccess(
-                objectMapper.writeValueAsString(payload.vlmResult()),
-                payload.search().document(),
-                encodedEmbedding,
-                "",
-                payload.search().embeddingModel(),
-                payload.vlmResult().path("is_mock").booleanValue()
-        );
     }
 
     private RequestContext requestContext(AlertEventDescription job) {
@@ -252,14 +240,7 @@ public class VlmProcessingScheduler {
         return payloadParser.parseAndValidate(objectMapper.writeValueAsString(root), context.expected(true));
     }
 
-    private List<String> buildKeyframeKeys(AlertEventDescription job) {
-        List<String> keys = new ArrayList<>();
-        for (int index = 0; index < KEYFRAME_COUNT; index += 1) {
-            keys.add("vlm/keyframes/" + job.getAlertEvent().getId() + "/" + job.getPromptVersion()
-                    + "/" + index + ".jpg");
-        }
-        return keys;
-    }
+
 
     private CompletableFuture<BoundedOutput> readBounded(InputStream input, int limit) {
         return CompletableFuture.supplyAsync(() -> {
@@ -282,11 +263,6 @@ public class VlmProcessingScheduler {
             }
         });
     }
-
-    private String encode(List<Double> vector) {
-        return vector.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
-    }
-
     private String safeFailure(Exception ex) {
         if (ex instanceof IllegalStateException || ex instanceof IllegalArgumentException) {
             return ex.getMessage();

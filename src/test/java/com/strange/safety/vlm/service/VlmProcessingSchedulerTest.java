@@ -11,36 +11,41 @@ import com.strange.safety.vlm.entity.AlertEventDescription;
 import com.strange.safety.vlm.entity.VlmJobStatus;
 import com.strange.safety.vlm.entity.VlmSourceType;
 import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
-import com.strange.safety.vlm.repository.PgVectorSearchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 class VlmProcessingSchedulerTest {
-    private PgVectorSearchRepository pgVectorRepository;
+    private AlertEventDescriptionRepository repository;
+    private VlmClipJobCompletionService clipJobCompletionService;
     private VlmProcessingScheduler scheduler;
 
     @BeforeEach
     void setUp() {
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
-        pgVectorRepository = mock(PgVectorSearchRepository.class);
+        repository = mock(AlertEventDescriptionRepository.class);
+        clipJobCompletionService = mock(VlmClipJobCompletionService.class);
         scheduler = new VlmProcessingScheduler(
-                mock(AlertEventDescriptionRepository.class),
-                mock(S3Service.class), mapper, new VlmIndexPayloadParser(mapper), pgVectorRepository);
+                repository,
+                mock(S3Service.class),
+                mapper,
+                new VlmIndexPayloadParser(mapper),
+                mock(VlmClipJobClaimService.class),
+                clipJobCompletionService);
         ReflectionTestUtils.setField(scheduler, "mockMode", true);
         ReflectionTestUtils.setField(scheduler, "captureZoneId", "Asia/Seoul");
         ReflectionTestUtils.setField(scheduler, "configuredClipStartSec", "");
@@ -88,31 +93,25 @@ class VlmProcessingSchedulerTest {
     }
 
     @Test
-    void storesContractDocumentAndEmbeddingWithoutBackendReembedding() {
-        ReflectionTestUtils.setField(scheduler, "pgVectorEnabled", false);
+    void storesContractDocumentAndEmbeddingWithoutBackendReembedding() throws Exception {
         AlertEventDescription job = job(1);
+        when(repository.findById(91L)).thenReturn(Optional.of(job));
 
-        ReflectionTestUtils.invokeMethod(scheduler, "process", job);
+        ReflectionTestUtils.invokeMethod(scheduler, "processClaimedJob", 91L);
 
-        assertEquals(VlmJobStatus.SUCCESS, job.getStatus());
-        assertEquals("Mock VLM safety event: 작업자 쓰러짐 바닥 안전모 복도", job.getVlmDescription());
-        assertEquals(768, job.getDescriptionEmbedding().split(",").length);
-        assertEquals("mock-vlm-index-768", job.getEmbeddingModelName());
-        assertEquals("", job.getDeidentifiedKeyframeKeys());
+        verify(clipJobCompletionService).markSuccess(eq(91L), any());
     }
 
     @Test
-    void projectionFailureCannotLeaveSearchableSuccess() {
-        ReflectionTestUtils.setField(scheduler, "pgVectorEnabled", true);
-        doThrow(new IllegalStateException("projection unavailable"))
-                .when(pgVectorRepository).project(anyLong(), anyString());
+    void projectionFailureCannotLeaveSearchableSuccess() throws Exception {
         AlertEventDescription job = job(1);
+        when(repository.findById(91L)).thenReturn(Optional.of(job));
+        doThrow(new IOException("projection unavailable"))
+                .when(clipJobCompletionService).markSuccess(eq(91L), any());
 
-        ReflectionTestUtils.invokeMethod(scheduler, "process", job);
+        ReflectionTestUtils.invokeMethod(scheduler, "processClaimedJob", 91L);
 
-        assertEquals(VlmJobStatus.FAILED, job.getStatus());
-        assertNull(job.getDescriptionEmbedding());
-        assertFalse(job.isMockResult());
+        verify(clipJobCompletionService).markFailed(eq(91L), any());
     }
 
     private AlertEventDescription job(int maxRetries) {

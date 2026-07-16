@@ -1,0 +1,68 @@
+{
+  "team_name": "work-only-in-the-strange-back-bec8f5b8",
+  "display_name": "work-only-in-the-strange-back-",
+  "requested_name": "work-only-in-the-strange-back-",
+  "task": "Work only in the strange_back repository on branch fix/vlm-media-source-contract, freshly based on origin/develop. Implement user-requested items 1 and 2 as one validation-coupled change; do not implement clip-range item 3. Preserve primary alert persistence, WebSocket, and FCM behavior, and ensure VLM enqueue failures remain side-channel failures. Do not mutate .gjc workflow state except through team APIs. The runtime-owned guard prevented writing the optional pre-context snapshot, so this task text is the grounded context: current selector wrongly prefers clipPath; enqueue currently only deduplicates and directly constructs the selector; SafetyEventDto/AlertEvent currently lack clip_object_key. Follow existing Spring/AWS/test conventions.\n\n### Lane A — Delivery\nImplement the VLM media-source contract and focused unit/regression tests. Required behavior: clip_object_key first; otherwise extract only an S3 HTTP clip_url object key; then snapshot S3 key; never select clip_path; reject Windows absolute, Unix absolute, and file:// inputs; enqueue requires eventId and source key; CLIP requires clips/ prefix; dedupe by source type/key + prompt version + model; introduce injectable MediaObjectVerifier with a test stub and production HEAD Object implementation boundary. Review all enqueue call sites so failures cannot break primary alert/WebSocket/FCM flow. Run focused tests and report changed files and commands. Coordinate conflicts through team mailbox; do not touch files outside strange_back.\n\n### Lane B — Verification\nOwn independent verification and red-team review. First inspect the contract, schemas, selector/enqueue call sites, and existing tests without editing delivery-owned files. Monitor Lane A completion/state, then test the final shared worktree behavior: precedence, S3 HTTP extraction, local-path rejection (Windows/Unix/file), missing eventId/source, non-clips CLIP rejection, dedupe tuple, media verifier false/error behavior, and primary alert side-channel isolation. Add tests only in a clearly separate test file if needed and announce overlap before editing; otherwise report blockers and exact Gradle commands/evidence. Run git diff --check at terminal verification.",
+  "agent_type": "executor",
+  "worker_count": 2,
+  "max_workers": 20,
+  "state_root": "C:\\Users\\user\\Documents\\최종 쉴더스\\strange_back\\.gjc\\_session-019f64d8-eb43-7000-a8ea-40208d95fb6a\\state\\team",
+  "worker_command": "'C:\\Users\\user\\.bun\\bin\\bun.exe' 'C:\\Users\\user\\.bun\\install\\global\\node_modules\\@gajae-code\\coding-agent\\bin\\gjc.js'",
+  "worker_cli_plan": [
+    "gjc",
+    "gjc"
+  ],
+  "tmux_command": "psmux",
+  "tmux_session": "2",
+  "tmux_session_name": "2",
+  "tmux_target": "2:0",
+  "workspace_mode": "worktree",
+  "dry_run": false,
+  "leader": {
+    "session_id": "019f64d8-eb43-7000-a8ea-40208d95fb6a",
+    "pane_id": "%1",
+    "cwd": "C:\\Users\\user\\Documents\\최종 쉴더스\\strange_back"
+  },
+  "leader_cwd": "C:\\Users\\user\\Documents\\최종 쉴더스\\strange_back",
+  "team_state_root": "C:\\Users\\user\\Documents\\최종 쉴더스\\strange_back\\.gjc\\_session-019f64d8-eb43-7000-a8ea-40208d95fb6a\\state\\team",
+  "workers": [
+    {
+      "id": "worker-1",
+      "name": "worker-1",
+      "index": 1,
+      "agent_type": "executor",
+      "role": "executor",
+      "status": "stopped",
+      "last_heartbeat": "2026-07-15T08:52:21.268Z",
+      "assigned_tasks": [],
+      "team_state_root": "C:\\Users\\user\\Documents\\최종 쉴더스\\strange_back\\.gjc\\_session-019f64d8-eb43-7000-a8ea-40208d95fb6a\\state\\team",
+      "worktree_repo_root": "C:/Users/user/Documents/최종 쉴더스/strange_back",
+      "worktree_path": "C:\\Users\\user\\.gjc\\wt\\team-b901857d7208-worker-1",
+      "worktree_branch": null,
+      "worktree_detached": true,
+      "worktree_created": true,
+      "worktree_base_ref": "762e4ff414bb0cffdcceeb8c01a7a99d85d323fa",
+      "pane_id": "%4"
+    },
+    {
+      "id": "worker-2",
+      "name": "worker-2",
+      "index": 2,
+      "agent_type": "executor",
+      "role": "executor",
+      "status": "stopped",
+      "last_heartbeat": "2026-07-15T08:52:21.268Z",
+      "assigned_tasks": [],
+      "team_state_root": "C:\\Users\\user\\Documents\\최종 쉴더스\\strange_back\\.gjc\\_session-019f64d8-eb43-7000-a8ea-40208d95fb6a\\state\\team",
+      "worktree_repo_root": "C:/Users/user/Documents/최종 쉴더스/strange_back",
+      "worktree_path": "C:\\Users\\user\\.gjc\\wt\\team-b901857d7208-worker-2",
+      "worktree_branch": null,
+      "worktree_detached": true,
+      "worktree_created": true,
+      "worktree_base_ref": "762e4ff414bb0cffdcceeb8c01a7a99d85d323fa",
+      "pane_id": "%5"
+    }
+  ],
+  "created_at": "2026-07-15T08:18:45.440Z",
+  "updated_at": "2026-07-15T08:52:21.268Z"
+}

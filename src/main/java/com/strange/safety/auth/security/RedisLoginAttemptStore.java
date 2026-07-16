@@ -7,7 +7,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!test")
+@Profile("!test & !local-h2")
 @RequiredArgsConstructor
 public class RedisLoginAttemptStore implements LoginAttemptStore {
 

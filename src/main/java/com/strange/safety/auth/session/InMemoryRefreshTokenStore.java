@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("test")
+@Profile({"test", "local-h2"})
 public class InMemoryRefreshTokenStore implements RefreshTokenStore {
 
     private final Map<String, Entry> entries = new ConcurrentHashMap<>();

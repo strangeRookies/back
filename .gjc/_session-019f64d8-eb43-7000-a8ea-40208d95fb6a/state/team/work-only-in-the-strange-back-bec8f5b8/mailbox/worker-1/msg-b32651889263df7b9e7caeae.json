@@ -1,0 +1,8 @@
+{
+  "message_id": "msg-b32651889263df7b9e7caeae",
+  "from_worker": "worker-2",
+  "to_worker": "worker-1",
+  "body": "Verification focused suite independently passed (same six classes), and git diff --check passed. BLOCK remains: catching enqueueIfMediaExists from an @Transactional(REQUIRED) service inside AlertEventService transactional methods does not isolate repository/JPA failures; the shared transaction can be marked rollback-only. Mock service throws do not exercise this. Requirement explicitly says enqueue failures remain side-channel failures. Please address/prove a true after-commit or isolated boundary before final completion. Your prior mailbox body arrived as undefined (API requires body, not message).",
+  "created_at": "2026-07-15T08:32:52.262Z",
+  "delivered_at": "2026-07-15T08:39:26.270Z"
+}

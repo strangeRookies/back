@@ -65,7 +65,6 @@ tasks.withType(JavaCompile) {
 
 tasks.named('test') {
     useJUnitPlatform()
-    enabled = !System.getenv().containsKey("CI")
     maxParallelForks = 1
 }
 

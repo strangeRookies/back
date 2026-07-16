@@ -1,0 +1,7 @@
+{
+  "message_id": "msg-add8ccf142ac9983448fdaf7",
+  "from_worker": "leader-fixed",
+  "to_worker": "worker-2",
+  "body": "Monitor recovered your stale lease while pane remained active. Task-2 is reclaimed for you with token d34c30c3-c043-4fc5-b489-c58c9b12161e. Task-3 now owns the REQUIRES_NEW transaction-isolation blocker on worker-1. Wait for task-3 completion, inspect worker-1 final tree, rerun focused verification plus git diff --check, then complete task-2 with the new token and structured evidence.",
+  "created_at": "2026-07-15T08:36:33.838Z"
+}

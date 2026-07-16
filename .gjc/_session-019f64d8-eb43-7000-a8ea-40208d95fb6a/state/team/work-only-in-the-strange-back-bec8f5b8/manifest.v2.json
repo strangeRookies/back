@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "team_name": "work-only-in-the-strange-back-bec8f5b8",
+  "display_name": "work-only-in-the-strange-back-",
+  "requested_name": "work-only-in-the-strange-back-",
+  "tmux_session": "2",
+  "tmux_session_name": "2",
+  "tmux_target": "2:0",
+  "worker_command": "'C:\\Users\\user\\.bun\\bin\\bun.exe' 'C:\\Users\\user\\.bun\\install\\global\\node_modules\\@gajae-code\\coding-agent\\bin\\gjc.js'",
+  "worker_cli_plan": [
+    "gjc",
+    "gjc"
+  ],
+  "tmux_command": "psmux",
+  "leader": {
+    "session_id": "019f64d8-eb43-7000-a8ea-40208d95fb6a",
+    "pane_id": "%1",
+    "cwd": "C:\\Users\\user\\Documents\\최종 쉴더스\\strange_back"
+  },
+  "workers": [
+    {
+      "id": "worker-1",
+      "name": "worker-1",
+      "index": 1,
+      "agent_type": "executor",
+      "role": "executor",
+      "status": "starting",
+      "last_heartbeat": "2026-07-15T08:18:45.583Z",
+      "assigned_tasks": [],
+      "team_state_root": "C:\\Users\\user\\Documents\\최종 쉴더스\\strange_back\\.gjc\\_session-019f64d8-eb43-7000-a8ea-40208d95fb6a\\state\\team",
+      "worktree_repo_root": "C:/Users/user/Documents/최종 쉴더스/strange_back",
+      "worktree_path": "C:\\Users\\user\\.gjc\\wt\\team-b901857d7208-worker-1",
+      "worktree_branch": null,
+      "worktree_detached": true,
+      "worktree_created": true,
+      "worktree_base_ref": "762e4ff414bb0cffdcceeb8c01a7a99d85d323fa"
+    },
+    {
+      "id": "worker-2",
+      "name": "worker-2",
+      "index": 2,
+      "agent_type": "executor",
+      "role": "executor",
+      "status": "starting",
+      "last_heartbeat": "2026-07-15T08:18:45.583Z",
+      "assigned_tasks": [],
+      "team_state_root": "C:\\Users\\user\\Documents\\최종 쉴더스\\strange_back\\.gjc\\_session-019f64d8-eb43-7000-a8ea-40208d95fb6a\\state\\team",
+      "worktree_repo_root": "C:/Users/user/Documents/최종 쉴더스/strange_back",
+      "worktree_path": "C:\\Users\\user\\.gjc\\wt\\team-b901857d7208-worker-2",
+      "worktree_branch": null,
+      "worktree_detached": true,
+      "worktree_created": true,
+      "worktree_base_ref": "762e4ff414bb0cffdcceeb8c01a7a99d85d323fa"
+    }
+  ],
+  "workspace_mode": "worktree",
+  "dry_run": false,
+  "created_at": "2026-07-15T08:18:45.440Z",
+  "updated_at": "2026-07-15T08:18:45.440Z"
+}

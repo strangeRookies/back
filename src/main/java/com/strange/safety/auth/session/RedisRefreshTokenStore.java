@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 @Component
-@Profile("!test")
+@Profile("!test & !local-h2")
 @RequiredArgsConstructor
 public class RedisRefreshTokenStore implements RefreshTokenStore {
 

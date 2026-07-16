@@ -24,14 +24,6 @@ public class VlmSourceSelector {
         if (clipUrlKey.isPresent()) {
             return Optional.of(new VlmSource(VlmSourceType.CLIP, clipUrlKey.get()));
         }
-
-        if (event.getSnapshots() != null) {
-            return event.getSnapshots().stream()
-                    .map(snapshot -> normalizeObjectKey(snapshot.getSnapshotUrl()))
-                    .flatMap(Optional::stream)
-                    .findFirst()
-                    .map(key -> new VlmSource(VlmSourceType.SNAPSHOT, key));
-        }
         return Optional.empty();
     }
 

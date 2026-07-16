@@ -1,0 +1,44 @@
+{
+  "id": "task-2",
+  "subject": "Lane B — Verification",
+  "description": "Lane B — Verification\n\nOwn independent verification and red-team review. First inspect the contract, schemas, selector/enqueue call sites, and existing tests without editing delivery-owned files. Monitor Lane A completion/state, then test the final shared worktree behavior: precedence, S3 HTTP extraction, local-path rejection (Windows/Unix/file), missing eventId/source, non-clips CLIP rejection, dedupe tuple, media verifier false/error behavior, and primary alert side-channel isolation. Add tests only in a clearly separate test file if needed and announce overlap before editing; otherwise report blockers and exact Gradle commands/evidence. Run git diff --check at terminal verification.",
+  "title": "Lane B — Verification",
+  "objective": "Lane B — Verification\n\nOwn independent verification and red-team review. First inspect the contract, schemas, selector/enqueue call sites, and existing tests without editing delivery-owned files. Monitor Lane A completion/state, then test the final shared worktree behavior: precedence, S3 HTTP extraction, local-path rejection (Windows/Unix/file), missing eventId/source, non-clips CLIP rejection, dedupe tuple, media verifier false/error behavior, and primary alert side-channel isolation. Add tests only in a clearly separate test file if needed and announce overlap before editing; otherwise report blockers and exact Gradle commands/evidence. Run git diff --check at terminal verification.",
+  "status": "completed",
+  "owner": "worker-2",
+  "lane": "lane-b",
+  "required_role": "executor",
+  "version": 6,
+  "created_at": "2026-07-15T08:18:45.583Z",
+  "updated_at": "2026-07-15T08:36:50.563Z",
+  "assignee": "worker-2",
+  "completed_at": "2026-07-15T08:36:50.563Z",
+  "completion_evidence": {
+    "summary": "Independent contract verification passed focused tests and diff hygiene; a transactional isolation blocker was escalated.",
+    "items": [
+      {
+        "kind": "command",
+        "status": "passed",
+        "summary": "Six focused VLM, alert, and event test classes passed independently.",
+        "command": "PowerShell with CI removed: gradlew.bat --no-daemon test --tests <six focused classes>",
+        "output": "BUILD SUCCESSFUL"
+      },
+      {
+        "kind": "command",
+        "status": "passed",
+        "summary": "Terminal whitespace check passed.",
+        "command": "git diff --check",
+        "output": "No errors"
+      },
+      {
+        "kind": "inspection",
+        "status": "rejected",
+        "summary": "REQUIRED VLM enqueue can mark the primary alert transaction rollback-only on repository/JPA failure despite catch.",
+        "location": "VlmDescriptionEnqueueService.java and AlertEventService.java"
+      }
+    ],
+    "recorded_by": "worker-2",
+    "recorded_at": "2026-07-15T08:36:50.563Z",
+    "notes": "Verified precedence, S3 HTTP extraction, local-path rejection, missing event/source, clips prefix, dedupe tuple, verifier false/error, DTO propagation, and mocked call-site isolation. True persistence isolation remains unsafe and was reported to worker-1 and leader-fixed."
+  }
+}

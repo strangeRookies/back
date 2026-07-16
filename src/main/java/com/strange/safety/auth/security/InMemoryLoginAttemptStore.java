@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("test")
+@Profile({"test", "local-h2"})
 public class InMemoryLoginAttemptStore implements LoginAttemptStore {
 
     private final Map<String, Entry> entries = new ConcurrentHashMap<>();

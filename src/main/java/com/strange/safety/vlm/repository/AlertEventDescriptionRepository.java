@@ -21,6 +21,18 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             String vlmModelName
     );
 
+    @Query(value = """
+            select d.* from alert_event_descriptions d
+            where d.source_asset_type = 'CLIP'
+              and (d.status = 'PENDING'
+                or (d.status = 'PROCESSING' and d.locked_until < :now))
+              and d.retry_count < d.max_retries
+            order by d.id asc
+            limit :limit
+            for update skip locked
+            """, nativeQuery = true)
+    List<AlertEventDescription> claimClipJobs(@Param("now") LocalDateTime now, @Param("limit") int limit);
+
     @Query("""
             select d from AlertEventDescription d
             join fetch d.alertEvent e
