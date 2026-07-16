@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,6 +51,11 @@ public class VlmProcessingScheduler {
     private final AiVlmWorkerClient aiVlmWorkerClient;
     @Value("${vlm.mock-mode:${VLM_MOCK_MODE:true}}")
     private boolean mockMode;
+    @Value("${vlm.gemini-api-key:${GEMINI_API_KEY:}}")
+    private String geminiApiKey;
+
+    @Value("${VLM_FORCE_MOCK:false}")
+    private boolean forceMock;
     @Value("${vlm.python-executable:${VLM_PYTHON_EXECUTABLE:python}}")
     private String pythonExecutable;
 
@@ -73,6 +79,16 @@ public class VlmProcessingScheduler {
 
     @Value("${vlm.clip-end-sec:}")
     private String configuredClipEndSec;
+
+    @PostConstruct
+    void applyProviderMode() {
+        if (!forceMock && geminiApiKey != null && !geminiApiKey.isBlank()) {
+            mockMode = false;
+        }
+        log.info("[VLM] scheduler mode={} aiWorkerConfigured={}",
+                mockMode ? "mock" : "real",
+                aiVlmWorkerClient.isConfigured());
+    }
 
     @Scheduled(fixedDelayString = "${vlm.scheduler-delay-ms:15000}")
     public void processPendingJobs() {
@@ -110,6 +126,7 @@ public class VlmProcessingScheduler {
             Thread.currentThread().interrupt();
             clipJobCompletionService.markFailed(jobId, "VLM process was interrupted");
         } catch (Exception ex) {
+            log.warn("[VLM] job failed jobId={} reason={}", jobId, safeFailure(ex));
             try {
                 clipJobCompletionService.markFailed(jobId, safeFailure(ex));
             } catch (RuntimeException persistEx) {
@@ -150,6 +167,7 @@ public class VlmProcessingScheduler {
         } catch (RuntimeException | IOException ex) {
             throw new IOException("VLM process returned an invalid index payload", ex);
         }
+    }
 
     private VlmIndexPayload invokeAiWorker(AlertEventDescription job, RequestContext context)
             throws AiVlmWorkerClient.AiVlmWorkerException {

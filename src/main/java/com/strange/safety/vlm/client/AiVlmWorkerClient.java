@@ -13,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -102,7 +103,11 @@ public class AiVlmWorkerClient {
             boolean mock = root.path("vlm_result").path("is_mock").asBoolean(false);
             return payloadParser.parseAndValidate(
                     json,
-                    new VlmIndexPayloadParser.Expected(incidentId, cameraLoginId, capturedAtIso, mock)
+                    new VlmIndexPayloadParser.Expected(
+                            incidentId,
+                            cameraLoginId,
+                            OffsetDateTime.parse(capturedAtIso),
+                            mock)
             );
         } catch (AiVlmWorkerException ex) {
             throw ex;

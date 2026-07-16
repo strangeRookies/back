@@ -89,10 +89,11 @@ class SnapshotAssistServiceTest {
     }
 
     private static byte[] minimalJpeg() {
-        return new byte[]{
-                (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0,
-                0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0,
-                (byte) 0xFF, (byte) 0xD9
-        };
+        byte[] jpeg = new byte[128];
+        jpeg[0] = (byte) 0xFF;
+        jpeg[1] = (byte) 0xD8;
+        jpeg[jpeg.length - 2] = (byte) 0xFF;
+        jpeg[jpeg.length - 1] = (byte) 0xD9;
+        return jpeg;
     }
 }

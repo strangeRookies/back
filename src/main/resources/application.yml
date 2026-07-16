@@ -143,7 +143,7 @@ vlm:
     gemini-model: ${GEMINI_VLM_MODEL:gemini-2.0-flash}
     cleanup-cron: ${VLM_SNAPSHOT_ASSIST_CLEANUP_CRON:0 15 3 * * *}
   ai-worker:
-    base-url: ${AI_VLM_WORKER_BASE_URL:}
+    base-url: ${AI_VLM_WORKER_BASE_URL:http://localhost:8091}
     service-token: ${AI_SERVICE_TOKEN:}
     timeout-seconds: ${AI_VLM_WORKER_TIMEOUT_SECONDS:180}
   # Embedding: mock | gemini (direct SDK/HTTP only — no LangChain)
