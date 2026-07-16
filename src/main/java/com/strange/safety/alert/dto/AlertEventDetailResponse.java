@@ -30,10 +30,12 @@ public class AlertEventDetailResponse {
     private LocalDateTime acknowledgedAt;
     private Long acknowledgedBy;
     private List<SnapshotResponse> snapshots;
+    private String vlmDescription;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static AlertEventDetailResponse from(AlertEvent event, List<SnapshotResponse> snapshots) {
+    public static AlertEventDetailResponse from(AlertEvent event, List<SnapshotResponse> snapshots,
+                                                String vlmDescription) {
         return AlertEventDetailResponse.builder()
                 .alertEventId(event.getId())
                 .cameraId(event.getCamera() != null ? event.getCamera().getId() : (event.getCorporateCamera() != null ? event.getCorporateCamera().getId() : null))
@@ -52,6 +54,7 @@ public class AlertEventDetailResponse {
                 .acknowledgedAt(event.getAcknowledgedAt())
                 .acknowledgedBy(event.getAcknowledgedBy() != null ? event.getAcknowledgedBy().getId() : null)
                 .snapshots(snapshots)
+                .vlmDescription(vlmDescription)
                 .createdAt(event.getCreatedAt())
                 .updatedAt(event.getUpdatedAt())
                 .build();

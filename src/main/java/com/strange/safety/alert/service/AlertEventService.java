@@ -30,6 +30,9 @@ import com.strange.safety.scenario.repository.ScenarioRepository;
 import com.strange.safety.user.entity.User;
 import com.strange.safety.user.repository.UserRepository;
 import com.strange.safety.vlm.service.VlmDescriptionEnqueueService;
+import com.strange.safety.vlm.entity.AlertEventDescription;
+import com.strange.safety.vlm.entity.VlmJobStatus;
+import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +67,7 @@ public class AlertEventService {
     private final RecentAlertCacheStore recentAlertCacheStore;
     private final S3Service s3Service;
     private final VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
+    private final AlertEventDescriptionRepository alertEventDescriptionRepository;
 
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
@@ -112,7 +116,17 @@ public class AlertEventService {
                             cb.like(r.join("camera").get("cameraName"), likePattern)
                     );
                 }
-                
+
+                jakarta.persistence.criteria.Subquery<Long> vlmMatch = q.subquery(Long.class);
+                var descriptionRoot = vlmMatch.from(AlertEventDescription.class);
+                vlmMatch.select(descriptionRoot.get("alertEvent").get("id"))
+                        .where(
+                                cb.equal(descriptionRoot.get("alertEvent"), r),
+                                cb.equal(descriptionRoot.get("status"), VlmJobStatus.SUCCESS),
+                                cb.like(descriptionRoot.get("vlmDescription"), likePattern)
+                        );
+                keywordPredicate = cb.or(keywordPredicate, r.get("id").in(vlmMatch));
+
                 if (!matchedTypes.isEmpty()) {
                     jakarta.persistence.criteria.Predicate scenarioPredicate = r.join("scenario").get("scenarioType").in(matchedTypes);
                     return cb.or(keywordPredicate, scenarioPredicate);
@@ -142,7 +156,11 @@ public class AlertEventService {
                             .build();
                 })
                 .collect(Collectors.toList());
-        return AlertEventDetailResponse.from(event, snapshots);
+        String vlmDescription = alertEventDescriptionRepository.findFirstByAlertEvent_Id(alertEventId)
+                .filter(row -> row.getStatus() == VlmJobStatus.SUCCESS)
+                .map(AlertEventDescription::getVlmDescription)
+                .orElse(null);
+        return AlertEventDetailResponse.from(event, snapshots, vlmDescription);
     }
 
     @Transactional

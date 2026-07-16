@@ -52,6 +52,7 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             join fetch e.camera c
             join fetch c.facility f
             join fetch e.scenario s
+            left join fetch e.snapshots
             where d.status = :status
               and d.descriptionEmbedding is not null
               and f.id = :facilityId
@@ -75,6 +76,7 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             join fetch e.corporateCamera c
             join fetch c.companyProfile p
             join fetch e.scenario s
+            left join fetch e.snapshots
             where d.status = :status
               and d.descriptionEmbedding is not null
               and p.id = :companyProfileId
