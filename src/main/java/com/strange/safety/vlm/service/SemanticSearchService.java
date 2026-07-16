@@ -1,6 +1,8 @@
 package com.strange.safety.vlm.service;
 
 import com.strange.safety.alert.service.S3Service;
+import com.strange.safety.alert.entity.AlertEvent;
+import com.strange.safety.alert.entity.Snapshot;
 import com.strange.safety.auth.entity.Role;
 import com.strange.safety.camera.entity.Camera;
 import com.strange.safety.camera.repository.CameraRepository;
@@ -148,9 +150,11 @@ public class SemanticSearchService {
         if (row == null) {
             throw new IllegalStateException("Semantic search projection references a missing description");
         }
+        AlertEvent event = row.getAlertEvent();
         return SemanticSearchResultResponse.from(
-                row.getAlertEvent(), row.getVlmDescription(), row.getVlmJson(), score,
-                keyframeUrls(row.getDeidentifiedKeyframeKeys()));
+                event, row.getVlmDescription(), row.getVlmJson(), score,
+                keyframeUrls(row.getDeidentifiedKeyframeKeys()),
+                presignedSnapshotUrl(event));
     }
 
     private void validateQuery(String query, int topK, double minSimilarity,
@@ -194,6 +198,17 @@ public class SemanticSearchService {
                 .filter(key -> !key.isBlank())
                 .map(s3Service::generatePresignedUrl)
                 .toList();
+    }
+
+    private String presignedSnapshotUrl(AlertEvent event) {
+        if (event == null || event.getSnapshots() == null || event.getSnapshots().isEmpty()) {
+            return null;
+        }
+        Snapshot first = event.getSnapshots().get(0);
+        if (first.getSnapshotUrl() == null || first.getSnapshotUrl().isBlank()) {
+            return null;
+        }
+        return s3Service.generatePresignedUrl(first.getSnapshotUrl());
     }
 
     private record ScoredDescription(AlertEventDescription description, double score) {

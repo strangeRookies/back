@@ -20,10 +20,11 @@ public class SemanticSearchResultResponse {
     private String vlmJson;
     private double similarityScore;
     private List<String> keyframeUrls;
+    private String snapshotUrl;
 
     public static SemanticSearchResultResponse from(AlertEvent event, String description,
                                                     String vlmJson, double similarityScore,
-                                                    List<String> keyframeUrls) {
+                                                    List<String> keyframeUrls, String snapshotUrl) {
         return SemanticSearchResultResponse.builder()
                 .alertEventId(event.getId())
                 .cameraId(event.getCamera() != null ? event.getCamera().getId() : event.getCorporateCamera().getId())
@@ -37,6 +38,7 @@ public class SemanticSearchResultResponse {
                 .vlmJson(vlmJson)
                 .similarityScore(similarityScore)
                 .keyframeUrls(keyframeUrls)
+                .snapshotUrl(snapshotUrl)
                 .build();
     }
 }
