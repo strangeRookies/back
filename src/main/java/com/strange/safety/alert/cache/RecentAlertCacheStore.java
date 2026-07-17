@@ -7,5 +7,7 @@ public interface RecentAlertCacheStore {
 
     void add(String contextKey, AlertEventResponse alert);
 
+    void update(String contextKey, AlertEventResponse alert);
+
     List<AlertEventResponse> findRecent(String contextKey);
 }

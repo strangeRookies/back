@@ -164,12 +164,31 @@ public class AlertEventService {
     }
 
     @Transactional
+    public AlertEventResponse acknowledgeByEventId(Long userId, String eventId) {
+        AlertEvent event = alertEventRepository.findByEventId(eventId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ALERT_NOT_FOUND));
+        return acknowledge(userId, event.getId());
+    }
+
+    @Transactional
     public AlertEventResponse acknowledge(Long userId, Long alertEventId) {
         AlertEvent event = getEventWithOwnerCheck(userId, alertEventId);
         event.acknowledge(userRepository.getReferenceById(userId));
         String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                 s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
-        return AlertEventResponse.from(event, snapshotUrl);
+        AlertEventResponse response = AlertEventResponse.from(event, snapshotUrl);
+        
+        String contextKey = event.getCamera() != null
+                ? "FAC_" + event.getCamera().getFacility().getId()
+                : "COMP_" + event.getCorporateCamera().getCompanyProfile().getId();
+        try {
+            recentAlertCacheStore.update(contextKey, response);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to update recent alert cache: alertEventId={}, contextKey={}, error={}",
+                    alertEventId, contextKey, ex.getMessage());
+        }
+
+        return response;
     }
 
     public AlertStatsResponse getStats(Long userId, Long facilityId,
