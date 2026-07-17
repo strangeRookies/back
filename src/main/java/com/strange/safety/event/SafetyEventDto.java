@@ -138,7 +138,11 @@ public record SafetyEventDto(
 
         @JsonProperty("mqttReceivedAtMs")
         @JsonAlias({"mqttReceivedAtMs", "mqtt_received_at_ms"})
-        Long mqttReceivedAtMs
+        Long mqttReceivedAtMs,
+
+        @JsonProperty("originalEventId")
+        @JsonAlias({"originalEventId", "original_event_id", "sourceEventId", "source_event_id"})
+        String originalEventId
 ) {
     /**
      * rawTimestamp를 {@link Instant}로 변환한다.
@@ -236,7 +240,8 @@ public record SafetyEventDto(
                 mqttPublishStartedAtMs,
                 mqttPublishedAtMs,
                 publishedAtMs,
-                mqttReceivedAtMs);
+                mqttReceivedAtMs,
+                originalEventId);
     }
 
     private boolean hasText(String value) {

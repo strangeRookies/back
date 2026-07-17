@@ -411,6 +411,14 @@ public class AlertEventService {
         if (existingEvent != null) {
             return attachClipToExisting(existingEvent, dto);
         }
+        // Legacy dual-id fallback: if originalEventId present and maps to existing, attach to it
+        // (prevents second AlertEvent row for FALL_UNRECOVERED/FAINT_SUSPECTED sharing original)
+        if (dto.originalEventId() != null && !dto.originalEventId().isBlank()) {
+            AlertEvent byOriginal = findExistingEvent(dto.originalEventId());
+            if (byOriginal != null) {
+                return attachClipToExisting(byOriginal, dto);
+            }
+        }
 
         ScenarioType scenarioType = resolveScenarioType(dto.type());
 
@@ -517,6 +525,18 @@ public class AlertEventService {
             return null;
         }
         return alertEventRepository.findByEventId(eventId).orElse(null);
+    }
+
+    /**
+     * Resolve existing AlertEvent by originalEventId (for legacy dual-id payloads
+     * where UNRECOVERED uses a different eventId but shares originalEventId).
+     * Only used for unrecovered-family events to attach media to the NEW_FALL row.
+     */
+    private AlertEvent findExistingByOriginalEventId(String originalEventId) {
+        if (originalEventId == null || originalEventId.isBlank()) {
+            return null;
+        }
+        return alertEventRepository.findByEventId(originalEventId).orElse(null);
     }
 
     private String normalizeEventId(String eventId) {

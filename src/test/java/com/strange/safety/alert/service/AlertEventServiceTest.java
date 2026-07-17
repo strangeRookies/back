@@ -526,6 +526,7 @@ class AlertEventServiceTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
     }
@@ -590,7 +591,8 @@ class AlertEventServiceTest {
                 clipObjectKey != null ? 1783410062500L : null,
                 clipObjectKey != null ? 1783410062500L : null,
                 null,
-                clipObjectKey != null ? 1783410062600L : null
+                clipObjectKey != null ? 1783410062600L : null,
+                null
         );
     }
 
