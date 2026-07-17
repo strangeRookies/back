@@ -58,7 +58,7 @@ public class AiVlmWorkerClient {
             Double clipEndSec
     ) throws AiVlmWorkerException {
         if (!isConfigured()) {
-            throw new AiVlmWorkerException("ai_worker_base_url_missing", false);
+            throw new AiVlmWorkerException("ai_worker_base_url_missing", false, null);
         }
         try {
             Map<String, Object> body = new LinkedHashMap<>();
@@ -90,14 +90,14 @@ public class AiVlmWorkerClient {
             HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();
             if (status == 408 || status == 429 || status >= 500) {
-                throw new AiVlmWorkerException(workerFailureCode(status, response.body(), true), true);
+                throw new AiVlmWorkerException(workerFailureCode(status, response.body(), true), true, status);
             }
             if (status < 200 || status >= 300) {
-                throw new AiVlmWorkerException(workerFailureCode(status, response.body(), false), false);
+                throw new AiVlmWorkerException(workerFailureCode(status, response.body(), false), false, status);
             }
             JsonNode root = objectMapper.readTree(response.body());
             if (root.has("error")) {
-                throw new AiVlmWorkerException("ai_worker_job_error", false);
+                throw new AiVlmWorkerException("ai_worker_job_error", false, null);
             }
             String json = objectMapper.writeValueAsString(root);
             boolean mock = root.path("vlm_result").path("is_mock").asBoolean(false);
@@ -113,10 +113,10 @@ public class AiVlmWorkerClient {
             throw ex;
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new AiVlmWorkerException("interrupted", false);
+            throw new AiVlmWorkerException("interrupted", false, null);
         } catch (Exception ex) {
             log.warn("[AiVlmWorker] request failed jobId={}: {}", jobId, ex.getMessage());
-            throw new AiVlmWorkerException("ai_worker_request_failed", false);
+            throw new AiVlmWorkerException("ai_worker_request_failed", false, null);
         }
     }
 
@@ -141,14 +141,28 @@ public class AiVlmWorkerClient {
 
     public static final class AiVlmWorkerException extends Exception {
         private final boolean transientFailure;
+        private final Integer httpStatus;
 
         public AiVlmWorkerException(String code, boolean transientFailure) {
+            this(code, transientFailure, null);
+        }
+
+        public AiVlmWorkerException(String code, boolean transientFailure, Integer httpStatus) {
             super(code);
             this.transientFailure = transientFailure;
+            this.httpStatus = httpStatus;
         }
 
         public boolean isTransient() {
             return transientFailure;
+        }
+
+        public Integer getHttpStatus() {
+            return httpStatus;
+        }
+
+        public boolean isRateLimited() {
+            return httpStatus != null && httpStatus == 429;
         }
     }
 }
