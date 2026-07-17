@@ -26,12 +26,29 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             where d.source_asset_type = 'CLIP'
               and (d.status = 'PENDING'
                 or (d.status = 'PROCESSING' and d.locked_until < :now))
+              and (d.next_attempt_at is null or d.next_attempt_at <= :now)
               and d.retry_count < d.max_retries
             order by d.alert_event_description_id asc
             limit :limit
             for update skip locked
             """, nativeQuery = true)
     List<AlertEventDescription> claimClipJobs(@Param("now") LocalDateTime now, @Param("limit") int limit);
+
+    @Query(value = """
+            select d.* from alert_event_descriptions d
+            where d.status = 'SUCCESS'
+              and d.vlm_description is not null
+              and d.vlm_description <> ''
+              and (d.description_embedding is null or d.description_embedding = '')
+              and (d.embedding_status = 'PENDING'
+                or (d.embedding_status = 'PROCESSING' and d.embedding_locked_until < :now))
+              and (d.embedding_next_attempt_at is null or d.embedding_next_attempt_at <= :now)
+              and d.embedding_retry_count < d.embedding_max_retries
+            order by d.alert_event_description_id asc
+            limit :limit
+            for update skip locked
+            """, nativeQuery = true)
+    List<AlertEventDescription> claimEmbeddingJobs(@Param("now") LocalDateTime now, @Param("limit") int limit);
 
     @Query("""
             select d from AlertEventDescription d
@@ -41,6 +58,7 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             join fetch e.scenario s
             where (d.status = com.strange.safety.vlm.entity.VlmJobStatus.PENDING
                 or (d.status = com.strange.safety.vlm.entity.VlmJobStatus.PROCESSING and d.lockedUntil < :now))
+              and (d.nextAttemptAt is null or d.nextAttemptAt <= :now)
               and d.retryCount < d.maxRetries
             order by d.id asc
             """)

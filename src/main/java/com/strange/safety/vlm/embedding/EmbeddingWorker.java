@@ -1,17 +1,15 @@
 package com.strange.safety.vlm.embedding;
 
 import com.strange.safety.vlm.entity.AlertEventDescription;
-import com.strange.safety.vlm.entity.VlmJobStatus;
 import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
 import com.strange.safety.vlm.service.EmbeddingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -26,7 +24,8 @@ public class EmbeddingWorker {
 
     private final AlertEventDescriptionRepository repository;
     private final EmbeddingService embeddingService;
-    private final PgVectorProjectionWriter pgVectorProjectionWriter;
+    private final EmbeddingJobClaimService claimService;
+    private final EmbeddingJobCompletionService completionService;
 
     @Value("${vlm.embedding-worker-enabled:false}")
     private boolean enabled;
@@ -34,8 +33,8 @@ public class EmbeddingWorker {
     @Value("${vlm.batch-size:2}")
     private int batchSize;
 
+
     @Scheduled(fixedDelayString = "${vlm.embedding-worker-delay-ms:30000}")
-    @Transactional
     public void reembedIfNeeded() {
         if (!enabled) {
             return;
@@ -44,25 +43,31 @@ public class EmbeddingWorker {
             log.debug("EmbeddingWorker skipped: provider unavailable");
             return;
         }
-        // SUCCESS rows with empty embedding — defensive; repository may return empty until query exists.
-        List<AlertEventDescription> rows = repository.findAll(PageRequest.of(0, batchSize)).getContent()
-                .stream()
-                .filter(row -> row.getStatus() == VlmJobStatus.SUCCESS)
-                .filter(row -> row.getVlmDescription() != null && !row.getVlmDescription().isBlank())
-                .filter(row -> row.getDescriptionEmbedding() == null || row.getDescriptionEmbedding().isBlank())
-                .toList();
-        for (AlertEventDescription row : rows) {
-            double[] vector = embeddingService.embed(row.getVlmDescription());
-            row.markSuccess(
-                    row.getVlmJson(),
-                    row.getVlmDescription(),
-                    embeddingService.encode(vector),
-                    row.getDeidentifiedKeyframeKeys() == null ? "" : row.getDeidentifiedKeyframeKeys(),
-                    embeddingService.embeddingModelName(),
-                    row.isMockResult()
-            );
-            pgVectorProjectionWriter.projectIfEnabled(row.getId(), vector);
-            log.info("EmbeddingWorker updated description id={}", row.getId());
+
+        List<Long> jobIds = claimService.claimJobIds(LocalDateTime.now(), batchSize);
+        for (Long jobId : jobIds) {
+            AlertEventDescription row = repository.findById(jobId).orElse(null);
+            if (row == null) {
+                continue;
+            }
+            try {
+                double[] vector = embeddingService.embed(row.getVlmDescription());
+                completionService.markSuccess(jobId, vector);
+                log.info("EmbeddingWorker updated description id={}", jobId);
+            } catch (RuntimeException ex) {
+                boolean rateLimited = ex instanceof EmbeddingService.EmbeddingProviderException providerFailure
+                        && providerFailure.isRateLimited();
+                completionService.markFailed(jobId, safeFailure(ex), rateLimited);
+                log.warn("EmbeddingWorker failed description id={} rateLimited={} reason={}",
+                        jobId, rateLimited, safeFailure(ex));
+            }
         }
+    }
+
+    private String safeFailure(RuntimeException ex) {
+        String message = ex.getMessage();
+        return message == null || message.isBlank()
+                ? ex.getClass().getSimpleName()
+                : message.substring(0, Math.min(message.length(), 500));
     }
 }
