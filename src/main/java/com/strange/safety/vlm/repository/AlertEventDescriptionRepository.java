@@ -26,12 +26,29 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             where d.source_asset_type = 'CLIP'
               and (d.status = 'PENDING'
                 or (d.status = 'PROCESSING' and d.locked_until < :now))
+              and (d.next_attempt_at is null or d.next_attempt_at <= :now)
               and d.retry_count < d.max_retries
-            order by d.id asc
+            order by d.alert_event_description_id asc
             limit :limit
             for update skip locked
             """, nativeQuery = true)
     List<AlertEventDescription> claimClipJobs(@Param("now") LocalDateTime now, @Param("limit") int limit);
+
+    @Query(value = """
+            select d.* from alert_event_descriptions d
+            where d.status = 'SUCCESS'
+              and d.vlm_description is not null
+              and d.vlm_description <> ''
+              and (d.description_embedding is null or d.description_embedding = '')
+              and (d.embedding_status = 'PENDING'
+                or (d.embedding_status = 'PROCESSING' and d.embedding_locked_until < :now))
+              and (d.embedding_next_attempt_at is null or d.embedding_next_attempt_at <= :now)
+              and d.embedding_retry_count < d.embedding_max_retries
+            order by d.alert_event_description_id asc
+            limit :limit
+            for update skip locked
+            """, nativeQuery = true)
+    List<AlertEventDescription> claimEmbeddingJobs(@Param("now") LocalDateTime now, @Param("limit") int limit);
 
     @Query("""
             select d from AlertEventDescription d
@@ -41,6 +58,7 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             join fetch e.scenario s
             where (d.status = com.strange.safety.vlm.entity.VlmJobStatus.PENDING
                 or (d.status = com.strange.safety.vlm.entity.VlmJobStatus.PROCESSING and d.lockedUntil < :now))
+              and (d.nextAttemptAt is null or d.nextAttemptAt <= :now)
               and d.retryCount < d.maxRetries
             order by d.id asc
             """)
@@ -54,12 +72,15 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             join fetch e.scenario s
             left join fetch e.snapshots
             where d.status = :status
-              and d.descriptionEmbedding is not null
               and f.id = :facilityId
-              and (:dateFrom is null or e.detectedAt >= :dateFrom)
-              and (:dateTo is null or e.detectedAt <= :dateTo)
-              and (:cameraId is null or c.id = :cameraId)
-              and (:excludeMock = false or d.mockResult = false)
+              and e.detectedAt >= coalesce(:dateFrom, e.detectedAt)
+              and e.detectedAt <= coalesce(:dateTo, e.detectedAt)
+              and c.id = coalesce(:cameraId, c.id)
+              and (:excludeMock = false or (
+                d.mockResult = false and (
+                  d.embeddingModelName is null or lower(d.embeddingModelName) not like 'mock%'
+                )
+              ))
             """)
     List<AlertEventDescription> findSearchableForFacility(
             @Param("facilityId") Long facilityId,
@@ -78,12 +99,15 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             join fetch e.scenario s
             left join fetch e.snapshots
             where d.status = :status
-              and d.descriptionEmbedding is not null
               and p.id = :companyProfileId
-              and (:dateFrom is null or e.detectedAt >= :dateFrom)
-              and (:dateTo is null or e.detectedAt <= :dateTo)
-              and (:cameraId is null or c.id = :cameraId)
-              and (:excludeMock = false or d.mockResult = false)
+              and e.detectedAt >= coalesce(:dateFrom, e.detectedAt)
+              and e.detectedAt <= coalesce(:dateTo, e.detectedAt)
+              and c.id = coalesce(:cameraId, c.id)
+              and (:excludeMock = false or (
+                d.mockResult = false and (
+                  d.embeddingModelName is null or lower(d.embeddingModelName) not like 'mock%'
+                )
+              ))
             """)
     List<AlertEventDescription> findSearchableForCompany(
             @Param("companyProfileId") Long companyProfileId,
@@ -94,5 +118,8 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             @Param("excludeMock") boolean excludeMock
     );
 
-    Optional<AlertEventDescription> findFirstByAlertEvent_Id(Long alertEventId);
+    Optional<AlertEventDescription> findFirstByAlertEvent_IdAndStatusOrderByCreatedAtDesc(
+            Long alertEventId,
+            VlmJobStatus status
+    );
 }

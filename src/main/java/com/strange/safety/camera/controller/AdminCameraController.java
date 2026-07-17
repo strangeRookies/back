@@ -1,5 +1,6 @@
 package com.strange.safety.camera.controller;
 
+import com.strange.safety.alert.dto.AdminFalsePositiveRateResponse;
 import com.strange.safety.alert.service.AlertEventService;
 import com.strange.safety.camera.dto.AdminCameraStatsResponse;
 import com.strange.safety.camera.dto.BulkCameraUploadResult;
@@ -64,6 +65,11 @@ public class AdminCameraController {
     public ResponseEntity<ApiResponse<Map<String, Long>>> getTodayAlertCount() {
         long count = alertEventService.countAllAlertsToday();
         return ResponseEntity.ok(ApiResponse.success(Map.of("count", count)));
+    }
+
+    @GetMapping("/alert-events/false-positive-rate")
+    public ResponseEntity<ApiResponse<AdminFalsePositiveRateResponse>> getFalsePositiveRate() {
+        return ResponseEntity.ok(ApiResponse.success(alertEventService.getFalsePositiveRate()));
     }
 
     @GetMapping("/facilities/{facilityId}/cameras")

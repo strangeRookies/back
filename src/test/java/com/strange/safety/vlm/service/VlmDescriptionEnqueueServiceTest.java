@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -74,9 +75,24 @@ class VlmDescriptionEnqueueServiceTest {
         assertThatCode(synchronizations.getFirst()::afterCommit).doesNotThrowAnyException();
         verify(jobWriter).enqueue(event, source);
     }
+    @Test
+    void skipsEnqueueWhenVlmDisabled() {
+        AlertEvent event = event("event-1", "clips/a.mp4");
+        VlmDescriptionEnqueueService service = service(false);
+
+        service.enqueueIfMediaExists(event);
+
+        verifyNoInteractions(jobWriter);
+    }
 
     private VlmDescriptionEnqueueService service() {
-        return new VlmDescriptionEnqueueService(new VlmSourceSelector(), jobWriter);
+        return service(true);
+    }
+
+    private VlmDescriptionEnqueueService service(boolean enabled) {
+        VlmDescriptionEnqueueService service = new VlmDescriptionEnqueueService(new VlmSourceSelector(), jobWriter);
+        ReflectionTestUtils.setField(service, "vlmEnabled", enabled);
+        return service;
     }
 
     private AlertEvent event(String eventId, String clipObjectKey) {

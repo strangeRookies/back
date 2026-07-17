@@ -95,6 +95,7 @@ class AlertBroadcastServiceTest {
                 clipUrl == null ? null : "clips/test.mp4",
                 null,
                 clipUrl,
+                null,
                 1783410059000L,
                 1783410062400L,
                 1783410062500L,

@@ -3,6 +3,7 @@ package com.strange.safety.alert.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strange.safety.alert.cache.RecentAlertCacheStore;
+import com.strange.safety.alert.dto.AdminFalsePositiveRateResponse;
 import com.strange.safety.alert.dto.AlertEventDetailResponse;
 import com.strange.safety.alert.dto.AlertEventResponse;
 import com.strange.safety.alert.dto.AlertStatsResponse;
@@ -68,6 +69,7 @@ public class AlertEventService {
     private final S3Service s3Service;
     private final VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
     private final AlertEventDescriptionRepository alertEventDescriptionRepository;
+    private final AlertEventIdempotencyLock eventIdempotencyLock;
 
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
@@ -156,8 +158,8 @@ public class AlertEventService {
                             .build();
                 })
                 .collect(Collectors.toList());
-        String vlmDescription = alertEventDescriptionRepository.findFirstByAlertEvent_Id(alertEventId)
-                .filter(row -> row.getStatus() == VlmJobStatus.SUCCESS)
+        String vlmDescription = alertEventDescriptionRepository
+                .findFirstByAlertEvent_IdAndStatusOrderByCreatedAtDesc(alertEventId, VlmJobStatus.SUCCESS)
                 .map(AlertEventDescription::getVlmDescription)
                 .orElse(null);
         return AlertEventDetailResponse.from(event, snapshots, vlmDescription);
@@ -375,9 +377,37 @@ public class AlertEventService {
         return alertEventRepository.countAllSince(LocalDateTime.now().minusHours(24));
     }
 
+    /**
+     * AI 신뢰도(confidenceScore) 기반 오탐률 근사치. 신뢰도가 100%면 오탐률 0%라는
+     * 전제로 (1 - 평균 신뢰도)를 오탐률로 씀. 카메라 전체를 대상으로 하는 관리자
+     * 대시보드용 지표라 특정 시설/기업으로 필터링하지 않음.
+     * 직전 24시간 대비 delta도 같이 내려줘서 프론트 트렌드 표시(개선/악화)에 사용.
+     */
+    public AdminFalsePositiveRateResponse getFalsePositiveRate() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime oneDayAgo = now.minusHours(24);
+        LocalDateTime twoDaysAgo = now.minusHours(48);
+
+        Double currentAvgConfidence = alertEventRepository.averageConfidenceBetween(oneDayAgo, now);
+        Double previousAvgConfidence = alertEventRepository.averageConfidenceBetween(twoDaysAgo, oneDayAgo);
+        long sampleSize = alertEventRepository.countAllSince(oneDayAgo);
+
+        Double currentRate = currentAvgConfidence != null ? (1.0 - currentAvgConfidence) * 100.0 : null;
+        Double previousRate = previousAvgConfidence != null ? (1.0 - previousAvgConfidence) * 100.0 : null;
+        Double delta = (currentRate != null && previousRate != null) ? currentRate - previousRate : null;
+
+        return AdminFalsePositiveRateResponse.builder()
+                .ratePercent(currentRate)
+                .deltaPercent(delta)
+                .sampleSize(sampleSize)
+                .build();
+    }
+
     @Transactional
     public AlertEventResponse createEvent(SafetyEventDto dto) {
-        AlertEvent existingEvent = findExistingEvent(dto.eventId());
+        String eventId = normalizeEventId(dto.eventId());
+        eventIdempotencyLock.acquire(eventId);
+        AlertEvent existingEvent = findExistingEvent(eventId);
         if (existingEvent != null) {
             return attachClipToExisting(existingEvent, dto);
         }
@@ -433,28 +463,36 @@ public class AlertEventService {
                 .clipPath(dto.clipPath())
                 .faintProb(dto.faintProb())
                 .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneOffset.UTC))
-                .eventId(dto.eventId())
+                .eventId(eventId)
                 .build();
 
         AlertEvent saved = alertEventRepository.save(event);
+
+        // Snapshot ONLY from snapshotObjectKey (never from clip fields)
+        String snapKey = dto.snapshotObjectKey();
+        if (snapKey != null && !snapKey.trim().isEmpty()) {
+            snapKey = snapKey.trim();
+            if (isInvalidSnapshotKey(snapKey)) {
+                log.warn("Rejected invalid snapshot_object_key for eventId={}: {}", eventId, snapKey);
+            } else if (!snapshotRepository.existsByAlertEvent_IdAndSnapshotUrl(saved.getId(), snapKey)) {
+                Snapshot s = Snapshot.builder()
+                        .alertEvent(saved)
+                        .snapshotUrl(snapKey)
+                        .fileSizeBytes(null)
+                        .build();
+                snapshotRepository.save(s);
+                log.info("Saved Snapshot for alertEventId={} from snapshotObjectKey={}", saved.getId(), snapKey);
+            }
+        }
+
+        String snapshotUrl = null;
+        List<Snapshot> snaps = snapshotRepository.findByAlertEvent_Id(saved.getId());
+        if (!snaps.isEmpty()) {
+            snapshotUrl = s3Service.generatePresignedUrl(snaps.get(0).getSnapshotUrl());
+        }
+        // VLM is optional after primary AlertEvent/Snapshot path; afterCommit is handled inside the service.
         enqueueVlmSideChannel(saved, "alert create");
-        
-        String s3Key = firstNonBlank(dto.clipObjectKey(), dto.clipUrl());
-        if (s3Key != null && s3Key.contains(".amazonaws.com/")) {
-            s3Key = s3Key.substring(s3Key.indexOf(".amazonaws.com/") + 15);
-        }
 
-        if (s3Key != null && !s3Key.trim().isEmpty()) {
-            Snapshot snapshot = Snapshot.builder()
-                    .alertEvent(saved)
-                    .snapshotUrl(s3Key)
-                    .fileSizeBytes(null)
-                    .build();
-            snapshotRepository.save(snapshot);
-            log.info("Saved Snapshot record for alertEventId={} with snapshotUrl={}", saved.getId(), s3Key);
-        }
-
-        String snapshotUrl = (s3Key != null && !s3Key.trim().isEmpty()) ? s3Service.generatePresignedUrl(s3Key) : null;
         AlertEventResponse response = AlertEventResponse.from(saved, snapshotUrl);
 
         if (dto.isRealtimeEvent()) {
@@ -475,10 +513,21 @@ public class AlertEventService {
     }
 
     private AlertEvent findExistingEvent(String eventId) {
-        if (eventId == null || eventId.isBlank()) {
+        if (eventId == null) {
             return null;
         }
-        return alertEventRepository.findByEventId(eventId.trim()).orElse(null);
+        return alertEventRepository.findByEventId(eventId).orElse(null);
+    }
+
+    private String normalizeEventId(String eventId) {
+        if (eventId == null || eventId.isBlank()) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+        String normalized = eventId.trim();
+        if (normalized.length() > 64) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+        return normalized;
     }
 
     /**
@@ -487,7 +536,10 @@ public class AlertEventService {
      * AsyncEventProcessorService에서 broadcast 전에 호출해서 중복 알림을 막는다.
      */
     public boolean isAlreadyNotified(String eventId) {
-        return eventId != null && !eventId.isBlank() && alertEventRepository.existsByEventId(eventId);
+        if (eventId == null || eventId.isBlank()) {
+            return false;
+        }
+        return alertEventRepository.existsByEventId(eventId.trim());
     }
 
     public boolean isSupportedEventType(String type) {
@@ -541,56 +593,68 @@ public class AlertEventService {
     protected AlertEventResponse attachClipToExisting(AlertEvent existing, SafetyEventDto dto) {
         String clipUrl = dto.clipUrl();
         String clipObjectKey = dto.clipObjectKey();
-        if ((clipUrl == null || clipUrl.isBlank())
-                && (clipObjectKey == null || clipObjectKey.isBlank())) {
+
+        // Attach clip fields if any clip info present (do not early-return when only snapshot arrives)
+        boolean hasClip = (clipUrl != null && !clipUrl.isBlank())
+                || (clipObjectKey != null && !clipObjectKey.isBlank())
+                || (dto.clipPath() != null && !dto.clipPath().isBlank());
+        if (hasClip) {
+            existing.attachClip(clipUrl, clipObjectKey, dto.clipPath());
+        }
+
+        // Handle snapshotObjectKey separately (late-arrival snapshot must work even without clip)
+        String snapKey = dto.snapshotObjectKey();
+        if (snapKey != null && !snapKey.trim().isEmpty()) {
+            snapKey = snapKey.trim();
+            if (isInvalidSnapshotKey(snapKey)) {
+                log.warn("Rejected invalid snapshot_object_key on attach for eventId={}: {}", existing.getEventId(), snapKey);
+            } else if (!snapshotRepository.existsByAlertEvent_IdAndSnapshotUrl(existing.getId(), snapKey)) {
+                Snapshot s = Snapshot.builder()
+                        .alertEvent(existing)
+                        .snapshotUrl(snapKey)
+                        .fileSizeBytes(null)
+                        .build();
+                snapshotRepository.save(s);
+                log.info("Attached Snapshot via snapshotObjectKey for alertEventId={}, key={}", existing.getId(), snapKey);
+            }
+        }
+
+        // If no clip and no snapshot key, this was a pure duplicate realtime publish: just return current state
+        if (!hasClip && (snapKey == null || snapKey.isBlank())) {
             log.info("Skipped duplicate MQTT safety alert event: alertEventId={}, eventId={}",
                     existing.getId(), dto.eventId());
             return toResponseWithFirstSnapshot(existing);
         }
 
-        existing.attachClip(clipUrl, clipObjectKey, dto.clipPath());
-
-        String s3Key = firstNonBlank(clipObjectKey, clipUrl);
-        if (s3Key.contains(".amazonaws.com/")) {
-            s3Key = s3Key.substring(s3Key.indexOf(".amazonaws.com/") + 15);
+        // Build response snapshotUrl from first snapshot (never from clip)
+        String snapshotUrl = null;
+        List<Snapshot> snaps = snapshotRepository.findByAlertEvent_Id(existing.getId());
+        if (!snaps.isEmpty()) {
+            snapshotUrl = s3Service.generatePresignedUrl(snaps.get(0).getSnapshotUrl());
         }
 
-        String snapshotUrl = null;
-        if (!s3Key.trim().isEmpty()) {
-            if (snapshotRepository.findByAlertEvent_Id(existing.getId()).isEmpty()) {
-                Snapshot snapshot = Snapshot.builder()
-                        .alertEvent(existing)
-                        .snapshotUrl(s3Key)
-                        .fileSizeBytes(null)
-                        .build();
-                snapshotRepository.save(snapshot);
-                log.info("Attached snapshot to existing alertEvent: alertEventId={}, eventId={}, snapshotUrl={}",
-                        existing.getId(), dto.eventId(), s3Key);
-            }
-            snapshotUrl = s3Service.generatePresignedUrl(s3Key);
-            enqueueVlmSideChannel(existing, "clip attach");
+        // Enqueue VLM only when we actually attached media (clip or snapshot)
+        if (hasClip || (snapKey != null && !snapKey.isBlank())) {
+            enqueueVlmSideChannel(existing, "attach");
         }
 
         AlertEventResponse response = AlertEventResponse.from(existing, snapshotUrl);
 
-        // "이벤트 알림" 탭이 조회하는 최근 알림 캐시(Redis)는 1차(클립 없음) 발행 시점에만 채워지고
-        // 갱신되지 않아서, 클립이 나중에 붙어도 캐시가 계속 옛 상태를 돌려주는 문제가 있었음.
-        // 클립이 실제로 붙는 이 시점에 캐시에도 최신 응답을 반영한다.
-        if (snapshotUrl != null) {
+        // Clip attach and snapshot attach both need recent-alert cache refresh.
+        if (hasClip || snapshotUrl != null) {
             String contextKey = existing.getCamera() != null
                     ? "FAC_" + existing.getCamera().getFacility().getId()
                     : "COMP_" + existing.getCorporateCamera().getCompanyProfile().getId();
             try {
                 recentAlertCacheStore.add(contextKey, response);
             } catch (RuntimeException ex) {
-                log.warn("Failed to refresh recent alert cache after clip attach: alertEventId={}, contextKey={}, error={}",
+                log.warn("Failed to refresh recent alert cache after attach: alertEventId={}, contextKey={}, error={}",
                         existing.getId(), contextKey, ex.getMessage());
             }
         }
 
         return response;
     }
-
     private void enqueueVlmSideChannel(AlertEvent event, String operation) {
         try {
             vlmDescriptionEnqueueService.enqueueIfMediaExists(event);
@@ -634,5 +698,19 @@ public class AlertEventService {
         if (upper.contains("WARNING") || upper.contains("MEDIUM"))
             return AlertSeverity.WARNING;
         return AlertSeverity.WARNING;
+    }
+
+    private boolean isInvalidSnapshotKey(String key) {
+        if (key == null) return true;
+        String k = key.trim();
+        if (k.isEmpty()) return true;
+        // Reject local/absolute paths and Windows/Unix absolute
+        if (k.startsWith("/") || k.startsWith("\\") || k.matches("^[A-Za-z]:.*")) return true;
+        if (k.contains("://") || k.startsWith("file:")) return true;
+        if (k.startsWith("./") || k.startsWith("../") || k.contains("..")) return true;
+        // Never accept clip media as a representative snapshot image key
+        if (k.startsWith("clips/") || k.toLowerCase(Locale.ROOT).endsWith(".mp4")) return true;
+        // Canonical contract: snapshots/{eventId}.jpg (or other snapshots/* object keys)
+        return !k.startsWith("snapshots/");
     }
 }

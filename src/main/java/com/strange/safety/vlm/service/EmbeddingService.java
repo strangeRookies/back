@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
+import jakarta.annotation.PostConstruct;
 /**
  * Facade for embedding operations. Direct SDK clients only — no LangChain.
  */
@@ -38,15 +39,23 @@ public class EmbeddingService {
     @Value("${vlm.mock-mode:${VLM_MOCK_MODE:true}}")
     private boolean mockMode;
 
-    @Value("${vlm.query-embedding-model:${VLM_QUERY_EMBEDDING_MODEL:text-embedding-004}}")
+    @Value("${vlm.query-embedding-model:${VLM_QUERY_EMBEDDING_MODEL:gemini-embedding-001}}")
     private String queryEmbeddingModel;
 
     @Value("${vlm.gemini-api-key:${GEMINI_API_KEY:}}")
     private String geminiApiKey;
+    @Value("${vlm.snapshot-assist.force-mock:${VLM_FORCE_MOCK:false}}")
+    private boolean forceMock;
+
 
     public EmbeddingService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    }
+
+    @PostConstruct
+    void applyEmbeddingProviderFromEnv() {
+        mockMode = forceMock || geminiApiKey == null || geminiApiKey.isBlank();
     }
 
     public boolean canEmbed() {
@@ -83,7 +92,7 @@ public class EmbeddingService {
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("Query embedding provider returned HTTP " + response.statusCode());
+                throw new EmbeddingProviderException(response.statusCode());
             }
             JsonNode values = objectMapper.readTree(response.body()).path("embedding").path("values");
             if (!values.isArray() || values.size() != DIMENSION) {
@@ -148,5 +157,22 @@ public class EmbeddingService {
             return 0.0d;
         }
         return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
+    }
+
+    public static final class EmbeddingProviderException extends IllegalStateException {
+        private final int httpStatus;
+
+        public EmbeddingProviderException(int httpStatus) {
+            super("Query embedding provider returned HTTP " + httpStatus);
+            this.httpStatus = httpStatus;
+        }
+
+        public int getHttpStatus() {
+            return httpStatus;
+        }
+
+        public boolean isRateLimited() {
+            return httpStatus == 429;
+        }
     }
 }

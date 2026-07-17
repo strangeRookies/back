@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strange.safety.alert.cache.RecentAlertCacheStore;
 import com.strange.safety.alert.dto.AlertEventResponse;
 import com.strange.safety.alert.entity.AlertEvent;
+import com.strange.safety.alert.entity.Snapshot;
 import com.strange.safety.alert.repository.AlertEventRepository;
 import com.strange.safety.alert.repository.SnapshotRepository;
 import com.strange.safety.camera.entity.Camera;
@@ -26,6 +27,7 @@ import com.strange.safety.scenario.entity.ScenarioType;
 import com.strange.safety.scenario.repository.ScenarioRepository;
 import com.strange.safety.user.repository.UserRepository;
 import com.strange.safety.vlm.service.VlmDescriptionEnqueueService;
+import com.strange.safety.vlm.repository.AlertEventDescriptionRepository;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -74,7 +76,10 @@ class AlertEventServiceTest {
     private VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
 
     @Mock
-    private com.strange.safety.vlm.repository.AlertEventDescriptionRepository alertEventDescriptionRepository;
+    private AlertEventDescriptionRepository alertEventDescriptionRepository;
+
+    @Mock
+    private AlertEventIdempotencyLock eventIdempotencyLock;
 
     private AlertEventService alertEventService;
 
@@ -93,7 +98,8 @@ class AlertEventServiceTest {
                 recentAlertCacheStore,
                 s3Service,
                 vlmDescriptionEnqueueService,
-                alertEventDescriptionRepository
+                alertEventDescriptionRepository,
+                eventIdempotencyLock
         );
     }
 
@@ -114,6 +120,7 @@ class AlertEventServiceTest {
 
         assertThat(response.getAlertEventId()).isEqualTo(40L);
         verify(recentAlertCacheStore).add("FAC_10", response);
+        verify(eventIdempotencyLock).acquire(event.eventId());
     }
 
     @Test
@@ -216,6 +223,37 @@ class AlertEventServiceTest {
     }
 
     @Test
+    void createEventNormalizesEventIdBeforeLockAndLookup() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent existingEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEvent("cam_01", "SYNCOPE", "  test-event-id  ");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getAlertEventId()).isEqualTo(40L);
+        verify(eventIdempotencyLock).acquire("test-event-id");
+        verify(alertEventRepository).findByEventId("test-event-id");
+        verify(alertEventRepository, never()).save(any(AlertEvent.class));
+    }
+
+    @Test
+    void createEventRejectsBlankEventIdBeforePersistence() {
+        SafetyEventDto event = safetyEvent("cam_01", "SYNCOPE", "   ");
+
+        assertThatThrownBy(() -> alertEventService.createEvent(event))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.COMMON_INVALID_INPUT);
+
+        verify(eventIdempotencyLock, never()).acquire(any());
+        verify(alertEventRepository, never()).save(any(AlertEvent.class));
+    }
+
+    @Test
     void createEventAttachesEvidenceClipToExistingEvent() {
         Facility facility = facility(10L);
         Camera camera = camera(20L, facility);
@@ -225,7 +263,6 @@ class AlertEventServiceTest {
 
         when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
         when(snapshotRepository.findByAlertEvent_Id(40L)).thenReturn(List.of());
-        when(s3Service.generatePresignedUrl("clips/test.mp4")).thenReturn("https://signed.example.com/clips/test.mp4");
         org.mockito.Mockito.doThrow(new RuntimeException("VLM unavailable"))
                 .when(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
 
@@ -235,8 +272,10 @@ class AlertEventServiceTest {
         assertThat(existingEvent.getClipUrl()).isEqualTo("clips/test.mp4");
         assertThat(existingEvent.getClipObjectKey()).isEqualTo("clips/test.mp4");
         assertThat(existingEvent.getClipPath()).isEqualTo("clips/test.mp4");
+        assertThat(response.getSnapshotUrl()).isNull();
         verify(alertEventRepository, never()).save(any(AlertEvent.class));
-        verify(snapshotRepository).save(any());
+        verify(snapshotRepository, never()).save(any());
+        verify(s3Service, never()).generatePresignedUrl(any());
         verify(recentAlertCacheStore).add("FAC_10", response);
         verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
     }
@@ -254,14 +293,170 @@ class AlertEventServiceTest {
                 "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
         when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
         when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
+        when(snapshotRepository.findByAlertEvent_Id(40L)).thenReturn(List.of());
 
         AlertEventResponse response = alertEventService.createEvent(event);
 
         assertThat(response.getAlertEventId()).isEqualTo(40L);
+        assertThat(response.getSnapshotUrl()).isNull();
         verify(alertEventRepository).save(any(AlertEvent.class));
-        verify(snapshotRepository).save(any());
+        verify(snapshotRepository, never()).save(any());
         verify(recentAlertCacheStore, never()).add(any(), any());
         verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(savedEvent);
+    }
+
+    @Test
+    void createEventSavesSnapshotOnlyFromSnapshotObjectKey() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent savedEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEventWithMedia(
+                "cam_01",
+                "SYNCOPE",
+                "test-event-id",
+                null,
+                "clips/test.mp4",
+                "clips/test.mp4",
+                "snapshots/test-event-id.jpg");
+
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
+        when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
+        when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
+        when(snapshotRepository.existsByAlertEvent_IdAndSnapshotUrl(40L, "snapshots/test-event-id.jpg"))
+                .thenReturn(false);
+        when(snapshotRepository.findByAlertEvent_Id(40L)).thenAnswer(invocation -> List.of(
+                Snapshot.builder()
+                        .alertEvent(savedEvent)
+                        .snapshotUrl("snapshots/test-event-id.jpg")
+                        .build()));
+        when(s3Service.generatePresignedUrl("snapshots/test-event-id.jpg"))
+                .thenReturn("https://signed.example.com/snapshots/test-event-id.jpg");
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getSnapshotUrl()).isEqualTo("https://signed.example.com/snapshots/test-event-id.jpg");
+        verify(snapshotRepository).save(any(Snapshot.class));
+        verify(s3Service).generatePresignedUrl("snapshots/test-event-id.jpg");
+        verify(s3Service, never()).generatePresignedUrl("clips/test.mp4");
+    }
+
+    @Test
+    void createEventDoesNotSaveSnapshotFromClipOnlyPayload() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent savedEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEventWithMedia(
+                "cam_01",
+                "SYNCOPE",
+                "test-event-id",
+                null,
+                "clips/test.mp4",
+                "https://bucket.s3.ap-northeast-2.amazonaws.com/clips/test.mp4",
+                null);
+
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
+        when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
+        when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
+        when(snapshotRepository.findByAlertEvent_Id(40L)).thenReturn(List.of());
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getSnapshotUrl()).isNull();
+        verify(snapshotRepository, never()).save(any());
+        verify(s3Service, never()).generatePresignedUrl(any());
+    }
+
+    @Test
+    void createEventAttachesLateSnapshotObjectKeyToExistingEvent() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent existingEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEventWithMedia(
+                "cam_01",
+                "SYNCOPE",
+                "test-event-id",
+                null,
+                null,
+                null,
+                "snapshots/test-event-id.jpg");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
+        when(snapshotRepository.existsByAlertEvent_IdAndSnapshotUrl(40L, "snapshots/test-event-id.jpg"))
+                .thenReturn(false);
+        when(snapshotRepository.findByAlertEvent_Id(40L)).thenAnswer(invocation -> List.of(
+                Snapshot.builder()
+                        .alertEvent(existingEvent)
+                        .snapshotUrl("snapshots/test-event-id.jpg")
+                        .build()));
+        when(s3Service.generatePresignedUrl("snapshots/test-event-id.jpg"))
+                .thenReturn("https://signed.example.com/snapshots/test-event-id.jpg");
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getSnapshotUrl()).isEqualTo("https://signed.example.com/snapshots/test-event-id.jpg");
+        verify(snapshotRepository).save(any(Snapshot.class));
+        verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
+    }
+
+    @Test
+    void createEventSkipsDuplicateSnapshotObjectKey() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent existingEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEventWithMedia(
+                "cam_01",
+                "SYNCOPE",
+                "test-event-id",
+                null,
+                null,
+                null,
+                "snapshots/test-event-id.jpg");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
+        when(snapshotRepository.existsByAlertEvent_IdAndSnapshotUrl(40L, "snapshots/test-event-id.jpg"))
+                .thenReturn(true);
+        when(snapshotRepository.findByAlertEvent_Id(40L)).thenReturn(List.of(
+                Snapshot.builder().alertEvent(existingEvent).snapshotUrl("snapshots/test-event-id.jpg").build()));
+        when(s3Service.generatePresignedUrl("snapshots/test-event-id.jpg"))
+                .thenReturn("https://signed.example.com/snapshots/test-event-id.jpg");
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getSnapshotUrl()).isEqualTo("https://signed.example.com/snapshots/test-event-id.jpg");
+        verify(snapshotRepository, never()).save(any());
+    }
+
+    @Test
+    void createEventRejectsClipKeyDisguisedAsSnapshotObjectKey() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent savedEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEventWithMedia(
+                "cam_01",
+                "SYNCOPE",
+                "test-event-id",
+                null,
+                null,
+                null,
+                "clips/test.mp4");
+
+        when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(
+                "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
+        when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
+        when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
+        when(snapshotRepository.findByAlertEvent_Id(40L)).thenReturn(List.of());
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getSnapshotUrl()).isNull();
+        verify(snapshotRepository, never()).save(any());
     }
 
     @Test
@@ -298,10 +493,14 @@ class AlertEventServiceTest {
     }
 
     private SafetyEventDto safetyEvent(String cameraLoginId) {
-        return safetyEvent(cameraLoginId, "SYNCOPE");
+        return safetyEvent(cameraLoginId, "SYNCOPE", "test-event-id");
     }
 
     private SafetyEventDto safetyEvent(String cameraLoginId, String type) {
+        return safetyEvent(cameraLoginId, type, "test-event-id");
+    }
+
+    private SafetyEventDto safetyEvent(String cameraLoginId, String type, String eventId) {
         return new SafetyEventDto(
                 null,
                 null,
@@ -309,7 +508,7 @@ class AlertEventServiceTest {
                 type,
                 null,
                 cameraLoginId,
-                "test-event-id",
+                eventId,
                 Instant.parse("2026-06-19T00:00:00Z").toString(),
                 "CRITICAL",
                 "AI safety event detected",
@@ -318,6 +517,7 @@ class AlertEventServiceTest {
                 null,
                 null,
                 "track-1",
+                null,
                 null,
                 null,
                 null,
@@ -347,31 +547,50 @@ class AlertEventServiceTest {
     }
 
     private SafetyEventDto evidenceEvent(String cameraLoginId) {
+        return safetyEventWithMedia(
+                cameraLoginId,
+                "SYNCOPE",
+                "test-event-id",
+                "clips/test.mp4",
+                "clips/test.mp4",
+                "clips/test.mp4",
+                null);
+    }
+
+    private SafetyEventDto safetyEventWithMedia(
+            String cameraLoginId,
+            String type,
+            String eventId,
+            String clipPath,
+            String clipObjectKey,
+            String clipUrl,
+            String snapshotObjectKey) {
         return new SafetyEventDto(
                 "event",
-                "evidence",
+                snapshotObjectKey == null && clipObjectKey != null ? "evidence" : null,
                 "frame-1",
-                "SYNCOPE",
+                type,
                 null,
                 cameraLoginId,
-                "test-event-id",
+                eventId,
                 Instant.parse("2026-06-19T00:00:00Z").toString(),
                 "CRITICAL",
-                "AI safety event evidence",
+                "AI safety event detected",
                 null,
                 0.9f,
                 null,
                 null,
                 "track-1",
-                "clips/test.mp4",
-                "clips/test.mp4",
-                "clips/test.mp4",
-                1783410059000L,
-                1783410062400L,
-                1783410062500L,
-                1783410062500L,
+                clipPath,
+                clipObjectKey,
+                clipUrl,
+                snapshotObjectKey,
+                clipObjectKey != null ? 1783410059000L : null,
+                clipObjectKey != null ? 1783410062400L : null,
+                clipObjectKey != null ? 1783410062500L : null,
+                clipObjectKey != null ? 1783410062500L : null,
                 null,
-                1783410062600L
+                clipObjectKey != null ? 1783410062600L : null
         );
     }
 
