@@ -359,8 +359,9 @@ public class AlertEventService {
 
     @Transactional
     public AlertEventResponse createEvent(SafetyEventDto dto) {
-        eventIdempotencyLock.acquire(dto.eventId());
-        AlertEvent existingEvent = findExistingEvent(dto.eventId());
+        String eventId = normalizeEventId(dto.eventId());
+        eventIdempotencyLock.acquire(eventId);
+        AlertEvent existingEvent = findExistingEvent(eventId);
         if (existingEvent != null) {
             return attachClipToExisting(existingEvent, dto);
         }
@@ -416,7 +417,7 @@ public class AlertEventService {
                 .clipPath(dto.clipPath())
                 .faintProb(dto.faintProb())
                 .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneOffset.UTC))
-                .eventId(dto.eventId())
+                .eventId(eventId)
                 .build();
 
         AlertEvent saved = alertEventRepository.save(event);
@@ -458,10 +459,21 @@ public class AlertEventService {
     }
 
     private AlertEvent findExistingEvent(String eventId) {
-        if (eventId == null || eventId.isBlank()) {
+        if (eventId == null) {
             return null;
         }
-        return alertEventRepository.findByEventId(eventId.trim()).orElse(null);
+        return alertEventRepository.findByEventId(eventId).orElse(null);
+    }
+
+    private String normalizeEventId(String eventId) {
+        if (eventId == null || eventId.isBlank()) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+        String normalized = eventId.trim();
+        if (normalized.length() > 64) {
+            throw new CustomException(ErrorCode.COMMON_INVALID_INPUT);
+        }
+        return normalized;
     }
 
     /**
@@ -470,7 +482,10 @@ public class AlertEventService {
      * AsyncEventProcessorService에서 broadcast 전에 호출해서 중복 알림을 막는다.
      */
     public boolean isAlreadyNotified(String eventId) {
-        return eventId != null && !eventId.isBlank() && alertEventRepository.existsByEventId(eventId);
+        if (eventId == null || eventId.isBlank()) {
+            return false;
+        }
+        return alertEventRepository.existsByEventId(eventId.trim());
     }
 
     public boolean isSupportedEventType(String type) {

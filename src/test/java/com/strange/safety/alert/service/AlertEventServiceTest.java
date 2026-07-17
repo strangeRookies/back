@@ -222,6 +222,37 @@ class AlertEventServiceTest {
     }
 
     @Test
+    void createEventNormalizesEventIdBeforeLockAndLookup() {
+        Facility facility = facility(10L);
+        Camera camera = camera(20L, facility);
+        Scenario scenario = scenario(30L);
+        AlertEvent existingEvent = alertEvent(40L, camera, scenario);
+        SafetyEventDto event = safetyEvent("cam_01", "SYNCOPE", "  test-event-id  ");
+
+        when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
+
+        AlertEventResponse response = alertEventService.createEvent(event);
+
+        assertThat(response.getAlertEventId()).isEqualTo(40L);
+        verify(eventIdempotencyLock).acquire("test-event-id");
+        verify(alertEventRepository).findByEventId("test-event-id");
+        verify(alertEventRepository, never()).save(any(AlertEvent.class));
+    }
+
+    @Test
+    void createEventRejectsBlankEventIdBeforePersistence() {
+        SafetyEventDto event = safetyEvent("cam_01", "SYNCOPE", "   ");
+
+        assertThatThrownBy(() -> alertEventService.createEvent(event))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.COMMON_INVALID_INPUT);
+
+        verify(eventIdempotencyLock, never()).acquire(any());
+        verify(alertEventRepository, never()).save(any(AlertEvent.class));
+    }
+
+    @Test
     void createEventAttachesEvidenceClipToExistingEvent() {
         Facility facility = facility(10L);
         Camera camera = camera(20L, facility);
@@ -304,10 +335,14 @@ class AlertEventServiceTest {
     }
 
     private SafetyEventDto safetyEvent(String cameraLoginId) {
-        return safetyEvent(cameraLoginId, "SYNCOPE");
+        return safetyEvent(cameraLoginId, "SYNCOPE", "test-event-id");
     }
 
     private SafetyEventDto safetyEvent(String cameraLoginId, String type) {
+        return safetyEvent(cameraLoginId, type, "test-event-id");
+    }
+
+    private SafetyEventDto safetyEvent(String cameraLoginId, String type, String eventId) {
         return new SafetyEventDto(
                 null,
                 null,
@@ -315,7 +350,7 @@ class AlertEventServiceTest {
                 type,
                 null,
                 cameraLoginId,
-                "test-event-id",
+                eventId,
                 Instant.parse("2026-06-19T00:00:00Z").toString(),
                 "CRITICAL",
                 "AI safety event detected",

@@ -55,9 +55,9 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             left join fetch e.snapshots
             where d.status = :status
               and f.id = :facilityId
-              and (:dateFrom is null or e.detectedAt >= :dateFrom)
-              and (:dateTo is null or e.detectedAt <= :dateTo)
-              and (:cameraId is null or c.id = :cameraId)
+              and e.detectedAt >= coalesce(:dateFrom, e.detectedAt)
+              and e.detectedAt <= coalesce(:dateTo, e.detectedAt)
+              and c.id = coalesce(:cameraId, c.id)
               and (:excludeMock = false or d.mockResult = false)
             """)
     List<AlertEventDescription> findSearchableForFacility(
@@ -78,9 +78,9 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
             left join fetch e.snapshots
             where d.status = :status
               and p.id = :companyProfileId
-              and (:dateFrom is null or e.detectedAt >= :dateFrom)
-              and (:dateTo is null or e.detectedAt <= :dateTo)
-              and (:cameraId is null or c.id = :cameraId)
+              and e.detectedAt >= coalesce(:dateFrom, e.detectedAt)
+              and e.detectedAt <= coalesce(:dateTo, e.detectedAt)
+              and c.id = coalesce(:cameraId, c.id)
               and (:excludeMock = false or d.mockResult = false)
             """)
     List<AlertEventDescription> findSearchableForCompany(
