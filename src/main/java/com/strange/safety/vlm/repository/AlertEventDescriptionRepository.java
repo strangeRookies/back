@@ -76,7 +76,11 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
               and e.detectedAt >= coalesce(:dateFrom, e.detectedAt)
               and e.detectedAt <= coalesce(:dateTo, e.detectedAt)
               and c.id = coalesce(:cameraId, c.id)
-              and (:excludeMock = false or d.mockResult = false)
+              and (:excludeMock = false or (
+                d.mockResult = false and (
+                  d.embeddingModelName is null or lower(d.embeddingModelName) not like 'mock%'
+                )
+              ))
             """)
     List<AlertEventDescription> findSearchableForFacility(
             @Param("facilityId") Long facilityId,
@@ -99,7 +103,11 @@ public interface AlertEventDescriptionRepository extends JpaRepository<AlertEven
               and e.detectedAt >= coalesce(:dateFrom, e.detectedAt)
               and e.detectedAt <= coalesce(:dateTo, e.detectedAt)
               and c.id = coalesce(:cameraId, c.id)
-              and (:excludeMock = false or d.mockResult = false)
+              and (:excludeMock = false or (
+                d.mockResult = false and (
+                  d.embeddingModelName is null or lower(d.embeddingModelName) not like 'mock%'
+                )
+              ))
             """)
     List<AlertEventDescription> findSearchableForCompany(
             @Param("companyProfileId") Long companyProfileId,
