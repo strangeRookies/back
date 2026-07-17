@@ -19,11 +19,6 @@ public class VlmSourceSelector {
         if (clipObjectKey.isPresent()) {
             return Optional.of(new VlmSource(VlmSourceType.CLIP, clipObjectKey.get()));
         }
-
-        Optional<String> clipUrlKey = extractS3HttpObjectKey(event.getClipUrl());
-        if (clipUrlKey.isPresent()) {
-            return Optional.of(new VlmSource(VlmSourceType.CLIP, clipUrlKey.get()));
-        }
         return Optional.empty();
     }
 
