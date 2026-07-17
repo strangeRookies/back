@@ -49,6 +49,7 @@ class MqttSafetyEventSubscriberTest {
                 null,
                 null,
                 null,
+                null,
                 1783410059000L,
                 1783410062400L,
                 1783410062500L,

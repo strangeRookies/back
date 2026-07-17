@@ -112,6 +112,7 @@ aws:
     region: ${AWS_S3_REGION:ap-northeast-2}
 
 vlm:
+  enabled: ${VLM_ENABLED:true}
   mock-mode: ${VLM_MOCK_MODE:true}
   scheduler-delay-ms: ${VLM_SCHEDULER_DELAY_MS:15000}
   batch-size: ${VLM_BATCH_SIZE:2}
