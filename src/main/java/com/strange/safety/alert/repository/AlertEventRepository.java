@@ -42,6 +42,9 @@ public interface AlertEventRepository extends JpaRepository<AlertEvent, Long>,
     @Query("SELECT COUNT(a) FROM AlertEvent a WHERE a.detectedAt >= :dateFrom")
     long countAllSince(@Param("dateFrom") LocalDateTime dateFrom);
 
+    @Query("SELECT AVG(a.confidenceScore) FROM AlertEvent a WHERE a.detectedAt >= :dateFrom AND a.detectedAt < :dateTo")
+    Double averageConfidenceBetween(@Param("dateFrom") LocalDateTime dateFrom, @Param("dateTo") LocalDateTime dateTo);
+
     @Query(value = "SELECT s.scenario_type, COUNT(ae.alert_event_id) " +
                    "FROM alert_events ae " +
                    "JOIN cameras c ON ae.camera_id = c.camera_id " +

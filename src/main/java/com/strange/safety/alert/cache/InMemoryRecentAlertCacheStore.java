@@ -34,6 +34,21 @@ public class InMemoryRecentAlertCacheStore implements RecentAlertCacheStore {
     }
 
     @Override
+    public void update(String contextKey, AlertEventResponse alert) {
+        alertsByContext.computeIfPresent(contextKey, (key, current) -> {
+            List<AlertEventResponse> alerts = new java.util.ArrayList<>(current);
+            alerts.removeIf(a -> a.getAlertEventId().equals(alert.getAlertEventId()));
+            alerts.add(alert);
+            LocalDateTime cutoff = LocalDateTime.now().minus(RECENT_WINDOW);
+            return alerts.stream()
+                    .filter(item -> item.getDetectedAt() != null && !item.getDetectedAt().isBefore(cutoff))
+                    .sorted(Comparator.comparing(AlertEventResponse::getDetectedAt).reversed())
+                    .limit(RECENT_LIMIT)
+                    .toList();
+        });
+    }
+
+    @Override
     public List<AlertEventResponse> findRecent(String contextKey) {
         return alertsByContext.getOrDefault(contextKey, List.of());
     }

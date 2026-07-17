@@ -3,6 +3,7 @@ package com.strange.safety.alert.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.strange.safety.alert.cache.RecentAlertCacheStore;
+import com.strange.safety.alert.dto.AdminFalsePositiveRateResponse;
 import com.strange.safety.alert.dto.AlertEventDetailResponse;
 import com.strange.safety.alert.dto.AlertEventResponse;
 import com.strange.safety.alert.dto.AlertStatsResponse;
@@ -165,12 +166,31 @@ public class AlertEventService {
     }
 
     @Transactional
+    public AlertEventResponse acknowledgeByEventId(Long userId, String eventId) {
+        AlertEvent event = alertEventRepository.findByEventId(eventId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ALERT_NOT_FOUND));
+        return acknowledge(userId, event.getId());
+    }
+
+    @Transactional
     public AlertEventResponse acknowledge(Long userId, Long alertEventId) {
         AlertEvent event = getEventWithOwnerCheck(userId, alertEventId);
         event.acknowledge(userRepository.getReferenceById(userId));
         String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                 s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
-        return AlertEventResponse.from(event, snapshotUrl);
+        AlertEventResponse response = AlertEventResponse.from(event, snapshotUrl);
+        
+        String contextKey = event.getCamera() != null
+                ? "FAC_" + event.getCamera().getFacility().getId()
+                : "COMP_" + event.getCorporateCamera().getCompanyProfile().getId();
+        try {
+            recentAlertCacheStore.update(contextKey, response);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to update recent alert cache: alertEventId={}, contextKey={}, error={}",
+                    alertEventId, contextKey, ex.getMessage());
+        }
+
+        return response;
     }
 
     public AlertStatsResponse getStats(Long userId, Long facilityId,
@@ -355,6 +375,32 @@ public class AlertEventService {
 
     public long countAllAlertsToday() {
         return alertEventRepository.countAllSince(LocalDateTime.now().minusHours(24));
+    }
+
+    /**
+     * AI 신뢰도(confidenceScore) 기반 오탐률 근사치. 신뢰도가 100%면 오탐률 0%라는
+     * 전제로 (1 - 평균 신뢰도)를 오탐률로 씀. 카메라 전체를 대상으로 하는 관리자
+     * 대시보드용 지표라 특정 시설/기업으로 필터링하지 않음.
+     * 직전 24시간 대비 delta도 같이 내려줘서 프론트 트렌드 표시(개선/악화)에 사용.
+     */
+    public AdminFalsePositiveRateResponse getFalsePositiveRate() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime oneDayAgo = now.minusHours(24);
+        LocalDateTime twoDaysAgo = now.minusHours(48);
+
+        Double currentAvgConfidence = alertEventRepository.averageConfidenceBetween(oneDayAgo, now);
+        Double previousAvgConfidence = alertEventRepository.averageConfidenceBetween(twoDaysAgo, oneDayAgo);
+        long sampleSize = alertEventRepository.countAllSince(oneDayAgo);
+
+        Double currentRate = currentAvgConfidence != null ? (1.0 - currentAvgConfidence) * 100.0 : null;
+        Double previousRate = previousAvgConfidence != null ? (1.0 - previousAvgConfidence) * 100.0 : null;
+        Double delta = (currentRate != null && previousRate != null) ? currentRate - previousRate : null;
+
+        return AdminFalsePositiveRateResponse.builder()
+                .ratePercent(currentRate)
+                .deltaPercent(delta)
+                .sampleSize(sampleSize)
+                .build();
     }
 
     @Transactional

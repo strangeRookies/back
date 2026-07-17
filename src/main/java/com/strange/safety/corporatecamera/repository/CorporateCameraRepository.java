@@ -19,4 +19,10 @@ public interface CorporateCameraRepository extends JpaRepository<CorporateCamera
 
     @Query("SELECT c.companyProfile.id, COUNT(c) FROM CorporateCamera c WHERE c.companyProfile.id IN :ids GROUP BY c.companyProfile.id")
     List<Object[]> countCamerasByCompanyProfileIds(@Param("ids") Collection<Long> ids);
+
+    @Query("SELECT DISTINCT c FROM CorporateCamera c " +
+           "LEFT JOIN FETCH c.roiConfigs roi " +
+           "LEFT JOIN FETCH roi.scenario " +
+           "WHERE c.status = :status")
+    List<CorporateCamera> findWithRoisAndScenarios(@Param("status") com.strange.safety.camera.entity.CameraStatus status);
 }

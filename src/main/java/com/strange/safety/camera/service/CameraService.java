@@ -189,7 +189,7 @@ public class CameraService {
                 })
                 .collect(Collectors.toList()));
 
-        result.addAll(corporateCameraRepository.findByStatus(CameraStatus.ACTIVE).stream()
+        result.addAll(corporateCameraRepository.findWithRoisAndScenarios(CameraStatus.ACTIVE).stream()
                 .map(this::toCorporateCameraResponse)
                 .collect(Collectors.toList()));
 

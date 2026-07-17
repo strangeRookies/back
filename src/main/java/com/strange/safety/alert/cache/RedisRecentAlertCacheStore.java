@@ -53,6 +53,29 @@ public class RedisRecentAlertCacheStore implements RecentAlertCacheStore {
     }
 
     @Override
+    public void update(String contextKey, AlertEventResponse alert) {
+        if (contextKey == null || alert == null) {
+            return;
+        }
+        String key = key(contextKey);
+        Set<String> values = redisTemplate.opsForZSet().range(key, 0, -1);
+        if (values != null) {
+            for (String value : values) {
+                try {
+                    AlertEventResponse existing = objectMapper.readValue(value, AlertEventResponse.class);
+                    if (existing.getAlertEventId().equals(alert.getAlertEventId())) {
+                        redisTemplate.opsForZSet().remove(key, value);
+                        break;
+                    }
+                } catch (JsonProcessingException ex) {
+                    log.warn("Failed to read recent alert cache entry for update: contextKey={}", contextKey, ex);
+                }
+            }
+        }
+        add(contextKey, alert);
+    }
+
+    @Override
     public List<AlertEventResponse> findRecent(String contextKey) {
         if (contextKey == null) {
             return Collections.emptyList();

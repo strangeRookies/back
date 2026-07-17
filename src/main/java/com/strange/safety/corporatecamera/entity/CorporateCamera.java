@@ -59,6 +59,15 @@ public class CorporateCamera extends BaseEntity {
     @Column(name = "assigned_video_path")
     private String assignedVideoPath;
 
+    @OneToMany(mappedBy = "corporateCamera", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<com.strange.safety.camera.entity.RoiConfig> roiConfigs = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "corporateCamera", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<com.strange.safety.alert.entity.AlertEvent> alertEvents = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "corporateCamera", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<com.strange.safety.camera.entity.CameraStatusLog> statusLogs = new java.util.ArrayList<>();
+
     @Builder
     private CorporateCamera(CompanyProfile companyProfile, String cameraName, String cameraSerialNumber,
                             String cameraLoginId, String cameraPasswordEncrypted, String rtspUrl,
