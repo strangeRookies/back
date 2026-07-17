@@ -498,8 +498,10 @@ public class AlertEventService {
         if (!snaps.isEmpty()) {
             snapshotUrl = s3Service.generatePresignedUrl(snaps.get(0).getSnapshotUrl());
         }
-        // VLM is optional after primary AlertEvent/Snapshot path; afterCommit is handled inside the service.
-        enqueueVlmSideChannel(saved, "alert create");
+        // VLM analyzes only completed 10-second clips; realtime/snapshot-only events stay off this path.
+        if (hasClipMedia(dto)) {
+            enqueueVlmSideChannel(saved, "alert create");
+        }
 
         AlertEventResponse response = AlertEventResponse.from(saved, snapshotUrl);
 
@@ -653,8 +655,8 @@ public class AlertEventService {
             snapshotUrl = s3Service.generatePresignedUrl(snaps.get(0).getSnapshotUrl());
         }
 
-        // Enqueue VLM only when we actually attached media (clip or snapshot)
-        if (hasClip || (snapKey != null && !snapKey.isBlank())) {
+        // VLM remains clip-driven and extracts its frames from the completed 10-second clip.
+        if (hasClip) {
             enqueueVlmSideChannel(existing, "attach");
         }
 
@@ -682,6 +684,11 @@ public class AlertEventService {
             log.warn("VLM enqueue failed without affecting primary {} flow: eventId={}, error={}",
                     operation, event.getEventId(), ex.getMessage());
         }
+    }
+    private boolean hasClipMedia(SafetyEventDto dto) {
+        return (dto.clipUrl() != null && !dto.clipUrl().isBlank())
+                || (dto.clipObjectKey() != null && !dto.clipObjectKey().isBlank())
+                || (dto.clipPath() != null && !dto.clipPath().isBlank());
     }
     private String firstNonBlank(String... values) {
         for (String value : values) {

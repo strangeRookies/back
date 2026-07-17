@@ -36,6 +36,11 @@ public class AsyncEventProcessorService {
             return;
         }
 
+        boolean alreadyNotified = alertEventService.isAlreadyNotified(event.eventId());
+        if (!persistEvent(event)) {
+            return;
+        }
+
         ScenarioType scenarioType = alertEventService.resolveScenarioType(event.type());
         String displayMessage = alertEventService.getDisplayMessage(scenarioType);
 
@@ -58,7 +63,7 @@ public class AsyncEventProcessorService {
 
             log.info("[MQTT Async] Parsed event. type={}, eventPhase={}, cameraId={}, targetId={}, isCorporate={}",
                     event.type(), event.eventPhase(), event.cameraId(), targetId, isCorporate);
-            if (alertEventService.isAlreadyNotified(event.eventId())) {
+            if (alreadyNotified) {
                 log.info("[MQTT Async] eventId={} already has an alert row; skipping duplicate broadcast/FCM (clip re-publish).",
                         event.eventId());
             } else {
@@ -70,23 +75,26 @@ public class AsyncEventProcessorService {
                     event.cameraId(), event.type(), ex.getMessage(), ex);
         }
 
-        persistEvent(event);
     }
 
-    private void persistEvent(SafetyEventDto event) {
+    private boolean persistEvent(SafetyEventDto event) {
         try {
             alertEventService.createEvent(event);
+            return true;
         } catch (org.springframework.dao.DataIntegrityViolationException ex) {
             log.info("Duplicate event_id detected for eventId={}, retrying to attach clip instead.", event.eventId());
             try {
                 alertEventService.createEvent(event);
+                return true;
             } catch (RuntimeException ex2) {
                 log.error("Failed to retry persisting safety event: cameraId={}, type={}, error={}",
                         event.cameraId(), event.type(), ex2.getMessage(), ex2);
+                return false;
             }
         } catch (RuntimeException ex) {
             log.error("Failed to persist safety event asynchronously: cameraId={}, type={}, eventPhase={}, error={}",
                     event.cameraId(), event.type(), event.eventPhase(), ex.getMessage(), ex);
+            return false;
         }
     }
 

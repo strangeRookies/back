@@ -182,7 +182,7 @@ class AlertEventServiceTest {
     }
 
     @Test
-    void createEventKeepsPrimaryPersistenceWhenVlmEnqueueFails() {
+    void createRealtimeEventDoesNotEnterVlmPath() {
         Facility facility = facility(10L);
         Camera camera = camera(20L, facility);
         Scenario scenario = scenario(30L);
@@ -193,14 +193,13 @@ class AlertEventServiceTest {
                 "cam_01", com.strange.safety.camera.entity.CameraStatus.ACTIVE)).thenReturn(Optional.of(camera));
         when(scenarioRepository.findByScenarioType(ScenarioType.SYNCOPE)).thenReturn(Optional.of(scenario));
         when(alertEventRepository.save(any(AlertEvent.class))).thenReturn(savedEvent);
-        org.mockito.Mockito.doThrow(new RuntimeException("VLM unavailable"))
-                .when(vlmDescriptionEnqueueService).enqueueIfMediaExists(savedEvent);
 
         AlertEventResponse response = alertEventService.createEvent(event);
 
         assertThat(response.getAlertEventId()).isEqualTo(40L);
         verify(alertEventRepository).save(any(AlertEvent.class));
         verify(recentAlertCacheStore).add("FAC_10", response);
+        verify(vlmDescriptionEnqueueService, never()).enqueueIfMediaExists(any(AlertEvent.class));
     }
 
     @Test
@@ -400,7 +399,7 @@ class AlertEventServiceTest {
 
         assertThat(response.getSnapshotUrl()).isEqualTo("https://signed.example.com/snapshots/test-event-id.jpg");
         verify(snapshotRepository).save(any(Snapshot.class));
-        verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
+        verify(vlmDescriptionEnqueueService, never()).enqueueIfMediaExists(existingEvent);
     }
 
     @Test

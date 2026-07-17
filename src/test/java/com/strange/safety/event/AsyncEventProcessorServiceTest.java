@@ -3,6 +3,7 @@ package com.strange.safety.event;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -71,9 +73,10 @@ class AsyncEventProcessorServiceTest {
 
         service.processEvent(event);
 
-        verify(alertBroadcastService).broadcast(null, false, event, ScenarioType.COLLAPSE, "쓰러짐 감지");
-        verify(fcmService).sendAlertNotification(event);
-        verify(alertEventService).createEvent(event);
+        InOrder notificationOrder = inOrder(alertEventService, alertBroadcastService, fcmService);
+        notificationOrder.verify(alertEventService).createEvent(event);
+        notificationOrder.verify(alertBroadcastService).broadcast(null, false, event, ScenarioType.COLLAPSE, "쓰러짐 감지");
+        notificationOrder.verify(fcmService).sendAlertNotification(event);
     }
 
     @Test
