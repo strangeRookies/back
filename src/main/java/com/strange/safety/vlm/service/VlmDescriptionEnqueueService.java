@@ -5,9 +5,11 @@ import com.strange.safety.vlm.entity.VlmSourceType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 
 @Service
 @RequiredArgsConstructor
@@ -17,8 +19,14 @@ public class VlmDescriptionEnqueueService {
     private final VlmSourceSelector sourceSelector;
     private final VlmDescriptionJobWriter jobWriter;
 
+    @Value("${vlm.enabled:true}")
+    private boolean vlmEnabled = true;
+
     public void enqueueIfMediaExists(AlertEvent event) {
         if (event == null || event.getEventId() == null || event.getEventId().isBlank()) {
+            return;
+        }
+        if (!vlmEnabled) {
             return;
         }
 

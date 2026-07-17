@@ -92,7 +92,7 @@ public class EmbeddingService {
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("Query embedding provider returned HTTP " + response.statusCode());
+                throw new EmbeddingProviderException(response.statusCode());
             }
             JsonNode values = objectMapper.readTree(response.body()).path("embedding").path("values");
             if (!values.isArray() || values.size() != DIMENSION) {
@@ -157,5 +157,22 @@ public class EmbeddingService {
             return 0.0d;
         }
         return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
+    }
+
+    public static final class EmbeddingProviderException extends IllegalStateException {
+        private final int httpStatus;
+
+        public EmbeddingProviderException(int httpStatus) {
+            super("Query embedding provider returned HTTP " + httpStatus);
+            this.httpStatus = httpStatus;
+        }
+
+        public int getHttpStatus() {
+            return httpStatus;
+        }
+
+        public boolean isRateLimited() {
+            return httpStatus == 429;
+        }
     }
 }

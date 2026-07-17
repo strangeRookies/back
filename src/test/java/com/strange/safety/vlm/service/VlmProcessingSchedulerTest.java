@@ -33,21 +33,25 @@ import static org.mockito.Mockito.when;
 class VlmProcessingSchedulerTest {
     private AlertEventDescriptionRepository repository;
     private VlmClipJobCompletionService clipJobCompletionService;
+    private S3Service s3Service;
+    private AiVlmWorkerClient aiVlmWorkerClient;
     private VlmProcessingScheduler scheduler;
 
     @BeforeEach
     void setUp() {
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         repository = mock(AlertEventDescriptionRepository.class);
+        s3Service = mock(S3Service.class);
+        aiVlmWorkerClient = mock(AiVlmWorkerClient.class);
         clipJobCompletionService = mock(VlmClipJobCompletionService.class);
         scheduler = new VlmProcessingScheduler(
                 repository,
-                mock(S3Service.class),
+                s3Service,
                 mapper,
                 new VlmIndexPayloadParser(mapper),
                 mock(VlmClipJobClaimService.class),
                 clipJobCompletionService,
-                mock(AiVlmWorkerClient.class));
+                aiVlmWorkerClient);
         ReflectionTestUtils.setField(scheduler, "mockMode", true);
         ReflectionTestUtils.setField(scheduler, "captureZoneId", "Asia/Seoul");
         ReflectionTestUtils.setField(scheduler, "configuredClipStartSec", "");
@@ -114,6 +118,25 @@ class VlmProcessingSchedulerTest {
         ReflectionTestUtils.invokeMethod(scheduler, "processClaimedJob", 91L);
 
         verify(clipJobCompletionService).markFailed(eq(91L), any());
+    }
+
+    @Test
+    void preservesAiWorker429WhenPersistingRetry() throws Exception {
+        ReflectionTestUtils.setField(scheduler, "mockMode", false);
+        AlertEventDescription job = job(3);
+        when(repository.findById(91L)).thenReturn(Optional.of(job));
+        when(aiVlmWorkerClient.isConfigured()).thenReturn(true);
+        when(s3Service.generatePresignedUrl(job.getSourceAssetKey())).thenReturn("https://clip");
+        when(aiVlmWorkerClient.processClipJob(
+                any(Long.class),
+                any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new AiVlmWorkerClient.AiVlmWorkerException(
+                        "ai_worker_transient_http_429", true, 429));
+
+        ReflectionTestUtils.invokeMethod(scheduler, "processClaimedJob", 91L);
+
+        verify(clipJobCompletionService).markFailed(
+                91L, "ai_worker_transient_http_429", true);
     }
 
     private AlertEventDescription job(int maxRetries) {

@@ -122,6 +122,14 @@ public class VlmProcessingScheduler {
                 payload = invokeProcess(job, context);
             }
             clipJobCompletionService.markSuccess(jobId, payload);
+        } catch (AiVlmWorkerClient.AiVlmWorkerException ex) {
+            log.warn("[VLM] AI worker failed jobId={} httpStatus={} reason={}",
+                    jobId, ex.getHttpStatus(), safeFailure(ex));
+            try {
+                clipJobCompletionService.markFailed(jobId, safeFailure(ex), ex.isRateLimited());
+            } catch (RuntimeException persistEx) {
+                log.error("Failed to persist VLM failure for jobId={}: {}", jobId, persistEx.getMessage());
+            }
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             clipJobCompletionService.markFailed(jobId, "VLM process was interrupted");

@@ -112,6 +112,10 @@ public record SafetyEventDto(
         @JsonAlias({"clip_url", "clipUrl"})
         String clipUrl,
 
+        @JsonProperty("snapshot_object_key")
+        @JsonAlias({"snapshot_object_key", "snapshotObjectKey"})
+        String snapshotObjectKey,
+
         @JsonProperty("capturedAtMs")
         @JsonAlias({"capturedAtMs", "captured_at_ms"})
         Long capturedAtMs,
@@ -226,6 +230,7 @@ public record SafetyEventDto(
                 clipPath,
                 clipObjectKey,
                 clipUrl,
+                snapshotObjectKey,
                 capturedAtMs,
                 processedAtMs,
                 mqttPublishStartedAtMs,
