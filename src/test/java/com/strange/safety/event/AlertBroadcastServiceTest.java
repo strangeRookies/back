@@ -101,7 +101,8 @@ class AlertBroadcastServiceTest {
                 1783410062500L,
                 1783410062500L,
                 null,
-                1783410062600L
+                1783410062600L,
+                null
         );
     }
 }
