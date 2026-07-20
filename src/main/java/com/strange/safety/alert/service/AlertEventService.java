@@ -144,7 +144,7 @@ public class AlertEventService {
         return alertEventRepository.findAll(spec, pageable).map(event -> {
             String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                     s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
-            return AlertEventResponse.from(event, snapshotUrl);
+            return AlertEventResponse.from(event, snapshotUrl, presignedClipUrl(event));
         });
     }
 
@@ -166,7 +166,7 @@ public class AlertEventService {
                 .findFirstByAlertEvent_IdAndStatusOrderByCreatedAtDesc(alertEventId, VlmJobStatus.SUCCESS)
                 .map(AlertEventDescription::getVlmDescription)
                 .orElse(null);
-        return AlertEventDetailResponse.from(event, snapshots, vlmDescription);
+        return AlertEventDetailResponse.from(event, snapshots, vlmDescription, presignedClipUrl(event));
     }
 
     @Transactional
@@ -182,8 +182,8 @@ public class AlertEventService {
         event.acknowledge(userRepository.getReferenceById(userId));
         String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                 s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
-        AlertEventResponse response = AlertEventResponse.from(event, snapshotUrl);
-        
+        AlertEventResponse response = AlertEventResponse.from(event, snapshotUrl, presignedClipUrl(event));
+
         String contextKey = event.getCamera() != null
                 ? "FAC_" + event.getCamera().getFacility().getId()
                 : "COMP_" + event.getCorporateCamera().getCompanyProfile().getId();
@@ -276,7 +276,7 @@ public class AlertEventService {
                 .map(event -> {
                     String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                             s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
-                    return AlertEventResponse.from(event, snapshotUrl);
+                    return AlertEventResponse.from(event, snapshotUrl, presignedClipUrl(event));
                 })
                 .collect(Collectors.toList());
     }
@@ -474,7 +474,7 @@ public class AlertEventService {
                 .clipObjectKey(dto.clipObjectKey())
                 .clipPath(dto.clipPath())
                 .faintProb(dto.faintProb())
-                .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneOffset.UTC))
+                .detectedAt(LocalDateTime.ofInstant(timestampVal, java.time.ZoneId.systemDefault()))
                 .eventId(eventId)
                 .build();
 
@@ -529,7 +529,7 @@ public class AlertEventService {
         // VLM is optional after primary AlertEvent/Snapshot path; afterCommit is handled inside the service.
         enqueueVlmSideChannel(saved, "alert create");
 
-        AlertEventResponse response = AlertEventResponse.from(saved, snapshotUrl);
+        AlertEventResponse response = AlertEventResponse.from(saved, snapshotUrl, presignedClipUrl(saved));
 
         if (dto.isRealtimeEvent()) {
             String contextKey = camera != null ? "FAC_" + camera.getFacility().getId() : "COMP_" + corporateCamera.getCompanyProfile().getId();
@@ -628,7 +628,16 @@ public class AlertEventService {
     private AlertEventResponse toResponseWithFirstSnapshot(AlertEvent event) {
         String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                 s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
-        return AlertEventResponse.from(event, snapshotUrl);
+        return AlertEventResponse.from(event, snapshotUrl, presignedClipUrl(event));
+    }
+
+    /**
+     * clip_url is stored as the raw (private-bucket) S3 URL, which 403s if fetched directly.
+     * Always re-derive a presigned URL from clip_object_key for anything returned to the client.
+     */
+    private String presignedClipUrl(AlertEvent event) {
+        String key = event.getClipObjectKey();
+        return (key == null || key.isBlank()) ? null : s3Service.generatePresignedUrl(key);
     }
 
     /**
@@ -686,7 +695,7 @@ public class AlertEventService {
             enqueueVlmSideChannel(existing, "attach");
         }
 
-        AlertEventResponse response = AlertEventResponse.from(existing, snapshotUrl);
+        AlertEventResponse response = AlertEventResponse.from(existing, snapshotUrl, presignedClipUrl(existing));
 
         // Clip attach and snapshot attach both need recent-alert cache refresh.
         if (hasClip || snapshotUrl != null) {

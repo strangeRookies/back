@@ -41,8 +41,8 @@ class AiOverlayRegistryServiceTest {
         registry.report(new AiOverlayReportRequest(
                 "cam_04",
                 "rtsp://127.0.0.1:8554/cam_04",
-                8010,
-                "http://localhost:8010/stream",
+                65530,
+                "http://localhost:65530/stream",
                 1234L,
                 AiOverlayStatus.RUNNING));
 
@@ -50,8 +50,8 @@ class AiOverlayRegistryServiceTest {
 
         assertThat(response.cameraLoginId()).isEqualTo("cam_04");
         assertThat(response.status()).isEqualTo(AiOverlayStatus.STARTING);
-        assertThat(response.overlayPort()).isEqualTo(8010);
-        assertThat(response.overlayUrl()).isEqualTo("http://localhost:8010/stream");
+        assertThat(response.overlayPort()).isEqualTo(65530);
+        assertThat(response.overlayUrl()).isEqualTo("http://localhost:65530/stream");
     }
 
     @Test
