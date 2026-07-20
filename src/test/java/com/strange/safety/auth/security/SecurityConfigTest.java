@@ -10,6 +10,12 @@ import org.springframework.web.cors.CorsConfiguration;
 class SecurityConfigTest {
 
     @Test
+    void corsPropertiesAllowMobileAndWebLocalhostByDefault() {
+        assertThat(new CorsProperties().allowedOriginList())
+                .containsExactly("https://localhost", "http://localhost:5173");
+    }
+
+    @Test
     void corsConfigurationUsesConfiguredAllowedOrigins() {
         CorsProperties corsProperties = new CorsProperties();
         corsProperties.setAllowedOrigins("http://localhost:5173, https://front.example.com ");

@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.cors")
 public class CorsProperties {
 
-    private String allowedOrigins = "http://localhost:5173";
+    private String allowedOrigins = "https://localhost,http://localhost:5173";
 
     public String getAllowedOrigins() {
         return allowedOrigins;
