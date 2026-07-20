@@ -10,6 +10,7 @@ import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
 import com.strange.safety.facility.entity.AccessType;
 import com.strange.safety.facility.entity.Facility;
 import com.strange.safety.facility.repository.FacilityRepository;
+import com.strange.safety.push.service.PushDeviceService;
 import com.strange.safety.user.dto.AdminMemberUpdateRequest;
 import com.strange.safety.user.dto.AdminUserResponse;
 import com.strange.safety.user.dto.UpdatePasswordRequest;
@@ -41,6 +42,7 @@ public class UserService {
     private final FacilityRepository facilityRepository;
     private final CameraRepository cameraRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PushDeviceService pushDeviceService;
 
     public UserResponse getMe(Long userId) {
         return UserResponse.from(findActiveUser(userId));
@@ -73,6 +75,7 @@ public class UserService {
 
     @Transactional
     public void deleteAccount(Long userId) {
+        pushDeviceService.deactivateAllByUserId(userId);
         findActiveUser(userId).withdraw();
     }
 

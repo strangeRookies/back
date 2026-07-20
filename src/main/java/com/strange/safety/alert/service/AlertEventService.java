@@ -25,6 +25,7 @@ import com.strange.safety.corporatecamera.entity.CorporateCamera;
 import com.strange.safety.corporatecamera.repository.CorporateCameraRepository;
 import com.strange.safety.event.SafetyEventDto;
 import com.strange.safety.facility.service.FacilityService;
+import com.strange.safety.push.event.AlertPushRequestedEvent;
 import com.strange.safety.scenario.entity.Scenario;
 import com.strange.safety.scenario.entity.ScenarioType;
 import com.strange.safety.scenario.repository.ScenarioRepository;
@@ -40,11 +41,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -70,6 +73,7 @@ public class AlertEventService {
     private final VlmDescriptionEnqueueService vlmDescriptionEnqueueService;
     private final AlertEventDescriptionRepository alertEventDescriptionRepository;
     private final AlertEventIdempotencyLock eventIdempotencyLock;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public Page<AlertEventResponse> getList(Long userId, Long facilityId,
                                             AlertSeverity severity, AlertStatus status,
@@ -475,6 +479,30 @@ public class AlertEventService {
                 .build();
 
         AlertEvent saved = alertEventRepository.save(event);
+
+        if (dto.isRealtimeEvent()) {
+            boolean individualFacility = camera != null;
+            Long targetId = individualFacility
+                    ? camera.getFacility().getId()
+                    : corporateCamera.getCompanyProfile().getId();
+            Long savedCameraId = individualFacility ? camera.getId() : corporateCamera.getId();
+            String savedCameraLoginId = individualFacility
+                    ? camera.getCameraLoginId()
+                    : corporateCamera.getCameraLoginId();
+            String savedCameraName = individualFacility
+                    ? camera.getCameraName()
+                    : corporateCamera.getCameraName();
+            applicationEventPublisher.publishEvent(new AlertPushRequestedEvent(
+                    saved.getId(),
+                    savedCameraId,
+                    savedCameraLoginId,
+                    savedCameraName,
+                    individualFacility ? "FACILITY" : "COMPANY",
+                    targetId,
+                    scenarioType.name(),
+                    severity.name(),
+                    saved.getDetectedAt().toInstant(ZoneOffset.UTC)));
+        }
 
         // Snapshot ONLY from snapshotObjectKey (never from clip fields)
         String snapKey = dto.snapshotObjectKey();

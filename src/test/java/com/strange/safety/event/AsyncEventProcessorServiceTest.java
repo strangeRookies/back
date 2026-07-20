@@ -28,9 +28,6 @@ class AsyncEventProcessorServiceTest {
     private AlertBroadcastService alertBroadcastService;
 
     @Mock
-    private FcmService fcmService;
-
-    @Mock
     private CameraStatusService cameraStatusService;
 
     @Mock
@@ -49,7 +46,6 @@ class AsyncEventProcessorServiceTest {
         service = new AsyncEventProcessorService(
                 alertEventService,
                 alertBroadcastService,
-                fcmService,
                 cameraStatusService,
                 cameraStatusBroadcastService,
                 cameraRepository,
@@ -58,7 +54,7 @@ class AsyncEventProcessorServiceTest {
     }
 
     @Test
-    void realtimeEventBroadcastsFcmAndPersists() {
+    void realtimeEventBroadcastsAndPersists() {
         SafetyEventDto event = event("realtime", null);
         when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any()))
                 .thenReturn(Optional.empty());
@@ -72,18 +68,16 @@ class AsyncEventProcessorServiceTest {
         service.processEvent(event);
 
         verify(alertBroadcastService).broadcast(null, false, event, ScenarioType.COLLAPSE, "쓰러짐 감지");
-        verify(fcmService).sendAlertNotification(event);
         verify(alertEventService).createEvent(event);
     }
 
     @Test
-    void evidenceEventPersistsWithoutBroadcastOrFcm() {
+    void evidenceEventPersistsWithoutBroadcast() {
         SafetyEventDto event = event("evidence", "https://example.com/clip.mp4");
 
         service.processEvent(event);
 
         verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any(), any(), any());
-        verify(fcmService, never()).sendAlertNotification(any());
         verify(alertEventService, never()).isAlreadyNotified(any());
         verify(cameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());
         verify(corporateCameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());
@@ -91,7 +85,7 @@ class AsyncEventProcessorServiceTest {
     }
 
     @Test
-    void alreadyPersistedRealtimeEventSkipsBroadcastAndFcmButStillPersistsForDedupHandling() {
+    void alreadyPersistedRealtimeEventSkipsBroadcastButStillPersistsForDedupHandling() {
         SafetyEventDto event = event("realtime", null);
         when(cameraRepository.findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any()))
                 .thenReturn(Optional.empty());
@@ -105,19 +99,17 @@ class AsyncEventProcessorServiceTest {
         service.processEvent(event);
 
         verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any(), any(), any());
-        verify(fcmService, never()).sendAlertNotification(any());
         verify(alertEventService).createEvent(event);
     }
 
     @Test
-    void unsupportedRealtimeEventSkipsBroadcastFcmAndPersistence() {
+    void unsupportedRealtimeEventSkipsBroadcastAndPersistence() {
         SafetyEventDto event = event("realtime", null);
         when(alertEventService.isSupportedEventType("faint")).thenReturn(false);
 
         service.processEvent(event);
 
         verify(alertBroadcastService, never()).broadcast(any(), anyBoolean(), any(), any(), any());
-        verify(fcmService, never()).sendAlertNotification(any());
         verify(alertEventService, never()).createEvent(any());
         verify(cameraRepository, never()).findFirstByCameraLoginIdAndStatusOrderByIdDesc(any(), any());
     }

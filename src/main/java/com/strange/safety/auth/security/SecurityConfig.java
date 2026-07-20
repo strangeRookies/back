@@ -90,6 +90,8 @@ public class SecurityConfig {
                         // ADMIN 전용
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
+                        .requestMatchers("/api/push/**").hasAnyRole("ADMIN", "INDIVIDUAL", "CORPORATE")
+
                         // USER 접근 가능
                         .requestMatchers(
                                 "/api/facilities/**",

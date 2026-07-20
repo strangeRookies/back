@@ -16,7 +16,6 @@ public class AsyncEventProcessorService {
 
     private final AlertEventService alertEventService;
     private final AlertBroadcastService alertBroadcastService;
-    private final FcmService fcmService;
     private final com.strange.safety.camera.service.CameraStatusService cameraStatusService;
     private final CameraStatusBroadcastService cameraStatusBroadcastService;
     private final com.strange.safety.camera.repository.CameraRepository cameraRepository;
@@ -63,7 +62,6 @@ public class AsyncEventProcessorService {
                         event.eventId());
             } else {
                 alertBroadcastService.broadcast(targetId, isCorporate, event, scenarioType, displayMessage);
-                fcmService.sendAlertNotification(event);
             }
         } catch (RuntimeException ex) {
             log.error("Failed to broadcast safety event asynchronously: cameraId={}, type={}, error={}",

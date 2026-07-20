@@ -22,6 +22,7 @@ import com.strange.safety.event.SafetyEventDto;
 import com.strange.safety.facility.entity.Facility;
 import com.strange.safety.facility.entity.FacilityType;
 import com.strange.safety.facility.service.FacilityService;
+import com.strange.safety.push.event.AlertPushRequestedEvent;
 import com.strange.safety.scenario.entity.Scenario;
 import com.strange.safety.scenario.entity.ScenarioType;
 import com.strange.safety.scenario.repository.ScenarioRepository;
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class AlertEventServiceTest {
@@ -82,6 +84,9 @@ class AlertEventServiceTest {
     @Mock
     private AlertEventIdempotencyLock eventIdempotencyLock;
 
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
+
     private AlertEventService alertEventService;
 
     @BeforeEach
@@ -100,7 +105,8 @@ class AlertEventServiceTest {
                 s3Service,
                 vlmDescriptionEnqueueService,
                 alertEventDescriptionRepository,
-                eventIdempotencyLock
+                eventIdempotencyLock,
+                applicationEventPublisher
         );
     }
 
@@ -122,6 +128,7 @@ class AlertEventServiceTest {
         assertThat(response.getAlertEventId()).isEqualTo(40L);
         verify(recentAlertCacheStore).add("FAC_10", response);
         verify(eventIdempotencyLock).acquire(event.eventId());
+        verify(applicationEventPublisher).publishEvent(any(AlertPushRequestedEvent.class));
     }
 
     @Test
