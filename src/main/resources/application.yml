@@ -108,8 +108,8 @@ simulation:
 
 aws:
   s3:
-    bucket: ${AWS_S3_BUCKET:safety-risk-media-bucket}
-    region: ${AWS_S3_REGION:ap-northeast-2}
+    bucket: ${AWS_S3_BUCKET:${S3_BUCKET_NAME:${AWS_S3_BUCKET_NAME:smart-safety-media-rookies5}}}
+    region: ${AWS_S3_REGION:${AWS_REGION:ap-northeast-2}}
 
 vlm:
   enabled: ${VLM_ENABLED:true}

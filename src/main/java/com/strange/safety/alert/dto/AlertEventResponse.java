@@ -31,10 +31,14 @@ public class AlertEventResponse {
     private String snapshotUrl;
 
     public static AlertEventResponse from(AlertEvent event) {
-        return from(event, null);
+        return from(event, null, event.getClipUrl());
     }
 
     public static AlertEventResponse from(AlertEvent event, String snapshotUrl) {
+        return from(event, snapshotUrl, event.getClipUrl());
+    }
+
+    public static AlertEventResponse from(AlertEvent event, String snapshotUrl, String clipUrl) {
         return AlertEventResponse.builder()
                 .alertEventId(event.getId())
                 .eventId(event.getEventId())
@@ -46,7 +50,7 @@ public class AlertEventResponse {
                 .severity(event.getSeverity())
                 .status(event.getStatus())
                 .detectedAt(event.getDetectedAt())
-                .clipUrl(event.getClipUrl())
+                .clipUrl(clipUrl)
                 .acknowledgedAt(event.getAcknowledgedAt())
                 .acknowledgedBy(event.getAcknowledgedBy() != null ? event.getAcknowledgedBy().getId() : null)
                 .createdAt(event.getCreatedAt())
