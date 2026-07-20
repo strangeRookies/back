@@ -24,9 +24,10 @@ public class IncidentAcknowledgeController {
     @PostMapping("/{eventId}/acknowledge-and-record")
     @ResponseStatus(HttpStatus.CREATED)
     public IncidentRecordingRecord acknowledgeAndRecord(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.strange.safety.auth.security.CustomUserDetails userDetails,
             @PathVariable String eventId,
             @Valid @RequestBody AcknowledgeIncidentRequest request
     ) {
-        return service.acknowledgeAndRequestRecording(eventId, request);
+        return service.acknowledgeAndRequestRecording(userDetails.getUserId(), eventId, request);
     }
 }

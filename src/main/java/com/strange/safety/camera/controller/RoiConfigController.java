@@ -39,6 +39,24 @@ public class RoiConfigController {
                 roiConfigService.getList(userDetails.getUserId(), cameraId)));
     }
 
+    @PostMapping("/api/corporate-cameras/{cameraId}/roi-configs")
+    public ResponseEntity<ApiResponse<RoiConfigResponse>> createCorporate(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long cameraId,
+            @Valid @RequestBody CreateRoiConfigRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(
+                        roiConfigService.createCorporate(userDetails.getUserId(), cameraId, request)));
+    }
+
+    @GetMapping("/api/corporate-cameras/{cameraId}/roi-configs")
+    public ResponseEntity<ApiResponse<List<RoiConfigResponse>>> getListCorporate(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long cameraId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                roiConfigService.getListCorporate(userDetails.getUserId(), cameraId)));
+    }
+
     @GetMapping("/api/roi-configs/{roiConfigId}")
     public ResponseEntity<ApiResponse<RoiConfigResponse>> getOne(
             @AuthenticationPrincipal CustomUserDetails userDetails,

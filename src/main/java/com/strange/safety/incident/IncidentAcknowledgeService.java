@@ -10,19 +10,22 @@ import java.time.Instant;
 public class IncidentAcknowledgeService {
 
     private final IncidentRecordingRepository repository;
+    private final com.strange.safety.alert.service.AlertEventService alertEventService;
     private final Clock clock;
 
     @Autowired
-    public IncidentAcknowledgeService(IncidentRecordingRepository repository) {
-        this(repository, Clock.systemUTC());
+    public IncidentAcknowledgeService(IncidentRecordingRepository repository, com.strange.safety.alert.service.AlertEventService alertEventService) {
+        this(repository, alertEventService, Clock.systemUTC());
     }
 
-    IncidentAcknowledgeService(IncidentRecordingRepository repository, Clock clock) {
+    IncidentAcknowledgeService(IncidentRecordingRepository repository, com.strange.safety.alert.service.AlertEventService alertEventService, Clock clock) {
         this.repository = repository;
+        this.alertEventService = alertEventService;
         this.clock = clock;
     }
 
     public IncidentRecordingRecord acknowledgeAndRequestRecording(
+            Long userId,
             String pathEventId,
             AcknowledgeIncidentRequest request
     ) {
@@ -39,6 +42,15 @@ public class IncidentAcknowledgeService {
                 request.totalFrames(),
                 RecordingStatus.RECORDING_REQUESTED
         );
-        return repository.save(record);
+        
+        IncidentRecordingRecord saved = repository.save(record);
+        
+        try {
+            alertEventService.acknowledgeByEventId(userId, eventId);
+        } catch (Exception e) {
+            // log and ignore if not found
+        }
+        
+        return saved;
     }
 }

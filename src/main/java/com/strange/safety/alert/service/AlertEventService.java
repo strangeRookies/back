@@ -166,12 +166,31 @@ public class AlertEventService {
     }
 
     @Transactional
+    public AlertEventResponse acknowledgeByEventId(Long userId, String eventId) {
+        AlertEvent event = alertEventRepository.findByEventId(eventId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ALERT_NOT_FOUND));
+        return acknowledge(userId, event.getId());
+    }
+
+    @Transactional
     public AlertEventResponse acknowledge(Long userId, Long alertEventId) {
         AlertEvent event = getEventWithOwnerCheck(userId, alertEventId);
         event.acknowledge(userRepository.getReferenceById(userId));
         String snapshotUrl = event.getSnapshots().isEmpty() ? null :
                 s3Service.generatePresignedUrl(event.getSnapshots().get(0).getSnapshotUrl());
-        return AlertEventResponse.from(event, snapshotUrl);
+        AlertEventResponse response = AlertEventResponse.from(event, snapshotUrl);
+        
+        String contextKey = event.getCamera() != null
+                ? "FAC_" + event.getCamera().getFacility().getId()
+                : "COMP_" + event.getCorporateCamera().getCompanyProfile().getId();
+        try {
+            recentAlertCacheStore.update(contextKey, response);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to update recent alert cache: alertEventId={}, contextKey={}, error={}",
+                    alertEventId, contextKey, ex.getMessage());
+        }
+
+        return response;
     }
 
     public AlertStatsResponse getStats(Long userId, Long facilityId,
@@ -392,6 +411,14 @@ public class AlertEventService {
         if (existingEvent != null) {
             return attachClipToExisting(existingEvent, dto);
         }
+        // Legacy dual-id fallback: if originalEventId present and maps to existing, attach to it
+        // (prevents second AlertEvent row for FALL_UNRECOVERED/FAINT_SUSPECTED sharing original)
+        if (dto.originalEventId() != null && !dto.originalEventId().isBlank()) {
+            AlertEvent byOriginal = findExistingEvent(dto.originalEventId());
+            if (byOriginal != null) {
+                return attachClipToExisting(byOriginal, dto);
+            }
+        }
 
         ScenarioType scenarioType = resolveScenarioType(dto.type());
 
@@ -498,6 +525,18 @@ public class AlertEventService {
             return null;
         }
         return alertEventRepository.findByEventId(eventId).orElse(null);
+    }
+
+    /**
+     * Resolve existing AlertEvent by originalEventId (for legacy dual-id payloads
+     * where UNRECOVERED uses a different eventId but shares originalEventId).
+     * Only used for unrecovered-family events to attach media to the NEW_FALL row.
+     */
+    private AlertEvent findExistingByOriginalEventId(String originalEventId) {
+        if (originalEventId == null || originalEventId.isBlank()) {
+            return null;
+        }
+        return alertEventRepository.findByEventId(originalEventId).orElse(null);
     }
 
     private String normalizeEventId(String eventId) {

@@ -22,9 +22,12 @@ public class RoiConfigResponse {
     private LocalDateTime updatedAt;
 
     public static RoiConfigResponse from(RoiConfig roiConfig) {
+        Long cameraId = roiConfig.getCamera() != null ? 
+                roiConfig.getCamera().getId() : 
+                roiConfig.getCorporateCamera().getId();
         return RoiConfigResponse.builder()
                 .roiConfigId(roiConfig.getId())
-                .cameraId(roiConfig.getCamera().getId())
+                .cameraId(cameraId)
                 .scenarioId(roiConfig.getScenario().getId())
                 .scenarioType(roiConfig.getScenario().getScenarioType().name())
                 .polygonPoints(roiConfig.getPolygonPoints())
