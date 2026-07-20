@@ -264,6 +264,7 @@ class AlertEventServiceTest {
 
         when(alertEventRepository.findByEventId("test-event-id")).thenReturn(Optional.of(existingEvent));
         when(snapshotRepository.findByAlertEvent_Id(40L)).thenReturn(List.of());
+        when(s3Service.generatePresignedUrl("clips/test.mp4")).thenReturn("presigned-clips/test.mp4");
         org.mockito.Mockito.doThrow(new RuntimeException("VLM unavailable"))
                 .when(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
 
@@ -274,9 +275,10 @@ class AlertEventServiceTest {
         assertThat(existingEvent.getClipObjectKey()).isEqualTo("clips/test.mp4");
         assertThat(existingEvent.getClipPath()).isEqualTo("clips/test.mp4");
         assertThat(response.getSnapshotUrl()).isNull();
+        assertThat(response.getClipUrl()).isEqualTo("presigned-clips/test.mp4");
         verify(alertEventRepository, never()).save(any(AlertEvent.class));
         verify(snapshotRepository, never()).save(any());
-        verify(s3Service, never()).generatePresignedUrl(any());
+        verify(s3Service).generatePresignedUrl("clips/test.mp4");
         verify(recentAlertCacheStore).add("FAC_10", response);
         verify(vlmDescriptionEnqueueService).enqueueIfMediaExists(existingEvent);
     }
