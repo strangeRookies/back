@@ -20,8 +20,12 @@ public class RoiConfig extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "camera_id", nullable = false)
+    @JoinColumn(name = "camera_id", nullable = true)
     private Camera camera;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "corporate_camera_id", nullable = true)
+    private com.strange.safety.corporatecamera.entity.CorporateCamera corporateCamera;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "scenario_id", nullable = false)
@@ -34,8 +38,9 @@ public class RoiConfig extends BaseEntity {
     private boolean isActive = true;
 
     @Builder
-    private RoiConfig(Camera camera, Scenario scenario, String polygonPoints) {
+    private RoiConfig(Camera camera, com.strange.safety.corporatecamera.entity.CorporateCamera corporateCamera, Scenario scenario, String polygonPoints) {
         this.camera = camera;
+        this.corporateCamera = corporateCamera;
         this.scenario = scenario;
         this.polygonPoints = polygonPoints;
         this.isActive = true;

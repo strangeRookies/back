@@ -24,15 +24,19 @@ public class SnapshotAssistController {
 
     private final SnapshotAssistService service;
 
-    /**
-     * Edge AI uploads event-frame JPEG after primary MQTT alert publish.
-     * Auth: shared service token only (not end-user JWT).
-     */
     @PostMapping("/api/internal/vlm/snapshot-assist/{eventId}")
     public ResponseEntity<?> submit(
             @PathVariable String eventId,
             @RequestHeader(value = SERVICE_TOKEN_HEADER, required = false) String serviceToken,
             @RequestParam(value = "cameraLoginId", required = false) String cameraLoginId,
+            @RequestParam(value = "eventType", required = false) String eventType,
+            @RequestParam(value = "trackId", required = false) String trackId,
+            @RequestParam(value = "confidence", required = false) Double confidence,
+            @RequestParam(value = "faintProbability", required = false) Double faintProbability,
+            @RequestParam(value = "lifecycleState", required = false) String lifecycleState,
+            @RequestParam(value = "consecutiveCount", required = false) Integer consecutiveCount,
+            @RequestParam(value = "detectorReason", required = false) String detectorReason,
+            @RequestParam(value = "capturedAt", required = false) String capturedAt,
             @RequestParam("file") MultipartFile file
     ) throws IOException {
         if (!service.isEnabled()) {
@@ -64,11 +68,22 @@ public class SnapshotAssistController {
                         .body(ApiResponse.error("BAD_REQUEST", "invalid file extension"));
             }
         }
-        SnapshotAssistRecord record = service.submit(eventId, cameraLoginId, file.getBytes());
+        SnapshotAssistContext context = new SnapshotAssistContext(
+                eventId,
+                cameraLoginId,
+                eventType,
+                trackId,
+                confidence,
+                faintProbability,
+                lifecycleState,
+                consecutiveCount,
+                detectorReason,
+                capturedAt
+        );
+        SnapshotAssistRecord record = service.submit(eventId, cameraLoginId, file.getBytes(), context);
         return ResponseEntity.accepted().body(ApiResponse.success(toMap(record)));
     }
 
-    /** Dashboard / operator read of assist status by eventId (JWT protected). */
     @GetMapping("/api/vlm/snapshot-assist/{eventId}")
     public ResponseEntity<?> get(@PathVariable String eventId) {
         return service.get(eventId)

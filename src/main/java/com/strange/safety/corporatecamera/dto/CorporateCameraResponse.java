@@ -33,6 +33,9 @@ public class CorporateCameraResponse {
     private String overlayUrl;
     private String overlayStreamType;
     private boolean overlayRenderedInStream;
+    @com.fasterxml.jackson.annotation.JsonProperty("isCorporate")
+    private boolean isCorporate;
+    private java.util.List<com.strange.safety.camera.dto.CameraResponse.RoiConfigEntry> roiConfigs;
 
     public static CorporateCameraResponse from(CorporateCamera camera) {
         return from(camera, null);
@@ -54,7 +57,22 @@ public class CorporateCameraResponse {
                 .assignedVideoPath(camera.getAssignedVideoPath())
                 .connectionStatus(camera.getConnectionStatus())
                 .lastConnectionReportAt(camera.getLastConnectionReportAt())
+                .isCorporate(true)
                 .overlayRenderedInStream(false);
+        
+        if (camera.getRoiConfigs() != null) {
+            builder.roiConfigs(camera.getRoiConfigs().stream()
+                    .filter(com.strange.safety.camera.entity.RoiConfig::isActive)
+                    .map(roi -> com.strange.safety.camera.dto.CameraResponse.RoiConfigEntry.builder()
+                            .roiConfigId(roi.getId())
+                            .scenarioId(roi.getScenario().getId())
+                            .scenarioType(roi.getScenario().getScenarioType().name())
+                            .polygonPoints(roi.getPolygonPoints())
+                            .build())
+                    .toList());
+        } else {
+            builder.roiConfigs(java.util.List.of());
+        }
         applyOverlay(builder, overlay);
         return builder.build();
     }

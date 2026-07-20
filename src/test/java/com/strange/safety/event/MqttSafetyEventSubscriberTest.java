@@ -49,12 +49,14 @@ class MqttSafetyEventSubscriberTest {
                 null,
                 null,
                 null,
+                null,
                 1783410059000L,
                 1783410062400L,
                 1783410062500L,
                 1783410062500L,
                 1783410062700L,
-                1783410062600L
+                1783410062600L,
+                null
         );
 
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(event));

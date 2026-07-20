@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface RoiConfigRepository extends JpaRepository<RoiConfig, Long> {
     List<RoiConfig> findByCamera_Id(Long cameraId);
+    List<RoiConfig> findByCorporateCamera_Id(Long corporateCameraId);
 }

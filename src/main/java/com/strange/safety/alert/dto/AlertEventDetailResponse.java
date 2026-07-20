@@ -36,6 +36,11 @@ public class AlertEventDetailResponse {
 
     public static AlertEventDetailResponse from(AlertEvent event, List<SnapshotResponse> snapshots,
                                                 String vlmDescription) {
+        return from(event, snapshots, vlmDescription, event.getClipUrl());
+    }
+
+    public static AlertEventDetailResponse from(AlertEvent event, List<SnapshotResponse> snapshots,
+                                                String vlmDescription, String clipUrl) {
         return AlertEventDetailResponse.builder()
                 .alertEventId(event.getId())
                 .cameraId(event.getCamera() != null ? event.getCamera().getId() : (event.getCorporateCamera() != null ? event.getCorporateCamera().getId() : null))
@@ -46,7 +51,7 @@ public class AlertEventDetailResponse {
                 .status(event.getStatus())
                 .keypointData(event.getKeypointData())
                 .boundingBoxData(event.getBoundingBoxData())
-                .clipUrl(event.getClipUrl())
+                .clipUrl(clipUrl)
                 .clipPath(event.getClipPath())
                 .faintProb(event.getFaintProb())
                 .detectedAt(event.getDetectedAt())

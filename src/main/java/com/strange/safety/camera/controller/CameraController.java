@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 
@@ -20,6 +21,17 @@ import java.util.List;
 public class CameraController {
 
     private final CameraService cameraService;
+    private final JdbcTemplate jdbcTemplate;
+
+    @jakarta.annotation.PostConstruct
+    public void debugAlter() {
+        try {
+            jdbcTemplate.execute("ALTER TABLE roi_configs ALTER COLUMN camera_id DROP NOT NULL;");
+            System.out.println("====== DB CONSTRAINT DROPPED SUCCESSFULLY ======");
+        } catch (Exception e) {
+            System.out.println("====== DB CONSTRAINT DROP FAILED OR ALREADY DROPPED: " + e.getMessage() + " ======");
+        }
+    }
 
     @PostMapping({"/api/facilities/{facilityId}/cameras", "/api/cameras"})
     public ResponseEntity<ApiResponse<CameraResponse>> createCamera(

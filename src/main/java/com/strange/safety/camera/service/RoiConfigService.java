@@ -29,6 +29,8 @@ public class RoiConfigService {
 
     private final RoiConfigRepository roiConfigRepository;
     private final CameraRepository cameraRepository;
+    private final com.strange.safety.corporatecamera.repository.CorporateCameraRepository corporateCameraRepository;
+    private final com.strange.safety.company.repository.CompanyProfileRepository companyProfileRepository;
     private final ScenarioRepository scenarioRepository;
     private final FacilityService facilityService;
     private final ObjectMapper objectMapper;
@@ -47,6 +49,29 @@ public class RoiConfigService {
                 .build();
 
         return RoiConfigResponse.from(roiConfigRepository.save(roiConfig));
+    }
+
+    @Transactional
+    public RoiConfigResponse createCorporate(Long userId, Long cameraId, CreateRoiConfigRequest request) {
+        validatePolygonPoints(request.getPolygonPoints());
+        com.strange.safety.corporatecamera.entity.CorporateCamera camera = getCorporateCameraWithOwnerCheck(userId, cameraId);
+        Scenario scenario = scenarioRepository.findById(request.getScenarioId())
+                .orElseThrow(() -> new CustomException(ErrorCode.SCENARIO_NOT_FOUND));
+
+        RoiConfig roiConfig = RoiConfig.builder()
+                .corporateCamera(camera)
+                .scenario(scenario)
+                .polygonPoints(request.getPolygonPoints())
+                .build();
+
+        return RoiConfigResponse.from(roiConfigRepository.save(roiConfig));
+    }
+
+    public List<RoiConfigResponse> getListCorporate(Long userId, Long cameraId) {
+        getCorporateCameraWithOwnerCheck(userId, cameraId);
+        return roiConfigRepository.findByCorporateCamera_Id(cameraId).stream()
+                .map(RoiConfigResponse::from)
+                .collect(Collectors.toList());
     }
 
     public List<RoiConfigResponse> getList(Long userId, Long cameraId) {
@@ -108,7 +133,28 @@ public class RoiConfigService {
     private RoiConfig getRoiWithOwnerCheck(Long userId, Long roiConfigId) {
         RoiConfig roiConfig = roiConfigRepository.findById(roiConfigId)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROI_CONFIG_NOT_FOUND));
-        facilityService.getFacilityWithOwnerCheck(userId, roiConfig.getCamera().getFacility().getId());
+        if (roiConfig.getCamera() != null) {
+            facilityService.getFacilityWithOwnerCheck(userId, roiConfig.getCamera().getFacility().getId());
+        } else if (roiConfig.getCorporateCamera() != null) {
+            com.strange.safety.company.entity.CompanyProfile cp = companyProfileRepository.findByUser_Id(userId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
+            if (!roiConfig.getCorporateCamera().getCompanyProfile().getId().equals(cp.getId())) {
+                throw new CustomException(ErrorCode.AUTH_ACCESS_DENIED);
+            }
+        } else {
+            throw new CustomException(ErrorCode.ROI_CONFIG_NOT_FOUND);
+        }
         return roiConfig;
+    }
+
+    private com.strange.safety.corporatecamera.entity.CorporateCamera getCorporateCameraWithOwnerCheck(Long userId, Long cameraId) {
+        com.strange.safety.corporatecamera.entity.CorporateCamera camera = corporateCameraRepository.findById(cameraId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CAMERA_NOT_FOUND));
+        com.strange.safety.company.entity.CompanyProfile cp = companyProfileRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
+        if (!camera.getCompanyProfile().getId().equals(cp.getId())) {
+            throw new CustomException(ErrorCode.AUTH_ACCESS_DENIED);
+        }
+        return camera;
     }
 }

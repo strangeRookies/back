@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface SnapshotRepository extends JpaRepository<Snapshot, Long> {
     List<Snapshot> findByAlertEvent_Id(Long alertEventId);
+
+    boolean existsByAlertEvent_IdAndSnapshotUrl(Long alertEventId, String snapshotUrl);
 }

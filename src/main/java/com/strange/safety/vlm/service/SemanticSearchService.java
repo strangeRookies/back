@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -64,8 +65,12 @@ public class SemanticSearchService {
         facilityService.getFacilityWithOwnerCheck(userId, facilityId);
         validateFacilityCamera(cameraId, facilityId);
         if (pgVectorEnabled) {
-            return pgVectorFacility(facilityId, query.trim(), topK, minSimilarity,
+            List<SemanticSearchResultResponse> projected = pgVectorFacility(
+                    facilityId, query.trim(), topK, minSimilarity,
                     dateFrom, dateTo, cameraId, excludeMock);
+            if (!projected.isEmpty()) {
+                return projected;
+            }
         }
         List<AlertEventDescription> rows = repository.findSearchableForFacility(
                 facilityId, VlmJobStatus.SUCCESS, dateFrom, dateTo, cameraId, excludeMock);
@@ -84,8 +89,12 @@ public class SemanticSearchService {
         }
         validateCompanyCamera(cameraId, companyProfileId);
         if (pgVectorEnabled) {
-            return pgVectorCompany(companyProfileId, query.trim(), topK, minSimilarity,
+            List<SemanticSearchResultResponse> projected = pgVectorCompany(
+                    companyProfileId, query.trim(), topK, minSimilarity,
                     dateFrom, dateTo, cameraId, excludeMock);
+            if (!projected.isEmpty()) {
+                return projected;
+            }
         }
         List<AlertEventDescription> rows = repository.findSearchableForCompany(
                 companyProfileId, VlmJobStatus.SUCCESS, dateFrom, dateTo, cameraId, excludeMock);
@@ -135,15 +144,46 @@ public class SemanticSearchService {
 
     private List<SemanticSearchResultResponse> rankInMemory(String query, List<AlertEventDescription> rows,
                                                             int topK, double minSimilarity) {
-        double[] queryEmbedding = embeddingService.embed(query);
+        double[] queryEmbedding = safeQueryEmbedding(query);
         return rows.stream()
-                .map(row -> new ScoredDescription(row, embeddingService.cosineSimilarity(
-                        queryEmbedding, embeddingService.decode(row.getDescriptionEmbedding()))))
+                .map(row -> new ScoredDescription(row, combinedSimilarity(query, queryEmbedding, row)))
                 .filter(row -> row.score() >= minSimilarity)
                 .sorted(Comparator.comparingDouble(ScoredDescription::score).reversed())
                 .limit(topK)
                 .map(row -> toResponse(row.description(), row.score()))
                 .toList();
+    }
+
+    private double[] safeQueryEmbedding(String query) {
+        try {
+            return embeddingService.embed(query);
+        } catch (RuntimeException ignored) {
+            return new double[0];
+        }
+    }
+
+    private double combinedSimilarity(String query, double[] queryEmbedding, AlertEventDescription row) {
+        double vectorScore = 0.0d;
+        if (queryEmbedding.length > 0
+                && row.getDescriptionEmbedding() != null
+                && !row.getDescriptionEmbedding().isBlank()) {
+            vectorScore = embeddingService.cosineSimilarity(
+                    queryEmbedding, embeddingService.decode(row.getDescriptionEmbedding()));
+        }
+        String normalized = query.toLowerCase(Locale.ROOT).trim();
+        String description = row.getVlmDescription() == null
+                ? ""
+                : row.getVlmDescription().toLowerCase(Locale.ROOT);
+        String[] tokens = normalized.split("\\s+");
+        long tokenCount = Arrays.stream(tokens).filter(token -> !token.isBlank()).count();
+        long matchedTokens = Arrays.stream(tokens)
+                .filter(token -> !token.isBlank())
+                .filter(description::contains)
+                .count();
+        double lexicalScore = matchedTokens == 0 || tokenCount == 0
+                ? 0.0d
+                : 0.55d + 0.4d * matchedTokens / tokenCount;
+        return Math.max(vectorScore, lexicalScore);
     }
 
     private SemanticSearchResultResponse toResponse(AlertEventDescription row, double score) {

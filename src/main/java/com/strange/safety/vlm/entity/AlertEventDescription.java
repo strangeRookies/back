@@ -82,6 +82,28 @@ public class AlertEventDescription extends BaseEntity {
 
     @Column(name = "max_retries", nullable = false)
     private int maxRetries;
+    @Column(name = "next_attempt_at")
+    private LocalDateTime nextAttemptAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "embedding_status", nullable = false, length = 20)
+    private EmbeddingJobStatus embeddingStatus;
+
+    @Column(name = "embedding_retry_count", nullable = false)
+    private int embeddingRetryCount;
+
+    @Column(name = "embedding_max_retries", nullable = false)
+    private int embeddingMaxRetries;
+
+    @Column(name = "embedding_locked_until")
+    private LocalDateTime embeddingLockedUntil;
+
+    @Column(name = "embedding_next_attempt_at")
+    private LocalDateTime embeddingNextAttemptAt;
+
+    @Column(name = "embedding_error_message", columnDefinition = "text")
+    private String embeddingErrorMessage;
+
 
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
@@ -101,12 +123,16 @@ public class AlertEventDescription extends BaseEntity {
         this.vlmModelName = vlmModelName;
         this.retryCount = 0;
         this.maxRetries = maxRetries;
+        this.embeddingStatus = EmbeddingJobStatus.PENDING;
+        this.embeddingRetryCount = 0;
+        this.embeddingMaxRetries = maxRetries;
         this.mockResult = false;
     }
 
     public void markProcessing(LocalDateTime lockedUntil) {
         this.status = VlmJobStatus.PROCESSING;
         this.lockedUntil = lockedUntil;
+        this.nextAttemptAt = null;
         this.errorMessage = null;
     }
 
@@ -120,20 +146,59 @@ public class AlertEventDescription extends BaseEntity {
         this.deidentifiedKeyframeKeys = deidentifiedKeyframeKeys;
         this.embeddingModelName = embeddingModelName;
         this.mockResult = mockResult;
+        this.embeddingStatus = descriptionEmbedding == null || descriptionEmbedding.isBlank()
+                ? EmbeddingJobStatus.PENDING
+                : EmbeddingJobStatus.SUCCESS;
+        this.embeddingLockedUntil = null;
+        this.embeddingNextAttemptAt = null;
+        this.embeddingErrorMessage = null;
         this.lockedUntil = null;
+        this.nextAttemptAt = null;
         this.errorMessage = null;
     }
 
     public void markSkipped(String errorMessage) {
         this.status = VlmJobStatus.SKIPPED;
         this.lockedUntil = null;
+        this.nextAttemptAt = null;
         this.errorMessage = errorMessage;
     }
 
-    public void markFailed(String errorMessage) {
+    public void markFailed(String errorMessage, LocalDateTime nextAttemptAt) {
         this.retryCount += 1;
         this.status = this.retryCount >= this.maxRetries ? VlmJobStatus.FAILED : VlmJobStatus.PENDING;
         this.lockedUntil = null;
+        this.nextAttemptAt = this.status == VlmJobStatus.PENDING ? nextAttemptAt : null;
         this.errorMessage = errorMessage;
+    }
+
+    public void markEmbeddingProcessing(LocalDateTime lockedUntil) {
+        this.embeddingStatus = EmbeddingJobStatus.PROCESSING;
+        this.embeddingLockedUntil = lockedUntil;
+        this.embeddingNextAttemptAt = null;
+        this.embeddingErrorMessage = null;
+    }
+
+    public void markEmbeddingSuccess(String descriptionEmbedding, String embeddingModelName) {
+        this.descriptionEmbedding = descriptionEmbedding;
+        this.embeddingModelName = embeddingModelName;
+        this.embeddingStatus = EmbeddingJobStatus.SUCCESS;
+        this.embeddingLockedUntil = null;
+        this.embeddingNextAttemptAt = null;
+        this.embeddingErrorMessage = null;
+    }
+
+    public void markEmbeddingFailed(String errorMessage, LocalDateTime nextAttemptAt) {
+        this.embeddingRetryCount += 1;
+        this.embeddingStatus = this.embeddingRetryCount >= this.embeddingMaxRetries
+                ? EmbeddingJobStatus.FAILED
+                : EmbeddingJobStatus.PENDING;
+        this.embeddingLockedUntil = null;
+        this.embeddingNextAttemptAt = this.embeddingStatus == EmbeddingJobStatus.PENDING ? nextAttemptAt : null;
+        this.embeddingErrorMessage = errorMessage;
+    }
+
+    public void markFailed(String errorMessage) {
+        markFailed(errorMessage, LocalDateTime.now());
     }
 }

@@ -1,5 +1,7 @@
 package com.strange.safety.incident;
 
+import com.strange.safety.auth.entity.Role;
+import com.strange.safety.auth.security.CustomUserDetails;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -11,6 +13,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.is;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,6 +46,7 @@ class IncidentAcknowledgeControllerTest {
                 """;
 
         mockMvc.perform(post("/api/incidents/{eventId}/acknowledge-and-record", "camera-1:Faint:1780550000:7")
+                        .with(user(new CustomUserDetails(1L, "safety-user@example.com", Role.INDIVIDUAL)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated())

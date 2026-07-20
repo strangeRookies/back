@@ -93,6 +93,31 @@ public class SnapshotAssistStore {
         return record;
     }
 
+    public synchronized void saveContext(String eventId, SnapshotAssistContext context) throws IOException {
+        Path dir = root.resolve(sanitize(eventId));
+        Files.createDirectories(dir);
+        Path ctx = dir.resolve("context.json");
+        Path tmp = dir.resolve("context.json.tmp");
+        mapper.writerWithDefaultPrettyPrinter().writeValue(tmp.toFile(), context);
+        try {
+            Files.move(tmp, ctx, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException ex) {
+            Files.move(tmp, ctx, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    public Optional<SnapshotAssistContext> loadContext(String eventId) {
+        Path ctx = root.resolve(sanitize(eventId)).resolve("context.json");
+        if (!Files.isRegularFile(ctx)) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(mapper.readValue(ctx.toFile(), SnapshotAssistContext.class));
+        } catch (IOException ex) {
+            return Optional.empty();
+        }
+    }
+
     public int deleteOlderThan(Instant cutoff) throws IOException {
         int removed = 0;
         if (!Files.isDirectory(root)) {
