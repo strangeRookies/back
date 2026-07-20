@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: 1. 백엔드 소스코드 가져오기
+    - name: 1. 백엔드 소스코드 가져오기!!
       uses: actions/checkout@v4
 
     - name: 2. AWS 인증 정보 설정
