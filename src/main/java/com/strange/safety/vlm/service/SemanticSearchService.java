@@ -65,11 +65,15 @@ public class SemanticSearchService {
         facilityService.getFacilityWithOwnerCheck(userId, facilityId);
         validateFacilityCamera(cameraId, facilityId);
         if (pgVectorEnabled) {
-            List<SemanticSearchResultResponse> projected = pgVectorFacility(
-                    facilityId, query.trim(), topK, minSimilarity,
-                    dateFrom, dateTo, cameraId, excludeMock);
-            if (!projected.isEmpty()) {
-                return projected;
+            try {
+                List<SemanticSearchResultResponse> projected = pgVectorFacility(
+                        facilityId, query.trim(), topK, minSimilarity,
+                        dateFrom, dateTo, cameraId, excludeMock);
+                if (!projected.isEmpty()) {
+                    return projected;
+                }
+            } catch (Exception ex) {
+                // Graceful fallback to in-memory rank search when PGVector query or embedding fails
             }
         }
         List<AlertEventDescription> rows = repository.findSearchableForFacility(
@@ -89,11 +93,15 @@ public class SemanticSearchService {
         }
         validateCompanyCamera(cameraId, companyProfileId);
         if (pgVectorEnabled) {
-            List<SemanticSearchResultResponse> projected = pgVectorCompany(
-                    companyProfileId, query.trim(), topK, minSimilarity,
-                    dateFrom, dateTo, cameraId, excludeMock);
-            if (!projected.isEmpty()) {
-                return projected;
+            try {
+                List<SemanticSearchResultResponse> projected = pgVectorCompany(
+                        companyProfileId, query.trim(), topK, minSimilarity,
+                        dateFrom, dateTo, cameraId, excludeMock);
+                if (!projected.isEmpty()) {
+                    return projected;
+                }
+            } catch (Exception ex) {
+                // Graceful fallback to in-memory rank search when PGVector query or embedding fails
             }
         }
         List<AlertEventDescription> rows = repository.findSearchableForCompany(
