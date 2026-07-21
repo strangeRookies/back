@@ -81,16 +81,38 @@ public class AlertEventService {
                                             Long cameraId, String keyword,
                                             Pageable pageable) {
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        Specification<AlertEvent> spec;
+        boolean isCorporate = user.getRole() == Role.CORPORATE;
 
-        if (user.getRole() == Role.CORPORATE) {
+        if (isCorporate) {
             CompanyProfile profile = companyProfileRepository.findById(facilityId).orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
             if (!profile.getUser().getId().equals(userId)) throw new CustomException(ErrorCode.FACILITY_ACCESS_DENIED);
-            spec = Specification.where(companyProfileEquals(facilityId));
         } else {
             facilityService.getFacilityWithOwnerCheck(userId, facilityId);
-            spec = Specification.where(facilityEquals(facilityId));
         }
+
+        return getListInternal(facilityId, isCorporate, severity, status, dateFrom, dateTo, cameraId, keyword, pageable);
+    }
+
+    /**
+     * 관리자 전용 조회. 소유권 검증 없이 임의의 facility/company 이력을 조회한다.
+     * 접근 제어는 {@code /api/admin/**}의 ADMIN role 요구사항으로 이미 처리되므로 별도 검증 불필요.
+     */
+    public Page<AlertEventResponse> getListForAdmin(Long facilityOrCompanyId, boolean isCorporate,
+                                            AlertSeverity severity, AlertStatus status,
+                                            LocalDateTime dateFrom, LocalDateTime dateTo,
+                                            Long cameraId, String keyword,
+                                            Pageable pageable) {
+        return getListInternal(facilityOrCompanyId, isCorporate, severity, status, dateFrom, dateTo, cameraId, keyword, pageable);
+    }
+
+    private Page<AlertEventResponse> getListInternal(Long facilityOrCompanyId, boolean isCorporate,
+                                            AlertSeverity severity, AlertStatus status,
+                                            LocalDateTime dateFrom, LocalDateTime dateTo,
+                                            Long cameraId, String keyword,
+                                            Pageable pageable) {
+        Specification<AlertEvent> spec = isCorporate
+                ? Specification.where(companyProfileEquals(facilityOrCompanyId))
+                : Specification.where(facilityEquals(facilityOrCompanyId));
 
         spec = spec.and(severity != null ? (r, q, cb) -> cb.equal(r.get("severity"), severity) : null)
                 .and(status != null ? (r, q, cb) -> cb.equal(r.get("status"), status) : null)
@@ -98,7 +120,7 @@ public class AlertEventService {
                 .and(dateTo != null ? (r, q, cb) -> cb.lessThanOrEqualTo(r.get("detectedAt"), dateTo) : null);
 
         if (cameraId != null) {
-            if (user.getRole() == Role.CORPORATE) {
+            if (isCorporate) {
                 spec = spec.and((r, q, cb) -> cb.equal(r.join("corporateCamera").get("id"), cameraId));
             } else {
                 spec = spec.and((r, q, cb) -> cb.equal(r.join("camera").get("id"), cameraId));
@@ -108,10 +130,10 @@ public class AlertEventService {
         if (keyword != null && !keyword.isBlank()) {
             String likePattern = "%" + keyword.trim() + "%";
             List<ScenarioType> matchedTypes = getScenarioTypesByKeyword(keyword.trim());
-            
+
             spec = spec.and((r, q, cb) -> {
                 jakarta.persistence.criteria.Predicate keywordPredicate;
-                if (user.getRole() == Role.CORPORATE) {
+                if (isCorporate) {
                     keywordPredicate = cb.or(
                             cb.like(r.get("keypointData"), likePattern),
                             cb.like(r.join("corporateCamera").get("cameraName"), likePattern)
@@ -247,16 +269,28 @@ public class AlertEventService {
 
     public List<AlertEventResponse> getRecent(Long userId, Long facilityId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        String contextKey;
+        boolean isCorporate = user.getRole() == Role.CORPORATE;
 
-        if (user.getRole() == Role.CORPORATE) {
+        if (isCorporate) {
             CompanyProfile profile = companyProfileRepository.findById(facilityId).orElseThrow(() -> new CustomException(ErrorCode.COMPANY_PROFILE_NOT_FOUND));
             if (!profile.getUser().getId().equals(userId)) throw new CustomException(ErrorCode.FACILITY_ACCESS_DENIED);
-            contextKey = "COMP_" + profile.getId();
         } else {
             facilityService.getFacilityWithOwnerCheck(userId, facilityId);
-            contextKey = "FAC_" + facilityId;
         }
+
+        return getRecentInternal(facilityId, isCorporate);
+    }
+
+    /**
+     * 관리자 전용 조회. 소유권 검증 없이 임의의 facility/company 최근 이벤트를 조회한다.
+     * 접근 제어는 {@code /api/admin/**}의 ADMIN role 요구사항으로 이미 처리되므로 별도 검증 불필요.
+     */
+    public List<AlertEventResponse> getRecentForAdmin(Long facilityOrCompanyId, boolean isCorporate) {
+        return getRecentInternal(facilityOrCompanyId, isCorporate);
+    }
+
+    private List<AlertEventResponse> getRecentInternal(Long facilityOrCompanyId, boolean isCorporate) {
+        String contextKey = isCorporate ? "COMP_" + facilityOrCompanyId : "FAC_" + facilityOrCompanyId;
 
         List<AlertEventResponse> cachedEvents = recentAlertCacheStore.findRecent(contextKey);
         if (!cachedEvents.isEmpty()) {
@@ -265,12 +299,12 @@ public class AlertEventService {
 
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
         List<AlertEvent> events;
-        if (user.getRole() == Role.CORPORATE) {
+        if (isCorporate) {
             events = alertEventRepository
-                    .findTop100ByCorporateCamera_CompanyProfile_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff);
+                    .findTop100ByCorporateCamera_CompanyProfile_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityOrCompanyId, cutoff);
         } else {
             events = alertEventRepository
-                    .findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityId, cutoff);
+                    .findTop100ByCamera_Facility_IdAndDetectedAtAfterOrderByDetectedAtDesc(facilityOrCompanyId, cutoff);
         }
         return events.stream()
                 .map(event -> {
