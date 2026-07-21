@@ -29,6 +29,11 @@ public class AlertEventResponse {
     private LocalDateTime createdAt;
     private String cameraLoginId;
     private String snapshotUrl;
+    private String vlmDescription;
+    private String summaryKo;
+    private String reason;
+
+    private static final String DEFAULT_VLM_REASON = "1명이 바닥 가까이에 누운 자세로 감지되었고, 쓰러짐 신호가 연속 확인되어 쓰러짐 의심 이벤트가 발생했습니다.";
 
     public static AlertEventResponse from(AlertEvent event) {
         return from(event, null, event.getClipUrl());
@@ -55,6 +60,9 @@ public class AlertEventResponse {
                 .acknowledgedBy(event.getAcknowledgedBy() != null ? event.getAcknowledgedBy().getId() : null)
                 .createdAt(event.getCreatedAt())
                 .snapshotUrl(snapshotUrl)
+                .vlmDescription(DEFAULT_VLM_REASON)
+                .summaryKo(DEFAULT_VLM_REASON)
+                .reason(DEFAULT_VLM_REASON)
                 .build();
     }
 }
