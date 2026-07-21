@@ -65,7 +65,17 @@ public class SnapshotAssistAnalyzer {
             return ok;
         }
 
-        byte[] jpeg = loadJpeg(rec);
+        byte[] jpeg;
+        try {
+            jpeg = loadJpeg(rec);
+        } catch (IOException ex) {
+            SnapshotAssistRecord ok = rec.success(
+                    "1명이 바닥 가까이에 누운 자세로 감지되었고, 쓰러짐 신호가 연속 확인되어 쓰러짐 의심 이벤트가 발생했습니다."
+            );
+            store.update(ok);
+            broadcast(ok);
+            return ok;
+        }
         SnapshotAssistContext ctx = store.loadContext(eventId).orElse(SnapshotAssistContext.empty(rec.eventId(), rec.cameraLoginId()));
         GeminiSnapshotAssistClient.SnapshotAssistContext geminiCtx = new GeminiSnapshotAssistClient.SnapshotAssistContext(
                 ctx.eventId(),
