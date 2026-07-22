@@ -319,17 +319,7 @@ public class VlmProcessingScheduler {
         });
     }
     private String safeFailure(Exception ex) {
-        if (ex instanceof AiVlmWorkerClient.AiVlmWorkerException
-                || ex instanceof IllegalStateException
-                || ex instanceof IllegalArgumentException) {
-            return ex.getMessage();
-        }
-        if (ex.getMessage() != null && (ex.getMessage().startsWith("VLM process timed out")
-                || ex.getMessage().startsWith("VLM process exited")
-                || ex.getMessage().startsWith("VLM stdout exceeded"))) {
-            return ex.getMessage();
-        }
-        return "VLM indexing failed validation or processing";
+        return ex.getClass().getName() + ": " + ex.getMessage();
     }
 
     private record RequestContext(String incidentId, String cameraLoginId, OffsetDateTime capturedAt,
